@@ -4,7 +4,10 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 
 import { createAppRouter } from "./app/router";
+import { applyTheme, readTheme } from "./app/theme";
 import "./index.css";
+
+applyTheme(readTheme());
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
