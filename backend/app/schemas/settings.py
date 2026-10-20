@@ -1,20 +1,14 @@
 from decimal import Decimal
-from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field
 
-
-def _two_places(value: Decimal) -> str:
-    return f"{value.quantize(Decimal('0.01')):.2f}"
-
-
-Markup = Annotated[Decimal, PlainSerializer(_two_places, return_type=str, when_used="json")]
+from app.schemas.types import Percent
 
 
 class SettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    default_markup: Markup
+    default_markup: Percent
 
 
 class SettingsPatch(BaseModel):

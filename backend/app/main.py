@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.api import health
 from app.api import settings as settings_api
+from app.api import stock as stock_api
 from app.core.config import get_settings
 from app.core.db import engine
 from app.core.middleware import JsonOnlyMiddleware, NoStoreMiddleware
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(settings_api.router, prefix="/api")
+    app.include_router(stock_api.router, prefix="/api")
     return app
 
 
