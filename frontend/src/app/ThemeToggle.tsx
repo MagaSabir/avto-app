@@ -22,7 +22,7 @@ export function ThemeToggle() {
     <div
       role="group"
       aria-label="Тема"
-      className="inline-flex overflow-hidden rounded-md border"
+      className="inline-flex overflow-hidden rounded-lg border"
     >
       {OPTIONS.map(({ value, label }) => (
         <button

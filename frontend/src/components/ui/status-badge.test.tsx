@@ -12,4 +12,11 @@ describe("StatusBadge", () => {
     render(<StatusBadge status={status} />);
     expect(screen.getByText(text)).toBeInTheDocument();
   });
+
+  it("renders a hollow dot for out", () => {
+    const { container } = render(<StatusBadge status="out" />);
+    const dot = container.querySelector("[aria-hidden]");
+    expect(dot).toHaveClass("border-[1.5px]");
+    expect(dot).not.toHaveClass("bg-current");
+  });
 });

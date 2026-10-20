@@ -7,7 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "rounded-md px-3 py-1.5 font-medium",
+    "rounded-lg px-3 py-1.5 font-medium",
     isActive ? "bg-selected text-foreground" : "text-muted-foreground",
   );
 }
