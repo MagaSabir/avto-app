@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { useStockItem, useStockMoves } from "@/api/stock";
+import { useStockItem, useStockMoves, type StockMove } from "@/api/stock";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,6 +9,7 @@ import { errorText } from "./formBits";
 import { formatDate, formatPrice, trimPercent } from "./format";
 import { HistoryDialog } from "./HistoryDialog";
 import { ItemActions } from "./ItemActions";
+import { MoveDetailDialog } from "./MoveDetailDialog";
 import { MoveHistory } from "./MoveHistory";
 
 function Stat({ label, children }: { label: string; children: string }) {
@@ -24,6 +25,7 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
   const item = useStockItem(itemId);
   const moves = useStockMoves(itemId);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedMove, setSelectedMove] = useState<StockMove | null>(null);
 
   if (itemId === null) {
     return (
@@ -100,7 +102,7 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
             )}
           </div>
           {moves.data ? (
-            <MoveHistory moves={moves.data} />
+            <MoveHistory moves={moves.data} onSelect={setSelectedMove} />
           ) : moves.error ? (
             <p className="text-status-out">{errorText(moves.error)}</p>
           ) : (
@@ -108,6 +110,12 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
           )}
         </div>
       </div>
+      <MoveDetailDialog
+        move={selectedMove}
+        onClose={() => {
+          setSelectedMove(null);
+        }}
+      />
       <HistoryDialog
         open={historyOpen}
         onClose={() => {

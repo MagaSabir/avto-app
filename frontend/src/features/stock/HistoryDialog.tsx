@@ -8,7 +8,7 @@ import { MoveDetailDialog } from "./MoveDetailDialog";
 import { explanation, priceText, qtyText } from "./MoveHistory";
 import { MoveTypeBadge } from "./MoveTypeBadge";
 
-const TH = "px-3 py-1.5 font-medium first:pl-4 last:pr-4";
+const TH = "whitespace-nowrap px-3 py-1.5 font-medium first:pl-4 last:pr-4";
 const TD = "px-3 py-1.5 first:pl-4 last:pr-4";
 
 export function HistoryDialog({
@@ -33,14 +33,14 @@ export function HistoryDialog({
         className="max-w-[900px]"
       >
         <div className="min-h-0 flex-1 overflow-auto pb-2">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[720px] table-fixed text-[13px]">
             <thead className="sticky top-0 border-b bg-card text-left text-muted-foreground">
               <tr>
-                <th className={TH}>Дата</th>
-                <th className={TH}>Операция</th>
-                <th className={`${TH} text-right`}>Кол-во</th>
-                <th className={`${TH} text-right`}>Цена</th>
-                <th className={`${TH} text-right`}>Остаток</th>
+                <th className={`${TH} w-[9.5rem]`}>Дата</th>
+                <th className={`${TH} w-[8rem]`}>Операция</th>
+                <th className={`${TH} w-[4.5rem] text-right`}>Кол-во</th>
+                <th className={`${TH} w-[6.5rem] text-right`}>Цена</th>
+                <th className={`${TH} w-[5rem] text-right`}>Остаток</th>
                 <th className={TH}>Комментарий</th>
               </tr>
             </thead>
@@ -76,8 +76,8 @@ export function HistoryDialog({
                   >
                     {String(m.qty_after)}
                   </td>
-                  <td className={`${TD} min-w-40 text-muted-foreground`}>
-                    <span className="line-clamp-2 break-words">
+                  <td className={`${TD} text-muted-foreground`}>
+                    <span className="line-clamp-2 [overflow-wrap:anywhere]">
                       {explanation(m) || "—"}
                     </span>
                   </td>

@@ -49,7 +49,7 @@ export function MoveDetailDialog({
             </>
           )}
           <dt className="text-muted-foreground">Комментарий</dt>
-          <dd className="break-words whitespace-pre-wrap">
+          <dd className="whitespace-pre-wrap [overflow-wrap:anywhere]">
             {move.comment ?? "—"}
           </dd>
         </dl>

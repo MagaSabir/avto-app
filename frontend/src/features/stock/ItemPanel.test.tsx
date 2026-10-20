@@ -87,4 +87,36 @@ describe("ItemPanel", () => {
     ).toBeVisible();
     expect(within(dialog).getByText("Остаток")).toBeVisible();
   });
+
+  it("opens operation details from a panel history row", async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+    mockApi({
+      "GET /api/stock/items/3": () => DETAIL,
+      "GET /api/stock/items/3/moves": () => [
+        {
+          id: 1,
+          type: "writeoff",
+          qty_delta: -1,
+          qty_after: 6,
+          price: null,
+          supplier: null,
+          comment: "полный комментарий",
+          created_at: "2026-10-15T09:30:00Z",
+        },
+      ],
+    });
+    renderWithProviders(<ItemPanel itemId={3} />);
+    fireEvent.click((await screen.findAllByText("полный комментарий"))[0]);
+    expect(await screen.findByText("Остаток после")).toBeVisible();
+    expect(
+      screen
+        .getAllByText("полный комментарий")
+        .some((el) => el.className.includes("whitespace-pre-wrap")),
+    ).toBe(true);
+  });
 });

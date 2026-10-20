@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { StockMove } from "@/api/stock";
 
@@ -61,7 +61,7 @@ describe("MoveHistory", () => {
       />,
     );
     const comment = screen.getByText("брак упаковки");
-    expect(comment).toHaveClass("block");
+    expect(comment).toHaveClass("line-clamp-2");
     expect(screen.getByText("Списание")).not.toContainElement(comment);
   });
 
@@ -77,5 +77,22 @@ describe("MoveHistory", () => {
       />,
     );
     expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("puts a clamped comment on its own line outside the grid row", () => {
+    render(
+      <MoveHistory moves={[{ ...base, type: "writeoff", comment: "брак" }]} />,
+    );
+    const comment = screen.getByText("брак");
+    expect(comment).toHaveClass("line-clamp-2");
+    const row = screen.getByText("+4").parentElement;
+    expect(row).not.toContainElement(comment);
+  });
+
+  it("calls onSelect when a row is clicked", () => {
+    const onSelect = vi.fn();
+    render(<MoveHistory moves={[base]} onSelect={onSelect} />);
+    fireEvent.click(screen.getByText("Приход"));
+    expect(onSelect).toHaveBeenCalledWith(base);
   });
 });

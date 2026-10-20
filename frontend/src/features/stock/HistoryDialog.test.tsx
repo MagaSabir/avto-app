@@ -143,4 +143,19 @@ describe("HistoryDialog", () => {
     ).toBe(true);
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("uses a fixed table layout and clamps comments", () => {
+    const { container } = render(
+      <HistoryDialog
+        open
+        onClose={() => undefined}
+        moves={[{ ...MOVES[1], comment: "очень длинный" }]}
+        title="T"
+      />,
+    );
+    expect(container.querySelector("table")).toHaveClass("table-fixed");
+    expect(container.querySelector("tbody .line-clamp-2")).toHaveTextContent(
+      "очень длинный",
+    );
+  });
 });

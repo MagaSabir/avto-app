@@ -26,7 +26,13 @@ export function priceText(move: StockMove): string {
   return `${v} ₽`;
 }
 
-export function MoveHistory({ moves }: { moves: StockMove[] }) {
+export function MoveHistory({
+  moves,
+  onSelect,
+}: {
+  moves: StockMove[];
+  onSelect?: (move: StockMove) => void;
+}) {
   if (moves.length === 0) {
     return <p className="text-muted-foreground">Движений пока нет</p>;
   }
@@ -37,23 +43,26 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
         return (
           <li
             key={m.id}
-            className="grid grid-cols-[auto_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3 py-1.5"
+            onClick={() => {
+              onSelect?.(m);
+            }}
+            className="cursor-pointer rounded py-1.5 hover:bg-muted"
           >
-            <span className="font-mono text-muted-foreground">
-              {formatDateTime(m.created_at)}
-            </span>
-            <span className="min-w-0">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3">
               <MoveTypeBadge type={m.type} />
-              {extra && (
-                <span className="block text-[12px] break-words text-muted-foreground">
-                  {extra}
-                </span>
-              )}
-            </span>
-            <span className="text-right font-mono tabular-nums">
-              {qtyText(m)}
-            </span>
-            <span className="text-right tabular-nums">{priceText(m)}</span>
+              <span className="truncate font-mono whitespace-nowrap text-muted-foreground">
+                {formatDateTime(m.created_at)}
+              </span>
+              <span className="text-right font-mono tabular-nums">
+                {qtyText(m)}
+              </span>
+              <span className="text-right tabular-nums">{priceText(m)}</span>
+            </div>
+            {extra && (
+              <p className="line-clamp-2 text-[12px] text-muted-foreground [overflow-wrap:anywhere]">
+                {extra}
+              </p>
+            )}
           </li>
         );
       })}
