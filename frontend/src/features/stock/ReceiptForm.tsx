@@ -18,6 +18,10 @@ import { parseMarkup, usePriceFields } from "./usePriceFields";
 
 const DEBOUNCE_MS = 300;
 
+function normBrand(v: string): string {
+  return v.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
 function cents(v: string): bigint {
   return BigInt(v.replace(".", ""));
 }
@@ -90,36 +94,41 @@ export function ReceiptForm({
   }, [number]);
 
   const found = lookup.data ?? [];
-  const typedBrand = brand.trim().toUpperCase();
-  const match: StockItem | undefined =
-    found.length === 1
-      ? found[0]
-      : found.find((i) => i.brand.toUpperCase() === typedBrand);
+  const typedBrand = normBrand(brand);
+  const match: StockItem | undefined = found.find(
+    (i) => normBrand(i.brand) === typedBrand,
+  );
+  // An empty brand field with a single lookup result is prefilled too.
+  const target: StockItem | undefined =
+    match ?? (typedBrand === "" && found.length === 1 ? found[0] : undefined);
 
   const { setAll, setMarkup } = price;
   useEffect(() => {
-    if (match) {
-      if (prefilledId.current === match.id) return;
-      prefilledId.current = match.id;
-      setBrand(match.brand);
-      setName(match.name);
-      setCell(match.cell ?? "");
+    if (target) {
+      if (prefilledId.current === target.id) return;
+      prefilledId.current = target.id;
+      setBrand(target.brand);
+      setName(target.name);
+      setCell(target.cell ?? "");
       setAll({
-        purchase: match.purchase_price,
-        markup: trimPercent(match.markup),
-        sale: match.sale_price,
+        purchase: target.purchase_price,
+        markup: trimPercent(target.markup),
+        sale: target.sale_price,
       });
     } else if (prefilledId.current !== null) {
       prefilledId.current = null;
+      setPolicy("update");
       setMarkup(defaultMarkup);
     }
-  }, [match, defaultMarkup, setAll, setMarkup]);
+  }, [target, defaultMarkup, setAll, setMarkup]);
 
+  // Default markup is applied once, when settings first arrive.
+  const defaultApplied = useRef(false);
   useEffect(() => {
-    if (defaultMarkup !== "" && price.markup === "" && !match) {
-      setMarkup(defaultMarkup);
-    }
-  }, [defaultMarkup, price.markup, match, setMarkup]);
+    if (defaultMarkup === "" || defaultApplied.current) return;
+    defaultApplied.current = true;
+    if (price.markup === "" && !prefilledId.current) setMarkup(defaultMarkup);
+  }, [defaultMarkup, price.markup, setMarkup]);
 
   const purchase = parseMoney(price.purchase);
   const markup = parseMarkup(price.markup);

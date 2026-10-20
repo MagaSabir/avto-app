@@ -177,4 +177,53 @@ describe("ReceiptForm", () => {
     expect(input("Номер").value).toBe("W 68/3");
     expect(input("Закупка").value).toBe("405");
   });
+
+  it("keeps the markup field empty when cleared", async () => {
+    mockApi(handlers([]));
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    await waitFor(() => {
+      expect(input("Наценка, %").value).toBe("25");
+    });
+    type("Закупка", "412");
+    type("Продажа", "600");
+    type("Наценка, %", "");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(input("Наценка, %").value).toBe("");
+    expect(input("Продажа").value).toBe("600");
+  });
+
+  it("does not match when typed brand differs", async () => {
+    mockApi(handlers([MANN]));
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    type("Бренд", "BOSCH");
+    type("Номер", "W 68/3");
+    await waitFor(() => {
+      expect(screen.queryByText(/Позиция есть/)).toBeNull();
+    });
+    await new Promise((r) => setTimeout(r, 450));
+    type("Закупка", "412");
+    expect(screen.queryByText(/Позиция есть/)).toBeNull();
+    expect(screen.queryByLabelText(/поставить новую/)).toBeNull();
+    expect(input("Бренд").value).toBe("BOSCH");
+  });
+
+  it("prefills the item of the typed brand among several", async () => {
+    const BOSCH = {
+      ...MANN,
+      id: 2,
+      brand: "BOSCH",
+      name: "Фильтр Bosch",
+      purchase_price: "300.00",
+    };
+    mockApi(handlers([MANN, BOSCH]));
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    type("Номер", "W 68/3");
+    await new Promise((r) => setTimeout(r, 450));
+    expect(input("Название").value).toBe("");
+    type("Бренд", " bosch ");
+    await waitFor(() => {
+      expect(input("Название").value).toBe("Фильтр Bosch");
+    });
+    expect(input("Закупка").value).toBe("300.00");
+  });
 });
