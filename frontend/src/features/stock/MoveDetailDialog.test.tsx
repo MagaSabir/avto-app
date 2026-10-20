@@ -1,0 +1,93 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { StockMove } from "@/api/stock";
+
+import { MoveDetailDialog } from "./MoveDetailDialog";
+
+const MOVE: StockMove = {
+  id: 1,
+  type: "writeoff",
+  qty_delta: -2,
+  qty_after: 5,
+  price: null,
+  supplier: null,
+  comment: "первая строка\nвторая строка",
+  created_at: "2026-10-15T09:30:00Z",
+};
+
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (
+    this: HTMLDialogElement,
+  ) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
+});
+
+afterEach(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
+
+describe("MoveDetailDialog", () => {
+  it("shows badge, balance and the full multi-line comment", () => {
+    render(<MoveDetailDialog move={MOVE} onClose={() => undefined} />);
+    expect(screen.getByText("Списание")).toBeInTheDocument();
+    expect(screen.getByText("Остаток после")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("−2")).toBeInTheDocument();
+    const comment = screen.getByText(/первая строка/);
+    expect(comment.textContent).toBe("первая строка\nвторая строка");
+    expect(comment).toHaveClass("whitespace-pre-wrap");
+    expect(screen.getByText("Цена").nextSibling).toHaveTextContent("0 ₽");
+  });
+
+  it("shows was/actual for an adjustment", () => {
+    render(
+      <MoveDetailDialog
+        move={{
+          ...MOVE,
+          type: "adjustment",
+          qty_delta: -1,
+          qty_after: 4,
+          comment: null,
+        }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("было 5, факт 4")).toBeInTheDocument();
+    expect(screen.getByText("Комментарий").nextSibling).toHaveTextContent("—");
+  });
+
+  it("shows supplier for a receipt", () => {
+    render(
+      <MoveDetailDialog
+        move={{
+          ...MOVE,
+          type: "receipt",
+          qty_delta: 4,
+          price: "412.00",
+          supplier: "Росско",
+        }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Поставщик")).toBeInTheDocument();
+    expect(screen.getByText("Росско")).toBeInTheDocument();
+    expect(screen.getByText("412,00 ₽")).toBeInTheDocument();
+  });
+
+  it("calls onClose from the close button", () => {
+    const onClose = vi.fn();
+    render(<MoveDetailDialog move={MOVE} onClose={onClose} />);
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+});
