@@ -1,16 +1,9 @@
 import type { StockMove } from "@/api/stock";
 
 import { formatDateTime, formatPrice } from "./format";
+import { MoveTypeBadge } from "./MoveTypeBadge";
 
-const LABELS: Record<StockMove["type"], string> = {
-  receipt: "Приход",
-  sale: "Продажа",
-  return: "Возврат",
-  writeoff: "Списание",
-  adjustment: "Корректировка",
-};
-
-function explanation(move: StockMove): string {
+export function explanation(move: StockMove): string {
   if (move.type === "receipt") return move.supplier ?? "";
   if (move.type === "adjustment") {
     const was = `было ${String(move.qty_after - move.qty_delta)}, факт ${String(move.qty_after)}`;
@@ -24,7 +17,7 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
     return <p className="text-muted-foreground">Движений пока нет</p>;
   }
   return (
-    <ul className="flex flex-col divide-y text-[13px]">
+    <ul className="flex max-h-72 flex-col divide-y overflow-y-auto text-[13px]">
       {moves.map((m) => {
         const extra = explanation(m);
         return (
@@ -36,15 +29,11 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
               {formatDateTime(m.created_at)}
             </span>
             <span>
-              <span className="font-medium">{LABELS[m.type]}</span>
+              <MoveTypeBadge type={m.type} />
               {extra && <span className="text-muted-foreground"> {extra}</span>}
             </span>
             <span className="text-right font-mono">
-              <span
-                className={
-                  m.qty_delta > 0 ? "font-semibold text-status-ok" : undefined
-                }
-              >
+              <span>
                 {m.qty_delta > 0
                   ? `+${String(m.qty_delta)}`
                   : `−${String(Math.abs(m.qty_delta))}`}

@@ -41,10 +41,10 @@ describe("MoveHistory", () => {
 
   it("shows a receipt with supplier and a positive delta", () => {
     render(<MoveHistory moves={[base]} />);
-    expect(screen.getByText("Приход")).toBeInTheDocument();
+    expect(screen.getByText("Приход")).toHaveClass("bg-move-receipt-bg");
     expect(screen.getByText("Росско")).toBeInTheDocument();
     const delta = screen.getByText("+4");
-    expect(delta).toHaveClass("text-status-ok");
+    expect(delta).not.toHaveClass("text-status-ok");
   });
 
   it("shows an empty state", () => {

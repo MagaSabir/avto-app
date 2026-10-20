@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderWithProviders } from "@/test/mockApi";
@@ -47,5 +47,36 @@ describe("ItemPanel", () => {
     expect(screen.getByText(/15\.10\.2026 · Росско/)).toBeInTheDocument();
     expect(screen.getByText(/Продано за 30 дн/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Продать" })).toBeInTheDocument();
+  });
+
+  it("opens the full history dialog", async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+    mockApi({
+      "GET /api/stock/items/3": () => DETAIL,
+      "GET /api/stock/items/3/moves": () => [
+        {
+          id: 1,
+          type: "receipt",
+          qty_delta: 4,
+          qty_after: 7,
+          price: "412.00",
+          supplier: "Росско",
+          comment: null,
+          created_at: "2026-10-15T09:30:00Z",
+        },
+      ],
+    });
+    renderWithProviders(<ItemPanel itemId={3} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Вся история" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText("История: W 68/3 · MANN-FILTER"),
+    ).toBeVisible();
+    expect(within(dialog).getByText("Остаток")).toBeVisible();
   });
 });

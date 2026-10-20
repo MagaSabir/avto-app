@@ -1,9 +1,13 @@
+import { useState } from "react";
+
 import { useStockItem, useStockMoves } from "@/api/stock";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 import { errorText } from "./formBits";
 import { formatDate, formatPrice, trimPercent } from "./format";
+import { HistoryDialog } from "./HistoryDialog";
 import { ItemActions } from "./ItemActions";
 import { MoveHistory } from "./MoveHistory";
 
@@ -19,6 +23,7 @@ function Stat({ label, children }: { label: string; children: string }) {
 export function ItemPanel({ itemId }: { itemId: number | null }) {
   const item = useStockItem(itemId);
   const moves = useStockMoves(itemId);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (itemId === null) {
     return (
@@ -82,7 +87,18 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
         <ItemActions key={d.id} item={d} />
 
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-[13px] font-semibold">История</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-[13px] font-semibold">История движений</h3>
+            {moves.data && moves.data.length > 0 && (
+              <Button
+                onClick={() => {
+                  setHistoryOpen(true);
+                }}
+              >
+                Вся история
+              </Button>
+            )}
+          </div>
           {moves.data ? (
             <MoveHistory moves={moves.data} />
           ) : moves.error ? (
@@ -92,6 +108,14 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
           )}
         </div>
       </div>
+      <HistoryDialog
+        open={historyOpen}
+        onClose={() => {
+          setHistoryOpen(false);
+        }}
+        moves={moves.data ?? []}
+        title={`История: ${d.number_raw} · ${d.brand}`}
+      />
     </Card>
   );
 }
