@@ -12,7 +12,7 @@ export function StockPage() {
   const selectedId = Number.isInteger(raw) && raw > 0 ? raw : null;
 
   const select = (id: number) => {
-    setParams({ item: String(id) });
+    setParams({ item: String(id) }, { replace: true });
   };
 
   return (
