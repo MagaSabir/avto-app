@@ -14,7 +14,12 @@ import { Input } from "@/components/ui/input";
 
 import { cents, errorText, Field } from "./formBits";
 import { formatPrice, trimPercent } from "./format";
-import { parseMarkup, parseMoney } from "./pricing";
+import {
+  markupFromSale,
+  markupTooLarge,
+  parseMarkup,
+  parseMoney,
+} from "./pricing";
 import { useFlash } from "./useFlash";
 import { usePriceFields } from "./usePriceFields";
 
@@ -49,6 +54,7 @@ function FormShell({
   pending,
   error,
   warning,
+  tooLarge,
   onSubmit,
   onCancel,
   children,
@@ -58,6 +64,7 @@ function FormShell({
   pending: boolean;
   error: Error | null;
   warning?: boolean;
+  tooLarge?: boolean;
   onSubmit: () => void;
   onCancel: () => void;
   children: ReactNode;
@@ -70,6 +77,11 @@ function FormShell({
     <form onSubmit={submit} className="flex flex-col gap-2.5">
       <div className="grid grid-cols-2 gap-2.5">{children}</div>
       {warning && <p className="text-status-low">Цена продажи ниже закупки</p>}
+      {tooLarge && (
+        <p className="text-status-out">
+          Наценка слишком большая — проверьте закупку
+        </p>
+      )}
       {error && <p className="text-status-out">{errorText(error)}</p>}
       <div className="flex gap-2">
         <Button
@@ -297,6 +309,10 @@ function EditForm({ item, onCancel, onDone }: FormProps) {
     Object.keys(patch).length > 0;
   const below =
     purchase !== null && sale !== null && cents(sale) < cents(purchase);
+  const tooLarge =
+    purchase !== null &&
+    sale !== null &&
+    markupTooLarge(markupFromSale(purchase, sale));
 
   return (
     <FormShell
@@ -305,6 +321,7 @@ function EditForm({ item, onCancel, onDone }: FormProps) {
       pending={op.isPending}
       error={op.error}
       warning={below}
+      tooLarge={tooLarge}
       onCancel={onCancel}
       onSubmit={() => {
         op.mutate(patch, {

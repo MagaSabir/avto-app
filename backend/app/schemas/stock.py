@@ -9,6 +9,9 @@ from app.domain.stock import StockStatus, stock_status
 from app.models.stock import MoveType
 from app.schemas.types import Money, Percent
 
+# stock_items.markup is NUMERIC(6,2).
+MAX_MARKUP = Decimal("9999.99")
+
 
 class StockItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -63,7 +66,7 @@ class ReceiptIn(BaseModel):
     qty: int = Field(gt=0)
     cell: str | None = None
     purchase_price: Decimal = Field(gt=0, decimal_places=2)
-    markup: Decimal = Field(gt=-100, decimal_places=2)
+    markup: Decimal = Field(gt=-100, le=MAX_MARKUP, decimal_places=2)
     sale_price: Decimal = Field(gt=0, decimal_places=2)
     supplier: str | None = None
     comment: str | None = None
@@ -149,7 +152,7 @@ class StockItemPatch(BaseModel):
     cell: str | None = None
     min_qty: int | None = Field(default=None, ge=0)
     purchase_price: Decimal | None = Field(default=None, gt=0, decimal_places=2)
-    markup: Decimal | None = Field(default=None, gt=-100, decimal_places=2)
+    markup: Decimal | None = Field(default=None, gt=-100, le=MAX_MARKUP, decimal_places=2)
     sale_price: Decimal | None = Field(default=None, gt=0, decimal_places=2)
 
     @field_validator("name")

@@ -148,6 +148,20 @@ describe("ItemActions", () => {
     expect(await screen.findByText("✓ Сохранено")).toBeVisible();
   });
 
+  it("blocks an edit with a markup above 9999.99", () => {
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Изменить");
+    type("Закупка", "1");
+    type("Продажа", "200");
+    expect(
+      screen.getByText("Наценка слишком большая — проверьте закупку"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Сохранить" })
+        .disabled,
+    ).toBe(true);
+  });
+
   it("returns to the buttons on cancel", () => {
     renderWithProviders(<ItemActions item={ITEM} />);
     click("Списать");

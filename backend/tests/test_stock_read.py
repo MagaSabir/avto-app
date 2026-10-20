@@ -126,6 +126,7 @@ async def test_patch_item(client: AsyncClient) -> None:
     assert (await client.patch(url, json={"name": "   "})).status_code == 422
     assert (await client.patch(url, json={"sale_price": "0"})).status_code == 422
     assert (await client.patch(url, json={"purchase_price": "1.234"})).status_code == 422
+    assert (await client.patch(url, json={"markup": "10000"})).status_code == 422
     r = await client.patch("/api/stock/items/999999", json={"min_qty": 1})
     assert r.status_code == 404
     assert r.json() == {"message": "Позиция не найдена"}

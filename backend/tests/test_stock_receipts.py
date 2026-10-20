@@ -105,6 +105,7 @@ async def test_receipt_validation(client: AsyncClient) -> None:
         {"number": "@7804"},
         {"brand": "  "},
         {"sale_price": "0"},
+        {"markup": "10000", "sale_price": "10010.00"},
     ):
         r = await client.post("/api/stock/receipts", json=_body(**over))
         assert r.status_code == 422, over
@@ -119,3 +120,12 @@ async def test_receipt_negative_markup(client: AsyncClient) -> None:
 async def test_receipt_markup_minus_100_rejected(client: AsyncClient) -> None:
     r = await client.post("/api/stock/receipts", json=_body(markup="-100"))
     assert r.status_code == 422
+
+
+async def test_receipt_max_markup_accepted(client: AsyncClient) -> None:
+    r = await client.post(
+        "/api/stock/receipts",
+        json=_body(purchase_price="1.00", markup="9999.99", sale_price="110.00"),
+    )
+    assert r.status_code == 201
+    assert r.json()["item"]["markup"] == "9999.99"
