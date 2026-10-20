@@ -1,0 +1,51 @@
+import { screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { mockApi, renderWithProviders } from "@/test/mockApi";
+
+import { ItemPanel } from "./ItemPanel";
+
+const DETAIL = {
+  id: 3,
+  number_raw: "W 68/3",
+  number_norm: "W683",
+  brand: "MANN-FILTER",
+  name: "Фильтр масляный",
+  qty: 7,
+  min_qty: 1,
+  cell: "A-12",
+  purchase_price: "412.00",
+  markup: "30.00",
+  sale_price: "540.00",
+  status: "ok",
+  last_receipt_at: "2026-10-15T09:30:00Z",
+  last_receipt_supplier: "Росско",
+  last_sale_at: null,
+  sold_30d: 4,
+};
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("ItemPanel", () => {
+  it("shows a hint without an item", () => {
+    renderWithProviders(<ItemPanel itemId={null} />);
+    expect(screen.getByText("Выберите позицию в таблице")).toBeInTheDocument();
+  });
+
+  it("shows the item summary", async () => {
+    mockApi({
+      "GET /api/stock/items/3": () => DETAIL,
+      "GET /api/stock/items/3/moves": () => [],
+    });
+    renderWithProviders(<ItemPanel itemId={3} />);
+    expect(await screen.findByText("W 68/3")).toBeInTheDocument();
+    expect(screen.getByText("в наличии")).toBeInTheDocument();
+    expect(screen.getByText("7 шт")).toBeInTheDocument();
+    expect(screen.getByText("мин. 1")).toBeInTheDocument();
+    expect(screen.getByText("540 ₽")).toBeInTheDocument();
+    expect(screen.getByText("нац. 30%")).toBeInTheDocument();
+    expect(screen.getByText(/15\.10\.2026 · Росско/)).toBeInTheDocument();
+    expect(screen.getByText(/Продано за 30 дн/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Продать" })).toBeInTheDocument();
+  });
+});

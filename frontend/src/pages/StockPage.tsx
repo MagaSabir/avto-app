@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router";
 
 import { Card } from "@/components/ui/card";
 import { DefaultMarkupField } from "@/features/stock/DefaultMarkupField";
+import { ItemPanel } from "@/features/stock/ItemPanel";
 import { ReceiptForm } from "@/features/stock/ReceiptForm";
 import { StockTable } from "@/features/stock/StockTable";
 
@@ -26,9 +27,7 @@ export function StockPage() {
       </Card>
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <StockTable selectedId={selectedId} onSelect={select} />
-        <Card>
-          <p className="text-muted-foreground">Выберите позицию в таблице</p>
-        </Card>
+        <ItemPanel itemId={selectedId} />
       </div>
     </div>
   );

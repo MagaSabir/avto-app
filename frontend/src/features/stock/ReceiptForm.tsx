@@ -7,11 +7,11 @@ import {
   useStockSuppliers,
   type StockItem,
 } from "@/api/stock";
-import { ApiError } from "@/api/client";
 import { useSettings } from "@/api/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { cents, errorText, Field } from "./formBits";
 import { formatMoney, formatPrice, trimPercent } from "./format";
 import { exactPrice, parseMarkup, parseMoney, salePrice } from "./pricing";
 import { usePriceFields } from "./usePriceFields";
@@ -20,38 +20,6 @@ const DEBOUNCE_MS = 300;
 
 function normBrand(v: string): string {
   return v.trim().replace(/\s+/g, " ").toUpperCase();
-}
-
-function cents(v: string): bigint {
-  return BigInt(v.replace(".", ""));
-}
-
-function errorText(error: Error): string {
-  if (
-    error instanceof ApiError &&
-    error.status === 422 &&
-    error.message.startsWith("HTTP ")
-  ) {
-    return "Проверьте введённые данные";
-  }
-  return error.message;
-}
-
-function Field({
-  label,
-  className,
-  children,
-}: {
-  label: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={`flex flex-col gap-1 ${className ?? ""}`}>
-      <span className="text-[12.5px] text-muted-foreground">{label}</span>
-      {children}
-    </label>
-  );
 }
 
 export function ReceiptForm({

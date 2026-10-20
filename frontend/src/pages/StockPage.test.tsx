@@ -31,9 +31,17 @@ it("marks the item from the URL as selected", async () => {
     "GET /api/stock/brands": () => [],
     "GET /api/stock/suppliers": () => [],
     "GET /api/stock/lookup": () => [],
+    "GET /api/stock/items/5": () => ({
+      ...mk(5),
+      last_receipt_at: null,
+      last_receipt_supplier: null,
+      last_sale_at: null,
+      sold_30d: 0,
+    }),
+    "GET /api/stock/items/5/moves": () => [],
   });
   renderWithProviders(<StockPage />, { route: "/stock?item=5" });
   const cell = await screen.findByText("OC-5");
   expect(cell.closest("tr")).toHaveAttribute("aria-selected", "true");
-  expect(screen.getByText("Выберите позицию в таблице")).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "Продать" })).toBeVisible();
 });
