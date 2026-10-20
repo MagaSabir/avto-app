@@ -13,7 +13,14 @@ import { Input } from "@/components/ui/input";
 
 import { cents, errorText, Field } from "./formBits";
 import { formatMoney, formatPrice, trimPercent } from "./format";
-import { exactPrice, parseMarkup, parseMoney, salePrice } from "./pricing";
+import {
+  exactPrice,
+  markupFromSale,
+  markupTooLarge,
+  parseMarkup,
+  parseMoney,
+  salePrice,
+} from "./pricing";
 import { useFlash } from "./useFlash";
 import { usePriceFields } from "./usePriceFields";
 
@@ -41,6 +48,9 @@ export function ReceiptForm({
   const [cell, setCell] = useState("");
   const [supplier, setSupplier] = useState("");
   const [policy, setPolicy] = useState<"update" | "keep">("update");
+  // The debounced number the last prefill came from; reset once the number
+  // changes, so an emptied brand is auto-filled only for a new number.
+  const [prefillNumber, setPrefillNumber] = useState<string | null>(null);
   const [accepted, setAccepted] = useFlash();
   const price = usePriceFields({ purchase: "", markup: "", sale: "" });
 
@@ -55,7 +65,9 @@ export function ReceiptForm({
 
   useEffect(() => {
     const id = setTimeout(() => {
-      setDebounced(number.trim());
+      const next = number.trim();
+      setDebounced(next);
+      setPrefillNumber((p) => (p === next ? p : null));
     }, DEBOUNCE_MS);
     return () => {
       clearTimeout(id);
@@ -67,15 +79,19 @@ export function ReceiptForm({
   const match: StockItem | undefined = found.find(
     (i) => normBrand(i.brand) === typedBrand,
   );
-  // An empty brand field with a single lookup result is prefilled too.
+  // An empty brand field with a single lookup result is prefilled too,
+  // unless the user emptied it after a prefill for this same number.
+  const numberChanged = prefillNumber !== debounced;
+  const autoFill = typedBrand === "" && found.length === 1 && numberChanged;
   const target: StockItem | undefined =
-    match ?? (typedBrand === "" && found.length === 1 ? found[0] : undefined);
+    match ?? (autoFill ? found[0] : undefined);
 
   const { setAll, setMarkup } = price;
   useEffect(() => {
     if (target) {
       if (prefilledId.current === target.id) return;
       prefilledId.current = target.id;
+      setPrefillNumber(debounced);
       setBrand(target.brand);
       setName(target.name);
       setCell(target.cell ?? "");
@@ -85,11 +101,16 @@ export function ReceiptForm({
         sale: target.sale_price,
       });
     } else if (prefilledId.current !== null) {
+      // The prefilled item no longer matches: drop its data. A brand the
+      // user is editing for the same number is kept.
       prefilledId.current = null;
+      setBrand((b) => (numberChanged ? "" : b));
+      setName("");
+      setCell("");
       setPolicy("update");
-      setMarkup(defaultMarkup);
+      setAll({ purchase: "", markup: defaultMarkup, sale: "" });
     }
-  }, [target, defaultMarkup, setAll, setMarkup]);
+  }, [target, debounced, numberChanged, defaultMarkup, setAll]);
 
   // Default markup is applied once, when settings first arrive.
   const defaultApplied = useRef(false);
@@ -103,6 +124,10 @@ export function ReceiptForm({
   const markup = parseMarkup(price.markup);
   const sale = parseMoney(price.sale);
   const qtyNum = /^\d+$/.test(qty.trim()) ? Number(qty.trim()) : 0;
+  const tooLarge =
+    purchase !== null &&
+    sale !== null &&
+    markupTooLarge(markupFromSale(purchase, sale));
 
   const valid =
     number.trim() !== "" &&
@@ -163,6 +188,7 @@ export function ReceiptForm({
           setQty("");
           setCell("");
           setPolicy("update");
+          setPrefillNumber(null);
           prefilledId.current = null;
           setAll({ purchase: "", markup: defaultMarkup, sale: "" });
           numberRef.current?.focus();
@@ -317,6 +343,11 @@ export function ReceiptForm({
         )}
         {belowPurchase && (
           <p className="text-status-low">Цена продажи ниже закупки</p>
+        )}
+        {tooLarge && (
+          <p className="text-status-out">
+            Наценка слишком большая — проверьте закупку
+          </p>
         )}
         {accepted && (
           <p className="rounded-lg bg-status-ok-bg px-3 py-2 font-medium text-status-ok">

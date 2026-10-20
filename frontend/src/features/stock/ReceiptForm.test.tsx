@@ -20,7 +20,7 @@ const MANN = {
   status: "ok",
 };
 
-type Handler = (init: RequestInit) => Response | object;
+type Handler = (init: RequestInit, url: URL) => Response | object;
 
 function handlers(lookup: object[], extra: Record<string, Handler> = {}) {
   return {
@@ -269,5 +269,96 @@ describe("ReceiptForm", () => {
       expect(input("Название").value).toBe("Фильтр Bosch");
     });
     expect(input("Закупка").value).toBe("300.00");
+  });
+
+  it("clears a stale prefill when the number changes and prefills the new one", async () => {
+    const KYB = {
+      ...MANN,
+      id: 5,
+      number_raw: "333114",
+      number_norm: "333114",
+      brand: "KYB",
+      name: "Амортизатор",
+      cell: null,
+      purchase_price: "3000.00",
+      markup: "20.00",
+      sale_price: "3600.00",
+    };
+    mockApi(
+      handlers([], {
+        "GET /api/stock/lookup": (_init, url) =>
+          url.searchParams.get("number") === "W 68/3" ? [MANN] : [KYB],
+      }),
+    );
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    type("Номер", "W 68/3");
+    await waitFor(() => {
+      expect(input("Бренд").value).toBe("MANN-FILTER");
+    });
+    type("Кол-во", "2");
+    type("Поставщик", "Росско");
+    type("Номер", "333114");
+    await waitFor(() => {
+      expect(input("Бренд").value).toBe("KYB");
+    });
+    expect(input("Название").value).toBe("Амортизатор");
+    expect(input("Ячейка").value).toBe("");
+    expect(input("Закупка").value).toBe("3000.00");
+    expect(input("Продажа").value).toBe("3600.00");
+    expect(input("Кол-во").value).toBe("2");
+    expect(input("Поставщик").value).toBe("Росско");
+  });
+
+  it("clears stale prefilled fields when the new number is not in stock", async () => {
+    mockApi(
+      handlers([], {
+        "GET /api/stock/lookup": (_init, url) =>
+          url.searchParams.get("number") === "W 68/3" ? [MANN] : [],
+      }),
+    );
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    type("Номер", "W 68/3");
+    await screen.findByText("Позиция есть на складе: данные подставлены");
+    type("Кол-во", "2");
+    type("Номер", "NEW1");
+    await waitFor(() => {
+      expect(input("Бренд").value).toBe("");
+    });
+    expect(input("Название").value).toBe("");
+    expect(input("Ячейка").value).toBe("");
+    expect(input("Закупка").value).toBe("");
+    expect(input("Продажа").value).toBe("");
+    expect(input("Наценка, %").value).toBe("25");
+    expect(input("Кол-во").value).toBe("2");
+    expect(screen.queryByText(/Позиция есть/)).toBeNull();
+  });
+
+  it("does not snap the brand back after it is cleared", async () => {
+    mockApi(handlers([MANN]));
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    type("Номер", "W 68/3");
+    await waitFor(() => {
+      expect(input("Бренд").value).toBe("MANN-FILTER");
+    });
+    type("Бренд", "");
+    type("Бренд", "X");
+    type("Бренд", "");
+    await new Promise((r) => setTimeout(r, 450));
+    expect(input("Бренд").value).toBe("");
+  });
+
+  it("blocks a markup above 9999.99", async () => {
+    mockApi(handlers([]));
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    await fillRequired();
+    type("Закупка", "1");
+    type("Продажа", "200");
+    expect(
+      screen.getByText("Наценка слишком большая — проверьте закупку"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Принять" })
+        .disabled,
+    ).toBe(true);
   });
 });
