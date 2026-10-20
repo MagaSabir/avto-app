@@ -28,9 +28,13 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
             <span className="font-mono text-muted-foreground">
               {formatDateTime(m.created_at)}
             </span>
-            <span>
+            <span className="min-w-0">
               <MoveTypeBadge type={m.type} />
-              {extra && <span className="text-muted-foreground"> {extra}</span>}
+              {extra && (
+                <span className="block text-[12px] break-words text-muted-foreground">
+                  {extra}
+                </span>
+              )}
             </span>
             <span className="text-right font-mono">
               <span>

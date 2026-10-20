@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { cents, errorText, Field } from "./formBits";
 import { formatMoney, formatPrice, trimPercent } from "./format";
 import { exactPrice, parseMarkup, parseMoney, salePrice } from "./pricing";
+import { useFlash } from "./useFlash";
 import { usePriceFields } from "./usePriceFields";
 
 const DEBOUNCE_MS = 300;
@@ -40,7 +41,7 @@ export function ReceiptForm({
   const [cell, setCell] = useState("");
   const [supplier, setSupplier] = useState("");
   const [policy, setPolicy] = useState<"update" | "keep">("update");
-  const [accepted, setAccepted] = useState<string | null>(null);
+  const [accepted, setAccepted] = useFlash();
   const price = usePriceFields({ purchase: "", markup: "", sale: "" });
 
   const settings = useSettings();

@@ -24,7 +24,15 @@ const DETAIL = {
   sold_30d: 4,
 };
 
-afterEach(() => vi.unstubAllGlobals());
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
 
 describe("ItemPanel", () => {
   it("shows a hint without an item", () => {

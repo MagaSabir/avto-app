@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderWithProviders } from "@/test/mockApi";
@@ -60,6 +60,28 @@ afterEach(() => {
 });
 
 describe("ReceiptForm", () => {
+  it("hides the success line after 4 seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockApi(
+        handlers([], {
+          "POST /api/stock/receipts": () => created({ ...MANN, qty: 7 }),
+        }),
+      );
+      renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+      await fillRequired();
+      fireEvent.click(screen.getByRole("button", { name: "Принять" }));
+      const line = "✓ Принято: W 68/3 · MANN-FILTER ×4 → остаток 7";
+      expect(await screen.findByText(line)).toBeTruthy();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4100);
+      });
+      expect(screen.queryByText(line)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("prefills existing item", async () => {
     mockApi(handlers([MANN]));
     renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { cents, errorText, Field } from "./formBits";
 import { formatPrice, trimPercent } from "./format";
 import { parseMarkup, parseMoney } from "./pricing";
+import { useFlash } from "./useFlash";
 import { usePriceFields } from "./usePriceFields";
 
 type Mode = "sale" | "return" | "writeoff" | "adjustment" | "edit";
@@ -375,7 +376,7 @@ function EditForm({ item, onCancel, onDone }: FormProps) {
 
 export function ItemActions({ item }: { item: StockItemDetail }) {
   const [mode, setMode] = useState<Mode | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useFlash();
 
   const cancel = () => {
     setMode(null);

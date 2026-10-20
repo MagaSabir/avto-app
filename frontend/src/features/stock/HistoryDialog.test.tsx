@@ -28,6 +28,10 @@ const MOVES: StockMove[] = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = vi.fn(function (
     this: HTMLDialogElement,
@@ -41,6 +45,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
 });
 
 describe("HistoryDialog", () => {
@@ -72,5 +78,24 @@ describe("HistoryDialog", () => {
     render(<HistoryDialog open onClose={onClose} moves={MOVES} title="T" />);
     fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close on a click inside the content", () => {
+    const onClose = vi.fn();
+    render(<HistoryDialog open onClose={onClose} moves={MOVES} title="T" />);
+    fireEvent.click(screen.getByText("T"));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes on a click on the dialog backdrop", () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <HistoryDialog open onClose={onClose} moves={MOVES} title="T" />,
+    );
+    const dialog = container.querySelector("dialog");
+    if (!dialog) throw new Error("no dialog");
+    expect(dialog).not.toHaveClass("p-4");
+    fireEvent.click(dialog);
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

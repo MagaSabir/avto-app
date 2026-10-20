@@ -47,6 +47,24 @@ describe("MoveHistory", () => {
     expect(delta).not.toHaveClass("text-status-ok");
   });
 
+  it("renders the comment on its own line under the badge", () => {
+    render(
+      <MoveHistory
+        moves={[
+          {
+            ...base,
+            type: "writeoff",
+            qty_delta: -1,
+            comment: "брак упаковки",
+          },
+        ]}
+      />,
+    );
+    const comment = screen.getByText("брак упаковки");
+    expect(comment).toHaveClass("block");
+    expect(screen.getByText("Списание")).not.toContainElement(comment);
+  });
+
   it("shows an empty state", () => {
     render(<MoveHistory moves={[]} />);
     expect(screen.getByText("Движений пока нет")).toBeInTheDocument();

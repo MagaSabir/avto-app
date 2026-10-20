@@ -1,7 +1,7 @@
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import type { StockMove } from "@/api/stock";
-import { Button } from "@/components/ui/button";
 
 import { formatDateTime, formatPrice } from "./format";
 import { explanation } from "./MoveHistory";
@@ -38,12 +38,19 @@ export function HistoryDialog({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="m-auto max-h-[80vh] w-full max-w-[720px] overflow-y-auto rounded-lg border bg-card p-4 text-card-foreground backdrop:bg-black/50"
+      className="m-auto max-h-[80vh] w-full max-w-[720px] overflow-y-auto rounded-lg border bg-card p-0 text-card-foreground backdrop:bg-overlay"
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[15px] font-semibold">{title}</h2>
-          <Button onClick={onClose}>Закрыть</Button>
+          <button
+            type="button"
+            aria-label="Закрыть"
+            onClick={onClose}
+            className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-destructive hover:bg-status-out-bg focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <X className="size-5" aria-hidden="true" />
+          </button>
         </div>
         <table className="w-full text-[13px]">
           <thead className="text-left text-muted-foreground">
@@ -61,12 +68,13 @@ export function HistoryDialog({
                 <td className="py-1.5 font-mono text-muted-foreground">
                   {formatDateTime(m.created_at)}
                 </td>
-                <td className="py-1.5">
+                <td className="min-w-0 py-1.5">
                   <MoveTypeBadge type={m.type} />
-                  <span className="text-muted-foreground">
-                    {" "}
-                    {explanation(m)}
-                  </span>
+                  {explanation(m) && (
+                    <span className="block text-[12px] break-words text-muted-foreground">
+                      {explanation(m)}
+                    </span>
+                  )}
                 </td>
                 <td className="py-1.5 text-right font-mono">
                   {m.qty_delta > 0

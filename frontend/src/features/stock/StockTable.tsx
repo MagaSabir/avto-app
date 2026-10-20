@@ -71,10 +71,10 @@ export function StockTable({ selectedId, onSelect }: Props) {
               setStatus(value);
             }}
             className={cn(
-              "h-8 rounded-full border px-3 text-[13px] font-medium",
+              "h-8 cursor-pointer rounded-full border px-3 text-[13px] font-medium",
               status === value
                 ? "border-foreground bg-foreground text-card"
-                : "bg-card text-foreground hover:bg-muted",
+                : "bg-card text-foreground hover:bg-selected",
             )}
           >
             {label} · {counts ? counts[value] : 0}
@@ -122,9 +122,10 @@ export function StockTable({ selectedId, onSelect }: Props) {
                       onSelect(it.id);
                     }}
                     className={cn(
-                      "h-9 cursor-pointer border-b hover:bg-muted",
-                      selected &&
-                        "bg-selected shadow-[inset_3px_0_0_var(--primary)]",
+                      "h-9 cursor-pointer border-b",
+                      selected
+                        ? "bg-selected shadow-[inset_3px_0_0_var(--primary)]"
+                        : "hover:bg-muted",
                     )}
                   >
                     <td className="px-2">

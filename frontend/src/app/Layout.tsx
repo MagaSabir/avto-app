@@ -7,8 +7,10 @@ import { ThemeToggle } from "./ThemeToggle";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "rounded-lg px-3 py-1.5 font-medium",
-    isActive ? "bg-selected text-foreground" : "text-muted-foreground",
+    "cursor-pointer rounded-lg px-3 py-1.5 font-medium",
+    isActive
+      ? "bg-selected text-foreground"
+      : "text-muted-foreground hover:bg-selected",
   );
 }
 

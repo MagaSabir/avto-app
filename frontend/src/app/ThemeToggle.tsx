@@ -33,10 +33,10 @@ export function ThemeToggle() {
             select(value);
           }}
           className={cn(
-            "px-2.5 py-1 text-xs",
+            "cursor-pointer px-2.5 py-1 text-xs",
             choice === value
               ? "bg-selected text-foreground"
-              : "text-muted-foreground",
+              : "text-muted-foreground hover:bg-selected",
           )}
         >
           {label}
