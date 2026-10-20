@@ -34,7 +34,7 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
       </Card>
     );
   }
-  if (item.error) {
+  if (item.error && !item.data) {
     return (
       <Card>
         <p className="text-status-out">{errorText(item.error)}</p>
@@ -56,6 +56,9 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
   return (
     <Card>
       <div className="flex flex-col gap-3.5">
+        {item.error && (
+          <p className="text-status-out">{errorText(item.error)}</p>
+        )}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
             <span className="font-mono text-[20px] font-bold">

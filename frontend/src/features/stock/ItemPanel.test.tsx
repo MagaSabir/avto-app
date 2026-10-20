@@ -57,6 +57,26 @@ describe("ItemPanel", () => {
     expect(screen.getByRole("button", { name: "Продать" })).toBeInTheDocument();
   });
 
+  it("keeps showing the item when a refetch fails", async () => {
+    let fail = false;
+    mockApi({
+      "GET /api/stock/items/3": () =>
+        fail
+          ? new Response(JSON.stringify({ message: "Ошибка сервера" }), {
+              status: 500,
+            })
+          : DETAIL,
+      "GET /api/stock/items/3/moves": () => [],
+    });
+    const { queryClient } = renderWithProviders(<ItemPanel itemId={3} />);
+    expect(await screen.findByText("W 68/3")).toBeInTheDocument();
+    fail = true;
+    await queryClient.refetchQueries({ queryKey: ["stock", "item", 3] });
+    expect(await screen.findByText("Ошибка сервера")).toBeInTheDocument();
+    expect(screen.getByText("W 68/3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Продать" })).toBeInTheDocument();
+  });
+
   it("opens the full history dialog", async () => {
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute("open", "");
