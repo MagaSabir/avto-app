@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -29,6 +30,7 @@ export function useStockItems(
 ): UseQueryResult<StockItemList> {
   return useQuery({
     queryKey: ["stock", "items", q, status],
+    placeholderData: keepPreviousData,
     queryFn: () => {
       const params = new URLSearchParams({ q, status });
       return apiFetch<StockItemList>(`/api/stock/items?${params.toString()}`);
