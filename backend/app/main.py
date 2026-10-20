@@ -1,13 +1,15 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api import health
 from app.core.config import get_settings
 from app.core.db import engine
 from app.core.middleware import JsonOnlyMiddleware, NoStoreMiddleware
+from app.services.errors import DomainError
 
 LOCAL_FRONTEND_ORIGIN = "http://localhost:5173"
 
@@ -31,6 +33,11 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type"],
         allow_credentials=False,
     )
+
+    @app.exception_handler(DomainError)
+    async def domain_error_handler(_request: Request, exc: DomainError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"message": exc.message})
+
     app.include_router(health.router, prefix="/api")
     return app
 
