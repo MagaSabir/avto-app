@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +12,11 @@ from app.schemas.stock import (
     ReceiptIn,
     ReturnIn,
     SaleIn,
+    StatusCounts,
+    StockItemDetail,
+    StockItemList,
     StockItemOut,
+    StockItemPatch,
     StockMoveOut,
     WriteoffIn,
 )
@@ -115,3 +120,59 @@ async def adjust(session: AsyncSession, item_id: int, data: AdjustmentIn) -> Ope
         raise NothingChanged()
     move = await stock_repository.add_move(session, item, "adjustment", delta, comment=data.comment)
     return await _finish(session, item, move)
+
+
+async def list_items(
+    session: AsyncSession, q: str, status: Literal["all", "low", "out"]
+) -> StockItemList:
+    items, total, low, out = await stock_repository.list_items(session, q, status)
+    return StockItemList(
+        items=[StockItemOut.model_validate(i) for i in items],
+        counts=StatusCounts(all=total, low=low, out=out),
+    )
+
+
+async def get_detail(session: AsyncSession, item_id: int) -> StockItemDetail:
+    item = await stock_repository.get_item(session, item_id)
+    if item is None:
+        raise ItemNotFound()
+    receipt_at, supplier, sale_at, sold = await stock_repository.get_summary(session, item_id)
+    return StockItemDetail(
+        **StockItemOut.model_validate(item).model_dump(exclude={"status"}),
+        last_receipt_at=receipt_at,
+        last_receipt_supplier=supplier,
+        last_sale_at=sale_at,
+        sold_30d=sold,
+    )
+
+
+async def list_moves(session: AsyncSession, item_id: int) -> list[StockMoveOut]:
+    if await stock_repository.get_item(session, item_id) is None:
+        raise ItemNotFound()
+    moves = await stock_repository.list_moves(session, item_id)
+    return [StockMoveOut.model_validate(m) for m in moves]
+
+
+async def lookup(session: AsyncSession, number: str) -> list[StockItemOut]:
+    norm = normalize_number(number)
+    if not norm:
+        return []
+    items = await stock_repository.lookup(session, norm)
+    return [StockItemOut.model_validate(i) for i in items]
+
+
+async def list_brands(session: AsyncSession) -> list[str]:
+    return await stock_repository.list_brands(session)
+
+
+async def list_suppliers(session: AsyncSession) -> list[str]:
+    return await stock_repository.list_suppliers(session)
+
+
+async def update_item(session: AsyncSession, item_id: int, data: StockItemPatch) -> StockItemOut:
+    item = await _locked_item(session, item_id)
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
+    await session.commit()
+    await session.refresh(item)
+    return StockItemOut.model_validate(item)

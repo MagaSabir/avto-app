@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.domain.numbers import normalize_brand, normalize_number
 from app.domain.stock import StockStatus, stock_status
@@ -122,3 +122,54 @@ class AdjustmentIn(BaseModel):
     @classmethod
     def _empty_to_none(cls, value: str | None) -> str | None:
         return _blank_to_none(value)
+
+
+class StatusCounts(BaseModel):
+    all: int
+    low: int
+    out: int
+
+
+class StockItemList(BaseModel):
+    items: list[StockItemOut]
+    counts: StatusCounts
+
+
+class StockItemDetail(StockItemOut):
+    last_receipt_at: datetime | None
+    last_receipt_supplier: str | None
+    last_sale_at: datetime | None
+    sold_30d: int
+
+
+class StockItemPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    cell: str | None = None
+    min_qty: int | None = Field(default=None, ge=0)
+    purchase_price: Decimal | None = Field(default=None, gt=0, decimal_places=2)
+    markup: Decimal | None = Field(default=None, ge=0, decimal_places=2)
+    sale_price: Decimal | None = Field(default=None, gt=0, decimal_places=2)
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("name must not be blank")
+        return value
+
+    @field_validator("cell")
+    @classmethod
+    def _empty_to_none(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+    @model_validator(mode="after")
+    def _no_null_required(self) -> "StockItemPatch":
+        for field in ("name", "min_qty", "purchase_price", "markup", "sale_price"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} must not be null")
+        return self

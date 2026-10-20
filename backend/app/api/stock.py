@@ -1,6 +1,6 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -11,6 +11,11 @@ from app.schemas.stock import (
     ReceiptIn,
     ReturnIn,
     SaleIn,
+    StockItemDetail,
+    StockItemList,
+    StockItemOut,
+    StockItemPatch,
+    StockMoveOut,
     WriteoffIn,
 )
 from app.services import stock as stock_service
@@ -70,3 +75,40 @@ async def create_writeoff(item_id: int, data: WriteoffIn, session: Session) -> O
 )
 async def create_adjustment(item_id: int, data: AdjustmentIn, session: Session) -> OperationResult:
     return await stock_service.adjust(session, item_id, data)
+
+
+@router.get("/items", response_model=StockItemList)
+async def list_items(
+    session: Session, q: str = "", status: Literal["all", "low", "out"] = "all"
+) -> StockItemList:
+    return await stock_service.list_items(session, q, status)
+
+
+@router.get("/items/{item_id}", response_model=StockItemDetail, responses=_ERRORS)
+async def get_item(item_id: int, session: Session) -> StockItemDetail:
+    return await stock_service.get_detail(session, item_id)
+
+
+@router.get("/items/{item_id}/moves", response_model=list[StockMoveOut], responses=_ERRORS)
+async def list_moves(item_id: int, session: Session) -> list[StockMoveOut]:
+    return await stock_service.list_moves(session, item_id)
+
+
+@router.patch("/items/{item_id}", response_model=StockItemOut, responses=_ERRORS)
+async def update_item(item_id: int, data: StockItemPatch, session: Session) -> StockItemOut:
+    return await stock_service.update_item(session, item_id, data)
+
+
+@router.get("/lookup", response_model=list[StockItemOut])
+async def lookup(session: Session, number: Annotated[str, Query()] = "") -> list[StockItemOut]:
+    return await stock_service.lookup(session, number)
+
+
+@router.get("/brands", response_model=list[str])
+async def list_brands(session: Session) -> list[str]:
+    return await stock_service.list_brands(session)
+
+
+@router.get("/suppliers", response_model=list[str])
+async def list_suppliers(session: Session) -> list[str]:
+    return await stock_service.list_suppliers(session)
