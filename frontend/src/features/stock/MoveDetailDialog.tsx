@@ -29,7 +29,7 @@ export function MoveDetailDialog({
       }
     >
       {move && (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 overflow-auto px-4 pb-4 text-[13px]">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 overflow-auto px-4 py-3 text-[13px]">
           <dt className="text-muted-foreground">Количество</dt>
           <dd className="font-mono font-semibold">{qtyText(move)}</dd>
           <dt className="text-muted-foreground">Цена</dt>
