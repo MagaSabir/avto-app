@@ -24,3 +24,19 @@ it("shows and saves default markup on blur", async () => {
     expect(body).toBe('{"default_markup":"25.00"}');
   });
 });
+
+it("keeps the typed value and shows the error when saving fails", async () => {
+  mockApi({
+    "GET /api/settings": () => ({ default_markup: "30.00" }),
+    "PATCH /api/settings": () =>
+      new Response(JSON.stringify({ detail: [] }), { status: 422 }),
+  });
+  renderWithProviders(<DefaultMarkupField />);
+  const input = await screen.findByDisplayValue("30");
+  fireEvent.change(input, { target: { value: "5000" } });
+  fireEvent.blur(input);
+  expect(
+    await screen.findByText("Проверьте введённые данные"),
+  ).toBeInTheDocument();
+  expect(input).toHaveValue("5000");
+});
