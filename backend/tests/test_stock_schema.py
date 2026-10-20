@@ -61,7 +61,7 @@ async def test_item_markup_may_be_negative_above_minus_100(db_session: AsyncSess
 
 
 async def test_item_markup_minus_100_rejected(db_session: AsyncSession) -> None:
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError, match="markup_above_minus_100"):
         await db_session.execute(
-            text(ITEM.replace("100, 30, 130", "100, -100, 0")), {"n": "N2", "b": "B", "q": 0}
+            text(ITEM.replace("100, 30, 130", "100, -100, 130")), {"n": "N2", "b": "B", "q": 0}
         )
