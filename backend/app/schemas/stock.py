@@ -87,3 +87,38 @@ class ReceiptIn(BaseModel):
     @classmethod
     def _empty_to_none(cls, value: str | None) -> str | None:
         return _blank_to_none(value)
+
+
+class SaleIn(BaseModel):
+    qty: int = Field(gt=0)
+    price: Decimal = Field(gt=0, decimal_places=2)
+    comment: str | None = None
+
+    @field_validator("comment")
+    @classmethod
+    def _empty_to_none(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+
+class ReturnIn(SaleIn):
+    pass
+
+
+class WriteoffIn(BaseModel):
+    qty: int = Field(gt=0)
+    comment: str = Field(min_length=1)
+
+    @field_validator("comment", mode="before")
+    @classmethod
+    def _strip(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class AdjustmentIn(BaseModel):
+    actual_qty: int = Field(ge=0)
+    comment: str | None = None
+
+    @field_validator("comment")
+    @classmethod
+    def _empty_to_none(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
