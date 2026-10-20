@@ -98,4 +98,49 @@ describe("HistoryDialog", () => {
     fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("keeps the header outside the scroll container", () => {
+    const { container } = render(
+      <HistoryDialog open onClose={() => undefined} moves={MOVES} title="T" />,
+    );
+    const scroll = container.querySelector("table")?.parentElement;
+    expect(scroll).toHaveClass("overflow-auto");
+    expect(scroll).not.toContainElement(
+      screen.getByRole("button", { name: "Закрыть" }),
+    );
+    expect(scroll).not.toContainElement(screen.getByText("T"));
+  });
+
+  it("shows a dash for empty price and comment", () => {
+    render(
+      <HistoryDialog
+        open
+        onClose={() => undefined}
+        moves={[{ ...MOVES[1], type: "writeoff", price: null }]}
+        title="T"
+      />,
+    );
+    expect(screen.getAllByText("—")).toHaveLength(2);
+  });
+
+  it("opens the detail dialog with the full comment on a row click", () => {
+    const onClose = vi.fn();
+    render(
+      <HistoryDialog
+        open
+        onClose={onClose}
+        moves={[{ ...MOVES[1], comment: "длинный комментарий\nвторая строка" }]}
+        title="T"
+      />,
+    );
+    expect(screen.queryByText("Остаток после")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Продажа"));
+    expect(screen.getByText("Остаток после")).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByText(/длинный комментарий/)
+        .some((el) => el.className.includes("whitespace-pre-wrap")),
+    ).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

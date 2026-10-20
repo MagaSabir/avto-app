@@ -1,6 +1,6 @@
 import type { StockMove } from "@/api/stock";
 
-import { formatDateTime, formatPrice } from "./format";
+import { formatDateTime, formatMoney, formatPrice } from "./format";
 import { MoveTypeBadge } from "./MoveTypeBadge";
 
 export function explanation(move: StockMove): string {
@@ -10,6 +10,20 @@ export function explanation(move: StockMove): string {
     return move.comment ? `${was} · ${move.comment}` : was;
   }
   return move.comment ?? "";
+}
+
+export function qtyText(move: StockMove): string {
+  return move.qty_delta > 0
+    ? `+${String(move.qty_delta)}`
+    : `−${String(Math.abs(move.qty_delta))}`;
+}
+
+// Receipt keeps kopecks; sale and return drop zero kopecks.
+export function priceText(move: StockMove): string {
+  if (move.price === null) return "—";
+  const v =
+    move.type === "receipt" ? formatMoney(move.price) : formatPrice(move.price);
+  return `${v} ₽`;
 }
 
 export function MoveHistory({ moves }: { moves: StockMove[] }) {
@@ -23,7 +37,7 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
         return (
           <li
             key={m.id}
-            className="grid grid-cols-[auto_1fr_auto] items-baseline gap-x-3 py-1.5"
+            className="grid grid-cols-[auto_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3 py-1.5"
           >
             <span className="font-mono text-muted-foreground">
               {formatDateTime(m.created_at)}
@@ -36,18 +50,10 @@ export function MoveHistory({ moves }: { moves: StockMove[] }) {
                 </span>
               )}
             </span>
-            <span className="text-right font-mono">
-              <span>
-                {m.qty_delta > 0
-                  ? `+${String(m.qty_delta)}`
-                  : `−${String(Math.abs(m.qty_delta))}`}
-              </span>
-              {m.price !== null && (
-                <span className="ml-2 text-muted-foreground">
-                  {formatPrice(m.price)} ₽
-                </span>
-              )}
+            <span className="text-right font-mono tabular-nums">
+              {qtyText(m)}
             </span>
+            <span className="text-right tabular-nums">{priceText(m)}</span>
           </li>
         );
       })}

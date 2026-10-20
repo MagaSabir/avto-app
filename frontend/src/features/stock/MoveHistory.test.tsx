@@ -69,4 +69,13 @@ describe("MoveHistory", () => {
     render(<MoveHistory moves={[]} />);
     expect(screen.getByText("Движений пока нет")).toBeInTheDocument();
   });
+
+  it("shows a dash instead of a missing price", () => {
+    render(
+      <MoveHistory
+        moves={[{ ...base, type: "writeoff", qty_delta: -1, price: null }]}
+      />,
+    );
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
 });
