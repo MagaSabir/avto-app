@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import health
+from app.api import settings as settings_api
 from app.core.config import get_settings
 from app.core.db import engine
 from app.core.middleware import JsonOnlyMiddleware, NoStoreMiddleware
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=exc.status_code, content={"message": exc.message})
 
     app.include_router(health.router, prefix="/api")
+    app.include_router(settings_api.router, prefix="/api")
     return app
 
 
