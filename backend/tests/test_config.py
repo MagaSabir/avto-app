@@ -21,3 +21,8 @@ def test_cors_origins_empty_string_is_empty_list() -> None:
 def test_cors_origins_rejects_wildcard(value: str) -> None:
     with pytest.raises(ValidationError):
         make_settings(value)
+
+
+def test_cors_origins_strip_trailing_slash() -> None:
+    settings = make_settings("https://avto.vercel.app/")
+    assert settings.cors_origins == ["https://avto.vercel.app"]

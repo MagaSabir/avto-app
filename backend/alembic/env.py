@@ -20,7 +20,8 @@ if config.config_file_name is not None:
 
 # Tests pass the URL explicitly; otherwise it comes from the app settings.
 if not config.get_main_option("sqlalchemy.url"):
-    config.set_main_option("sqlalchemy.url", get_settings().database_url)
+    # configparser treats "%" as interpolation; URL-encoded passwords need it escaped.
+    config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

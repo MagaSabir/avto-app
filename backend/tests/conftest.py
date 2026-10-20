@@ -30,7 +30,7 @@ def _test_database_url() -> str:
 def migrated_database() -> None:
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", _test_database_url())
+    cfg.set_main_option("sqlalchemy.url", _test_database_url().replace("%", "%%"))
     try:
         command.upgrade(cfg, "head")
     except OSError:

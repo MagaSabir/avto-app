@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, value: Any) -> Any:
         if isinstance(value, str):
-            value = [origin.strip() for origin in value.split(",")]
+            value = [origin.strip().rstrip("/") for origin in value.split(",")]
         if isinstance(value, list):
             value = [origin for origin in value if origin]
             if "*" in value:
