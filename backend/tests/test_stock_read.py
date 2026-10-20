@@ -129,3 +129,10 @@ async def test_patch_item(client: AsyncClient) -> None:
     r = await client.patch("/api/stock/items/999999", json={"min_qty": 1})
     assert r.status_code == 404
     assert r.json() == {"message": "Позиция не найдена"}
+
+
+async def test_patch_negative_markup(client: AsyncClient) -> None:
+    item = await _receive(client)
+    r = await client.patch(f"/api/stock/items/{item['id']}", json={"markup": "-10"})
+    assert r.status_code == 200
+    assert r.json()["markup"] == "-10.00"

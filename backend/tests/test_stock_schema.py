@@ -52,3 +52,16 @@ async def test_move_type_checked(db_session: AsyncSession) -> None:
     item_id = await _item(db_session)
     with pytest.raises(IntegrityError):
         await _move(db_session, item_id, "gift", 1)
+
+
+async def test_item_markup_may_be_negative_above_minus_100(db_session: AsyncSession) -> None:
+    await db_session.execute(
+        text(ITEM.replace("100, 30, 130", "100, -99.99, 0.01")), {"n": "N1", "b": "B", "q": 0}
+    )
+
+
+async def test_item_markup_minus_100_rejected(db_session: AsyncSession) -> None:
+    with pytest.raises(IntegrityError):
+        await db_session.execute(
+            text(ITEM.replace("100, 30, 130", "100, -100, 0")), {"n": "N2", "b": "B", "q": 0}
+        )

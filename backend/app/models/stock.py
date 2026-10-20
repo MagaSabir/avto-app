@@ -28,7 +28,7 @@ class StockItem(Base):
         CheckConstraint("qty >= 0", name="qty_non_negative"),
         CheckConstraint("min_qty >= 0", name="min_qty_non_negative"),
         CheckConstraint("purchase_price > 0", name="purchase_price_positive"),
-        CheckConstraint("markup >= 0", name="markup_non_negative"),
+        CheckConstraint("markup > -100", name="markup_above_minus_100"),
         CheckConstraint("sale_price > 0", name="sale_price_positive"),
     )
 

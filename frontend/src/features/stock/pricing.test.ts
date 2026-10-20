@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   exactPrice,
   markupFromSale,
+  parseMarkup,
   parseMoney,
   parsePercent,
   salePrice,
@@ -69,5 +70,21 @@ describe("exactPrice", () => {
     ["100", "-20", "80.00"],
   ])("%s + %s%% = %s", (purchase, markup, expected) => {
     expect(exactPrice(purchase, markup)).toBe(expected);
+  });
+});
+
+describe("parseMarkup", () => {
+  it.each([
+    ["-27,18", "-27.18"],
+    ["-99.99", "-99.99"],
+    ["5", "5.00"],
+    ["-0", "0.00"],
+    ["-100", null],
+    ["-150", null],
+    ["abc", null],
+    ["-", null],
+    ["-1.234", null],
+  ])("%s -> %s", (input, expected) => {
+    expect(parseMarkup(input)).toBe(expected);
   });
 });

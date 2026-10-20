@@ -127,6 +127,28 @@ describe("ReceiptForm", () => {
     expect(screen.getByText("Цена продажи ниже закупки")).toBeTruthy();
   });
 
+  it("sends negative markup when sale is below purchase", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi(
+      handlers([], {
+        "POST /api/stock/receipts": (init) => {
+          body = JSON.parse(init.body as string) as Record<string, unknown>;
+          return created({ ...MANN, qty: 4 });
+        },
+      }),
+    );
+    renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
+    await fillRequired();
+    type("Закупка", "412");
+    type("Продажа", "300");
+    expect(screen.getByText("Цена продажи ниже закупки")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Принять" }));
+    await waitFor(() => {
+      expect(body.markup).toBe("-27.18");
+    });
+    expect(body.sale_price).toBe("300.00");
+  });
+
   it("invalid money blocks submit", async () => {
     const post = vi.fn();
     mockApi(handlers([], { "POST /api/stock/receipts": post }));

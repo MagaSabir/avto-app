@@ -1,18 +1,8 @@
 import { useState } from "react";
 
-import { markupFromSale, parseMoney, parsePercent, salePrice } from "./pricing";
+import { markupFromSale, parseMarkup, parseMoney, salePrice } from "./pricing";
 
 export type PriceFields = { purchase: string; markup: string; sale: string };
-
-// Markup may be negative when the sale price is set below the purchase price.
-export function parseMarkup(input: string): string | null {
-  const trimmed = input.trim();
-  if (trimmed.startsWith("-")) {
-    const abs = parsePercent(trimmed.slice(1));
-    return abs === null ? null : `-${abs}`;
-  }
-  return parsePercent(trimmed);
-}
 
 export function usePriceFields(initial: PriceFields) {
   const [fields, setFields] = useState<PriceFields>(initial);

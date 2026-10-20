@@ -42,6 +42,15 @@ export function parsePercent(input: string): string | null {
   return fromScaled(scaled);
 }
 
+// Markup may be negative (sale below purchase), but must stay above -100%.
+export function parseMarkup(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith("-")) return parsePercent(trimmed);
+  const abs = toScaled(trimmed.slice(1));
+  if (abs === null || abs >= 10000n) return null;
+  return abs === 0n ? "0.00" : fromScaled(-abs);
+}
+
 export function salePrice(purchase: string, markup: string): string {
   const kopecks = parseStrict(purchase);
   const hundredths = parseStrict(markup);

@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { formatMoney, formatPrice, trimPercent } from "./format";
-import { exactPrice, parseMoney, salePrice } from "./pricing";
-import { parseMarkup, usePriceFields } from "./usePriceFields";
+import { exactPrice, parseMarkup, parseMoney, salePrice } from "./pricing";
+import { usePriceFields } from "./usePriceFields";
 
 const DEBOUNCE_MS = 300;
 
@@ -177,8 +177,7 @@ export function ReceiptForm({
         qty: sentQty,
         cell: cell.trim() || null,
         purchase_price: purchase,
-        // Backend accepts only non-negative markup.
-        markup: markup.startsWith("-") ? "0.00" : markup,
+        markup,
         sale_price: sale,
         supplier: supplier.trim() || null,
         price_policy: priceDiffers ? policy : "update",
