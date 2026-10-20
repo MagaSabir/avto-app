@@ -22,7 +22,7 @@ export function MoveTypeBadge({ type }: { type: StockMove["type"] }) {
   const { label, cls } = STYLES[type];
   return (
     <span
-      className={`inline-block rounded-[4px] px-1.5 text-[12px] font-medium ${cls}`}
+      className={`inline-block whitespace-nowrap rounded-[4px] px-1.5 text-[12px] font-medium ${cls}`}
     >
       {label}
     </span>

@@ -43,6 +43,10 @@ export function formatDate(iso: string): string {
   return dateFmt.format(new Date(iso));
 }
 
+export function formatShortDateTime(iso: string): string {
+  return `${formatDate(iso).slice(0, 5)} ${timeFmt.format(new Date(iso))}`;
+}
+
 export function formatDateTime(iso: string): string {
   return `${formatDate(iso)} ${timeFmt.format(new Date(iso))}`;
 }

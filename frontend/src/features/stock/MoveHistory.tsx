@@ -1,6 +1,6 @@
 import type { StockMove } from "@/api/stock";
 
-import { formatDateTime, formatMoney, formatPrice } from "./format";
+import { formatMoney, formatPrice, formatShortDateTime } from "./format";
 import { MoveTypeBadge } from "./MoveTypeBadge";
 
 export function explanation(move: StockMove): string {
@@ -48,10 +48,10 @@ export function MoveHistory({
             }}
             className="cursor-pointer rounded py-1.5 hover:bg-muted"
           >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3">
+            <div className="grid grid-cols-[7.5rem_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3">
               <MoveTypeBadge type={m.type} />
               <span className="truncate font-mono whitespace-nowrap text-muted-foreground">
-                {formatDateTime(m.created_at)}
+                {formatShortDateTime(m.created_at)}
               </span>
               <span className="text-right font-mono tabular-nums">
                 {qtyText(m)}

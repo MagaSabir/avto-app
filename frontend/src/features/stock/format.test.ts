@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatDateTime, formatMoney, formatPrice } from "./format";
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatPrice,
+  formatShortDateTime,
+} from "./format";
 
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, " ");
 
@@ -14,6 +20,11 @@ describe("format", () => {
     expect(formatPrice("540.00")).toBe("540");
     expect(formatPrice("540.50")).toBe("540,50");
     expect(plain(formatPrice("12540.00"))).toBe("12 540");
+  });
+
+  it("formatShortDateTime omits the year", () => {
+    const d = new Date(2026, 9, 20, 23, 43);
+    expect(formatShortDateTime(d.toISOString())).toBe("20.10 23:43");
   });
 
   it("formatDateTime and formatDate use local time", () => {
