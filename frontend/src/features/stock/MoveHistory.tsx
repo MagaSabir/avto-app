@@ -48,15 +48,19 @@ export function MoveHistory({
             }}
             className="cursor-pointer rounded py-1.5 hover:bg-muted"
           >
-            <div className="grid grid-cols-[7.5rem_minmax(0,1fr)_3rem_5.5rem] items-baseline gap-x-3">
-              <MoveTypeBadge type={m.type} />
-              <span className="truncate font-mono whitespace-nowrap text-muted-foreground">
+            <div className="grid grid-cols-[5.5rem_minmax(0,1fr)_2.5rem_5rem] items-center gap-x-2">
+              <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
                 {formatShortDateTime(m.created_at)}
+              </span>
+              <span className="justify-self-start">
+                <MoveTypeBadge type={m.type} />
               </span>
               <span className="text-right font-mono tabular-nums">
                 {qtyText(m)}
               </span>
-              <span className="text-right tabular-nums">{priceText(m)}</span>
+              <span className="text-right whitespace-nowrap tabular-nums">
+                {priceText(m)}
+              </span>
             </div>
             {extra && (
               <p className="line-clamp-2 text-[12px] text-muted-foreground [overflow-wrap:anywhere]">
