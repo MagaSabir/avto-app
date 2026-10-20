@@ -46,3 +46,8 @@ export function formatDate(iso: string): string {
 export function formatDateTime(iso: string): string {
   return `${formatDate(iso)} ${timeFmt.format(new Date(iso))}`;
 }
+
+// "30.00" -> "30", "27.50" -> "27.5"
+export function trimPercent(v: string): string {
+  return v.includes(".") ? v.replace(/\.?0+$/, "") : v;
+}

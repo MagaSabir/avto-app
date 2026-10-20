@@ -64,3 +64,9 @@ export function markupFromSale(purchase: string, sale: string): string {
   const q = (2n * absNum + absDen) / (2n * absDen);
   return fromScaled(neg ? -q : q);
 }
+
+// Unrounded purchase * (1 + markup/100), kopecks rounded half up.
+export function exactPrice(purchase: string, markup: string): string {
+  const numerator = parseStrict(purchase) * (10000n + parseStrict(markup));
+  return fromScaled((numerator + 5000n) / 10000n);
+}

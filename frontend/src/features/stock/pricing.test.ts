@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { markupFromSale, parseMoney, parsePercent, salePrice } from "./pricing";
+import {
+  exactPrice,
+  markupFromSale,
+  parseMoney,
+  parsePercent,
+  salePrice,
+} from "./pricing";
 
 describe("salePrice", () => {
   it.each([
@@ -51,5 +57,17 @@ describe("parsePercent", () => {
   });
   it.each(["-1", "x", "1.234", ""])("%s -> null", (input) => {
     expect(parsePercent(input)).toBeNull();
+  });
+});
+
+describe("exactPrice", () => {
+  it.each([
+    ["412.00", "25", "515.00"],
+    ["412.00", "30", "535.60"],
+    ["100", "0", "100.00"],
+    ["0.01", "50", "0.02"],
+    ["100", "-20", "80.00"],
+  ])("%s + %s%% = %s", (purchase, markup, expected) => {
+    expect(exactPrice(purchase, markup)).toBe(expected);
   });
 });
