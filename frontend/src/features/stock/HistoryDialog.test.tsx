@@ -120,7 +120,8 @@ describe("HistoryDialog", () => {
         title="T"
       />,
     );
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getByText("0 ₽")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(1);
   });
 
   it("opens the detail dialog with the full comment on a row click", () => {

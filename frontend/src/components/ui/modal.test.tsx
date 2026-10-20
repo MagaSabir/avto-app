@@ -63,4 +63,16 @@ describe("Modal", () => {
     );
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("renders the title in a muted band", () => {
+    render(
+      <Modal open onClose={() => undefined} title="Заголовок">
+        x
+      </Modal>,
+    );
+    expect(screen.getByText("Заголовок").parentElement).toHaveClass(
+      "bg-muted",
+      "border-b",
+    );
+  });
 });

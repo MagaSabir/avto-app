@@ -20,6 +20,7 @@ export function qtyText(move: StockMove): string {
 
 // Receipt keeps kopecks; sale and return drop zero kopecks.
 export function priceText(move: StockMove): string {
+  if (move.type === "writeoff") return "0 ₽";
   if (move.price === null) return "—";
   const v =
     move.type === "receipt" ? formatMoney(move.price) : formatPrice(move.price);
@@ -39,7 +40,6 @@ export function MoveHistory({
   return (
     <ul className="flex max-h-72 flex-col divide-y overflow-y-auto text-[13px]">
       {moves.map((m) => {
-        const extra = explanation(m);
         return (
           <li
             key={m.id}
@@ -62,11 +62,6 @@ export function MoveHistory({
                 {priceText(m)}
               </span>
             </div>
-            {extra && (
-              <p className="line-clamp-2 text-[12px] text-muted-foreground [overflow-wrap:anywhere]">
-                {extra}
-              </p>
-            )}
           </li>
         );
       })}

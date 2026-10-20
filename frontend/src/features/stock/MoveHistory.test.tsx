@@ -34,35 +34,14 @@ describe("MoveHistory", () => {
       />,
     );
     expect(screen.getByText("Корректировка")).toBeInTheDocument();
-    expect(screen.getByText(/было 7, факт 6/)).toBeInTheDocument();
-    expect(screen.getByText(/пересчёт/)).toBeInTheDocument();
     expect(screen.getByText("−1")).toBeInTheDocument();
   });
 
   it("shows a receipt with supplier and a positive delta", () => {
     render(<MoveHistory moves={[base]} />);
     expect(screen.getByText("Приход")).toHaveClass("bg-move-receipt-bg");
-    expect(screen.getByText("Росско")).toBeInTheDocument();
     const delta = screen.getByText("+4");
     expect(delta).not.toHaveClass("text-status-ok");
-  });
-
-  it("renders the comment on its own line under the badge", () => {
-    render(
-      <MoveHistory
-        moves={[
-          {
-            ...base,
-            type: "writeoff",
-            qty_delta: -1,
-            comment: "брак упаковки",
-          },
-        ]}
-      />,
-    );
-    const comment = screen.getByText("брак упаковки");
-    expect(comment).toHaveClass("line-clamp-2");
-    expect(screen.getByText("Списание")).not.toContainElement(comment);
   });
 
   it("shows an empty state", () => {
@@ -70,23 +49,29 @@ describe("MoveHistory", () => {
     expect(screen.getByText("Движений пока нет")).toBeInTheDocument();
   });
 
-  it("shows a dash instead of a missing price", () => {
+  it("shows 0 ₽ for a write-off and a dash for an adjustment", () => {
     render(
       <MoveHistory
         moves={[{ ...base, type: "writeoff", qty_delta: -1, price: null }]}
       />,
     );
+    expect(screen.getByText("0 ₽")).toBeInTheDocument();
+  });
+
+  it("shows a dash for an adjustment price", () => {
+    render(
+      <MoveHistory
+        moves={[{ ...base, type: "adjustment", qty_delta: -1, price: null }]}
+      />,
+    );
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
-  it("puts a clamped comment on its own line outside the grid row", () => {
+  it("shows no comment line in the panel", () => {
     render(
       <MoveHistory moves={[{ ...base, type: "writeoff", comment: "брак" }]} />,
     );
-    const comment = screen.getByText("брак");
-    expect(comment).toHaveClass("line-clamp-2");
-    const row = screen.getByText("+4").parentElement;
-    expect(row).not.toContainElement(comment);
+    expect(screen.queryByText("брак")).not.toBeInTheDocument();
   });
 
   it("calls onSelect when a row is clicked", () => {

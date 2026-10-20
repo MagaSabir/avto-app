@@ -10,6 +10,8 @@
   --font-mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
   --color-selected: var(--selected);
   --color-overlay: var(--overlay);
+  --color-close-hover: var(--close-hover);
+  --color-close-hover-foreground: var(--close-hover-foreground);
   --color-status-ok: var(--status-ok);
   --color-status-ok-bg: var(--status-ok-bg);
   --color-status-low: var(--status-low);
@@ -87,6 +89,8 @@
   --ring: rgb(31 95 204 / 22%);
   --selected: #e9f0fc;
   --overlay: rgb(0 0 0 / 0.4);
+  --close-hover: #c42b1c;
+  --close-hover-foreground: #ffffff;
   --status-ok: #17663a;
   --status-ok-bg: #e3f4ea;
   --status-low: #8a5300;
@@ -127,6 +131,8 @@
   --ring: rgb(91 147 240 / 22%);
   --selected: #1c2a40;
   --overlay: rgb(0 0 0 / 0.6);
+  --close-hover: #c42b1c;
+  --close-hover-foreground: #ffffff;
   --status-ok: #6fd39a;
   --status-ok-bg: #143323;
   --status-low: #f2bb5a;

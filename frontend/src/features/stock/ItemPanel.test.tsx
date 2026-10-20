@@ -111,7 +111,7 @@ describe("ItemPanel", () => {
       ],
     });
     renderWithProviders(<ItemPanel itemId={3} />);
-    fireEvent.click((await screen.findAllByText("полный комментарий"))[0]);
+    fireEvent.click((await screen.findAllByText("−1"))[0]);
     expect(await screen.findByText("Остаток после")).toBeVisible();
     expect(
       screen

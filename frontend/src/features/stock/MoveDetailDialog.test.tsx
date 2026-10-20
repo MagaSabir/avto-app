@@ -46,7 +46,7 @@ describe("MoveDetailDialog", () => {
     const comment = screen.getByText(/первая строка/);
     expect(comment.textContent).toBe("первая строка\nвторая строка");
     expect(comment).toHaveClass("whitespace-pre-wrap");
-    expect(screen.getByText("Цена").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("Цена").nextSibling).toHaveTextContent("0 ₽");
   });
 
   it("shows was/actual for an adjustment", () => {

@@ -47,17 +47,17 @@ export function Modal({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+      <div className="flex items-stretch justify-between gap-2 border-b bg-muted">
+        <h2 className="flex items-center gap-2 px-4 py-3 text-[15px] font-semibold">
           {title}
         </h2>
         <button
           type="button"
           aria-label="Закрыть"
           onClick={onClose}
-          className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-destructive hover:bg-status-out-bg focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+          className="flex h-9 w-11 shrink-0 cursor-pointer items-center justify-center self-stretch rounded-tr-lg text-destructive hover:bg-close-hover hover:text-close-hover-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
         >
-          <X className="size-5" aria-hidden="true" />
+          <X className="size-[18px]" aria-hidden="true" />
         </button>
       </div>
       {children}
