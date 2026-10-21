@@ -25,3 +25,10 @@ class NothingChanged(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Остаток не изменился")
+
+
+class EmptyNumber(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Введите номер")

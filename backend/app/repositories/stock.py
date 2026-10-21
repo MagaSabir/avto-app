@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
@@ -148,6 +149,17 @@ async def list_moves(session: AsyncSession, item_id: int) -> list[StockMove]:
 async def lookup(session: AsyncSession, number_norm: str) -> list[StockItem]:
     result = await session.execute(
         select(StockItem).where(StockItem.number_norm == number_norm).order_by(StockItem.brand)
+    )
+    return list(result.scalars())
+
+
+async def find_by_numbers(session: AsyncSession, numbers: Collection[str]) -> list[StockItem]:
+    if not numbers:
+        return []
+    result = await session.execute(
+        select(StockItem)
+        .where(StockItem.number_norm.in_(numbers))
+        .order_by(StockItem.brand, StockItem.number_norm)
     )
     return list(result.scalars())
 
