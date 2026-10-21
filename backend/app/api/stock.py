@@ -99,6 +99,11 @@ async def update_item(item_id: int, data: StockItemPatch, session: Session) -> S
     return await stock_service.update_item(session, item_id, data)
 
 
+@router.delete("/items/{item_id}", status_code=204, responses=_ERRORS)
+async def delete_item(item_id: int, session: Session) -> None:
+    await stock_service.delete_item(session, item_id)
+
+
 @router.get("/lookup", response_model=list[StockItemOut])
 async def lookup(session: Session, number: Annotated[str, Query()] = "") -> list[StockItemOut]:
     return await stock_service.lookup(session, number)

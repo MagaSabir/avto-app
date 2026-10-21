@@ -141,3 +141,28 @@ export function usePatchItem(id: number | null) {
     "PATCH",
   );
 }
+
+export function useDeleteItem(id: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation<null>({
+    mutationFn: () => {
+      if (id === null) return Promise.reject(new Error("No item selected"));
+      return apiFetch<null>(`/api/stock/items/${String(id)}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: async () => {
+      // The deleted item's own queries would 404 on refetch: drop, don't refresh.
+      const gone = (key: readonly unknown[]) =>
+        (key[1] === "item" || key[1] === "moves") && key[2] === id;
+      queryClient.removeQueries({
+        queryKey: ["stock"],
+        predicate: (q) => gone(q.queryKey),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["stock"],
+        predicate: (q) => !gone(q.queryKey),
+      });
+    },
+  });
+}

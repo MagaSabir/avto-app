@@ -94,7 +94,7 @@ export function StockTable({ selectedId, onSelect }: Props) {
         </p>
       )}
       {items.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto lg:overflow-visible">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b text-left text-[12px] text-muted-foreground">
@@ -102,7 +102,7 @@ export function StockTable({ selectedId, onSelect }: Props) {
                   <th
                     key={label}
                     className={cn(
-                      "px-2 py-1.5 font-medium",
+                      "sticky top-0 z-10 bg-card px-2 py-1.5 font-medium",
                       right && "text-right",
                     )}
                   >

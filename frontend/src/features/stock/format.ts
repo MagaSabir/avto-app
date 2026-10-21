@@ -55,3 +55,14 @@ export function formatDateTime(iso: string): string {
 export function trimPercent(v: string): string {
   return v.includes(".") ? v.replace(/\.?0+$/, "") : v;
 }
+
+export function movesLabel(n: number): string {
+  const last2 = n % 100;
+  const last = n % 10;
+  let word = "движений";
+  if (last2 < 11 || last2 > 14) {
+    if (last === 1) word = "движение";
+    else if (last >= 2 && last <= 4) word = "движения";
+  }
+  return `${String(n)} ${word}`;
+}

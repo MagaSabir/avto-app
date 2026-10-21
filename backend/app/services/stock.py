@@ -176,3 +176,9 @@ async def update_item(session: AsyncSession, item_id: int, data: StockItemPatch)
     await session.commit()
     await session.refresh(item)
     return StockItemOut.model_validate(item)
+
+
+async def delete_item(session: AsyncSession, item_id: int) -> None:
+    item = await _locked_item(session, item_id)
+    await stock_repository.delete_item_with_moves(session, item)
+    await session.commit()

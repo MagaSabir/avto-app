@@ -203,7 +203,8 @@ export interface paths {
         get: operations["get_item_api_stock_items__item_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Item */
+        delete: operations["delete_item_api_stock_items__item_id__delete"];
         options?: never;
         head?: never;
         /** Update Item */
@@ -1187,6 +1188,53 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StockItemDetail"];
                 };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    delete_item_api_stock_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Not Found */
             404: {
