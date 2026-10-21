@@ -47,7 +47,10 @@ async function fillAndSubmit() {
 }
 
 describe("LoginPage", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
 
   it("goes to next after login", async () => {
     let signedIn = false;
@@ -153,5 +156,68 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(where(router)).toBe("/stock");
     });
+  });
+
+  it("prefills the stored login and focuses the password", async () => {
+    localStorage.setItem("lastLogin", "sabir");
+    mockApi({ "GET /api/auth/me": notSignedIn });
+    renderAt("/login");
+    expect(await screen.findByLabelText("Логин")).toHaveValue("sabir");
+    expect(screen.getByLabelText("Пароль")).toHaveFocus();
+  });
+
+  it("focuses the login when nothing is stored", async () => {
+    mockApi({ "GET /api/auth/me": notSignedIn });
+    renderAt("/login");
+    expect(await screen.findByLabelText("Логин")).toHaveFocus();
+    expect(screen.getByLabelText("Логин")).toHaveValue("");
+  });
+
+  it("stores the trimmed login after success", async () => {
+    let signedIn = false;
+    mockApi({
+      "GET /api/auth/me": () => (signedIn ? { login: "sabir" } : notSignedIn()),
+      "POST /api/auth/login": () => {
+        signedIn = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderAt("/login");
+    fireEvent.change(await screen.findByLabelText("Логин"), {
+      target: { value: " sabir " },
+    });
+    fireEvent.change(screen.getByLabelText("Пароль"), {
+      target: { value: "secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Войти" }));
+    await waitFor(() => {
+      expect(localStorage.getItem("lastLogin")).toBe("sabir");
+    });
+  });
+
+  it("does not store the login after a failure", async () => {
+    mockApi({
+      "GET /api/auth/me": notSignedIn,
+      "POST /api/auth/login": () =>
+        new Response(JSON.stringify({ message: "Неверный логин или пароль" }), {
+          status: 401,
+        }),
+    });
+    renderAt("/login");
+    await fillAndSubmit();
+    await screen.findByRole("alert");
+    expect(localStorage.getItem("lastLogin")).toBeNull();
+  });
+
+  it("marks the form up for password managers", async () => {
+    mockApi({ "GET /api/auth/me": notSignedIn });
+    renderAt("/login");
+    const loginInput = await screen.findByLabelText("Логин");
+    const passwordInput = screen.getByLabelText("Пароль");
+    expect(loginInput).toHaveAttribute("name", "username");
+    expect(loginInput).toHaveAttribute("autocomplete", "username");
+    expect(passwordInput).toHaveAttribute("name", "password");
+    expect(passwordInput).toHaveAttribute("autocomplete", "current-password");
+    expect(loginInput.closest("form")).toHaveAttribute("method", "post");
   });
 });

@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getLastLogin, setLastLogin } from "@/features/auth/lastLogin";
 import { safeNext } from "@/features/auth/next";
 
 export function LoginPage() {
@@ -14,7 +15,9 @@ export function LoginPage() {
   const navigate = useNavigate();
   const me = useMe();
   const login = useLogin();
-  const [username, setUsername] = useState("");
+  // Remembered login: the password is the only thing left to type.
+  const [lastLogin] = useState(getLastLogin);
+  const [username, setUsername] = useState(lastLogin);
   const [password, setPassword] = useState("");
   const submitting = useRef(false);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -33,6 +36,7 @@ export function LoginPage() {
           submitting.current = false;
         },
         onSuccess: () => {
+          setLastLogin(username.trim());
           void navigate(next, { replace: true });
         },
         onError: () => {
@@ -47,22 +51,36 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <Card>
-          <form onSubmit={submit} className="flex flex-col gap-3">
+          <form method="post" onSubmit={submit} className="flex flex-col gap-3">
             <Logo className="mx-auto mb-2 h-10" />
-            <label className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-              Логин
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="login"
+                className="text-[13px] text-muted-foreground"
+              >
+                Логин
+              </label>
               <Input
+                id="login"
+                name="username"
                 value={username}
                 onChange={(e) => {
                   setUsername(e.target.value);
                 }}
                 autoComplete="username"
-                autoFocus
+                autoFocus={lastLogin === ""}
               />
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-              Пароль
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="password"
+                className="text-[13px] text-muted-foreground"
+              >
+                Пароль
+              </label>
               <Input
+                id="password"
+                name="password"
                 ref={passwordRef}
                 type="password"
                 value={password}
@@ -70,8 +88,9 @@ export function LoginPage() {
                   setPassword(e.target.value);
                 }}
                 autoComplete="current-password"
+                autoFocus={lastLogin !== ""}
               />
-            </label>
+            </div>
             <Button type="submit" variant="primary" disabled={login.isPending}>
               Войти
             </Button>
