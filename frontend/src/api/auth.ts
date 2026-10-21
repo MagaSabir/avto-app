@@ -26,6 +26,7 @@ export function useMe(): UseQueryResult<Me> {
 export function useLogin(): UseMutationResult<null, Error, LoginIn> {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ["auth", "login"],
     mutationFn: (body: LoginIn) =>
       apiFetch<null>("/api/auth/login", {
         method: "POST",
@@ -38,8 +39,9 @@ export function useLogin(): UseMutationResult<null, Error, LoginIn> {
 export function useLogout(): UseMutationResult<null, Error, void> {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ["auth", "logout"],
     mutationFn: () => apiFetch<null>("/api/auth/logout", { method: "POST" }),
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.clear();
     },
   });

@@ -27,7 +27,7 @@ afterEach(() => {
   HTMLDialogElement.prototype.close = realClose;
 });
 
-function setup() {
+function setup(logoutResponse?: () => Response) {
   let loggedOut = false;
   const logout = { calls: 0 };
   mockApi({
@@ -40,6 +40,7 @@ function setup() {
         : { login: "sabir" },
     "POST /api/auth/logout": () => {
       logout.calls += 1;
+      if (logoutResponse) return logoutResponse();
       loggedOut = true;
       return new Response(null, { status: 204 });
     },
@@ -105,5 +106,45 @@ describe("Layout", () => {
       expect(router.state.location.pathname).toBe("/login");
     });
     expect(logout.calls).toBe(1);
+  });
+
+  it("keeps the modal open and shows the error when logout fails", async () => {
+    const { router, logout } = setup(
+      () =>
+        new Response(JSON.stringify({ message: "Сервер недоступен" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Выйти" }));
+    fireEvent.click(screen.getByRole("button", { name: "Да" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Сервер недоступен",
+    );
+    expect(logout.calls).toBe(1);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/stock");
+  });
+
+  it("disables «Нет» while logout is pending", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    setup();
+    const inner = fetch;
+    vi.stubGlobal(
+      "fetch",
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "POST") await gate;
+        return inner(input, init);
+      },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Выйти" }));
+    fireEvent.click(screen.getByRole("button", { name: "Да" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Нет" })).toBeDisabled();
+    });
+    release();
   });
 });

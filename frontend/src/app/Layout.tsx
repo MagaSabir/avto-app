@@ -31,9 +31,14 @@ export function Layout() {
   const logout = useLogout();
   const [confirming, setConfirming] = useState(false);
 
+  function closeModal() {
+    setConfirming(false);
+    logout.reset();
+  }
+
   function confirmLogout() {
     logout.mutate(undefined, {
-      onSettled: () => {
+      onSuccess: () => {
         void navigate("/login", { replace: true });
       },
     });
@@ -68,13 +73,16 @@ export function Layout() {
       </header>
       <Modal
         open={confirming}
-        onClose={() => {
-          setConfirming(false);
-        }}
+        onClose={closeModal}
         title="Выход"
         className="max-w-[360px]"
       >
         <p className="px-4 py-3">Выйти из учётной записи?</p>
+        {logout.isError && (
+          <p role="alert" className="px-4 pb-2 text-destructive">
+            {logout.error.message}
+          </p>
+        )}
         <div className="flex justify-end gap-2 px-4 pb-3">
           <Button
             variant="primary"
@@ -83,11 +91,7 @@ export function Layout() {
           >
             Да
           </Button>
-          <Button
-            onClick={() => {
-              setConfirming(false);
-            }}
-          >
+          <Button disabled={logout.isPending} onClick={closeModal}>
             Нет
           </Button>
         </div>
