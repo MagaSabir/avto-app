@@ -39,3 +39,24 @@ class SupplierNotFound(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Поставщик не найден")
+
+
+class InvalidCredentials(DomainError):
+    status_code = 401
+
+    def __init__(self) -> None:
+        super().__init__("Неверный логин или пароль")
+
+
+class NotAuthenticated(DomainError):
+    status_code = 401
+
+    def __init__(self) -> None:
+        super().__init__("Требуется вход")
+
+
+class TooManyLoginAttempts(DomainError):
+    status_code = 429
+
+    def __init__(self) -> None:
+        super().__init__("Слишком много попыток входа, подождите несколько минут")

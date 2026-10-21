@@ -1,7 +1,6 @@
-const SERVER_UNAVAILABLE_MESSAGE =
-  "Сервер недоступен: проверьте, что ПК включён и Tailscale подключён";
+export const SERVER_UNAVAILABLE_MESSAGE = "Сервер недоступен, попробуйте позже";
 
-// Gateway errors come from `tailscale serve` when the backend container is down.
+// Gateway errors come from the reverse proxy when the API is down.
 const GATEWAY_STATUSES = new Set([502, 504]);
 const JSON_BODY_METHODS = new Set(["POST", "PATCH", "DELETE"]);
 
@@ -19,6 +18,13 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
     this.status = status;
+  }
+}
+
+export class UnauthorizedError extends ApiError {
+  constructor(message: string) {
+    super(401, message);
+    this.name = "UnauthorizedError";
   }
 }
 
@@ -55,17 +61,21 @@ export async function apiFetch<T>(
 
   let response: Response;
   try {
-    response = await fetch(buildUrl(path), { ...init, headers });
+    response = await fetch(buildUrl(path), {
+      ...init,
+      headers,
+      credentials: "include",
+    });
   } catch {
     throw new ServerUnavailableError();
   }
 
   if (GATEWAY_STATUSES.has(response.status)) throw new ServerUnavailableError();
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      errorMessage(await response.text(), response.status),
-    );
+    const message = errorMessage(await response.text(), response.status);
+    if (response.status === 401) throw new UnauthorizedError(message);
+    throw new ApiError(response.status, message);
   }
+  if (response.status === 204) return null as T;
   return (await response.json()) as T;
 }

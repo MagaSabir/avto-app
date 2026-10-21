@@ -1,47 +1,32 @@
+import { Moon, Sun } from "lucide-react";
 import { useState } from "react";
-
-import { cn } from "@/lib/utils";
 
 import { applyTheme, readTheme, type ThemeChoice } from "./theme";
 
-const OPTIONS: { value: ThemeChoice; label: string }[] = [
-  { value: "light", label: "Светлая" },
-  { value: "dark", label: "Тёмная" },
-  { value: "system", label: "Система" },
-];
+const LABELS: Record<ThemeChoice, string> = {
+  light: "Тема: светлая",
+  dark: "Тема: тёмная",
+};
 
 export function ThemeToggle() {
   const [choice, setChoice] = useState<ThemeChoice>(readTheme);
+  const Icon = choice === "dark" ? Moon : Sun;
 
-  function select(value: ThemeChoice) {
-    applyTheme(value);
-    setChoice(value);
+  function toggle() {
+    const next = choice === "dark" ? "light" : "dark";
+    applyTheme(next);
+    setChoice(next);
   }
 
   return (
-    <div
-      role="group"
-      aria-label="Тема"
-      className="inline-flex overflow-hidden rounded-lg border"
+    <button
+      type="button"
+      aria-label={LABELS[choice]}
+      title={LABELS[choice]}
+      onClick={toggle}
+      className="text-muted-foreground hover:bg-selected inline-flex cursor-pointer items-center rounded-lg p-2"
     >
-      {OPTIONS.map(({ value, label }) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={choice === value}
-          onClick={() => {
-            select(value);
-          }}
-          className={cn(
-            "cursor-pointer px-2.5 py-1 text-xs",
-            choice === value
-              ? "bg-selected text-foreground"
-              : "text-muted-foreground hover:bg-selected",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+      <Icon size={16} aria-hidden="true" />
+    </button>
   );
 }

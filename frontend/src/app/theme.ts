@@ -1,53 +1,27 @@
-export type ThemeChoice = "light" | "dark" | "system";
+export type ThemeChoice = "light" | "dark";
 
 const STORAGE_KEY = "theme";
-const QUERY = "(prefers-color-scheme: dark)";
 
-let unsubscribe: (() => void) | null = null;
-
-function systemQuery(): MediaQueryList | null {
-  return typeof window.matchMedia === "function"
-    ? window.matchMedia(QUERY)
-    : null;
-}
-
+// The stored choice, or the system preference when there is none (also for
+// the legacy "system" value). The system setting is read once, not followed.
 export function readTheme(): ThemeChoice {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    if (value === "light" || value === "dark" || value === "system")
-      return value;
+    if (value === "light" || value === "dark") return value;
   } catch {
     // storage unavailable: fall back to system
   }
-  return "system";
-}
-
-function setDark(dark: boolean): void {
-  document.documentElement.classList.toggle("dark", dark);
+  const dark =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return dark ? "dark" : "light";
 }
 
 export function applyTheme(choice: ThemeChoice): void {
+  document.documentElement.classList.toggle("dark", choice === "dark");
   try {
     localStorage.setItem(STORAGE_KEY, choice);
   } catch {
     // storage unavailable: theme applies for this session only
-  }
-  unsubscribe?.();
-  unsubscribe = null;
-
-  if (choice !== "system") {
-    setDark(choice === "dark");
-    return;
-  }
-  const query = systemQuery();
-  setDark(query?.matches ?? false);
-  if (query) {
-    const onChange = (event: MediaQueryListEvent) => {
-      setDark(event.matches);
-    };
-    query.addEventListener("change", onChange);
-    unsubscribe = () => {
-      query.removeEventListener("change", onChange);
-    };
   }
 }

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     rossko_key2: str = Field(default="", repr=False)
     rossko_delivery_id: str = "000000001"
     rossko_address_id: str = ""
+    api_docs: bool = False
 
     @field_validator("suppliers", mode="before")
     @classmethod
