@@ -107,6 +107,7 @@ export function PartRow({ group, stockQty, now }: Props) {
                 <button
                   type="button"
                   aria-expanded={open}
+                  aria-label={`Другие склады: ${String(rest.length)}`}
                   onClick={() => {
                     setOpen((v) => !v);
                   }}
@@ -125,7 +126,7 @@ export function PartRow({ group, stockQty, now }: Props) {
         <ul aria-label="Другие склады">
           {rest.map((o, i) => (
             <li
-              key={i}
+              key={`${o.warehouse}|${o.delivery_from ?? ""}|${String(i)}`}
               className={cn(
                 OFFER_LINE,
                 "border-t border-dashed py-1.5 pr-2 pl-6 md:pl-2",

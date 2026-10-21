@@ -33,4 +33,14 @@ describe("lastSearch", () => {
     setLastSearch("?q=333114");
     expect(getLastSearch()).toBe("?q=333114");
   });
+
+  it("prefers memory when a storage write failed", () => {
+    setLastSearch("?q=OLD");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("full");
+    });
+    setLastSearch("?q=NEW");
+    expect(sessionStorage.getItem("avto.lastSearch")).toBe("?q=OLD");
+    expect(getLastSearch()).toBe("?q=NEW");
+  });
 });

@@ -4,11 +4,13 @@
 const KEY = "avto.lastSearch";
 let memory = "";
 
+// Memory first: a failed storage write must not bring back an older value.
 export function getLastSearch(): string {
+  if (memory !== "") return memory;
   try {
-    return sessionStorage.getItem(KEY) ?? memory;
+    return sessionStorage.getItem(KEY) ?? "";
   } catch {
-    return memory;
+    return "";
   }
 }
 

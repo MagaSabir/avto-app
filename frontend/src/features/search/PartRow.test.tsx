@@ -58,10 +58,12 @@ describe("PartRow", () => {
 
   it("expands the other warehouses and hides them again", () => {
     renderRow();
-    const more = screen.getByRole("button", {
-      name: "показать др. склады (2)",
-    });
+    const more = screen.getByRole("button", { name: "Другие склады: 2" });
+    expect(more).toHaveTextContent("показать др. склады (2)");
+    expect(more).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(more).toHaveTextContent("скрыть");
     const others = within(
       screen.getByRole("list", { name: "Другие склады" }),
     ).getAllByRole("listitem");
@@ -70,13 +72,12 @@ describe("PartRow", () => {
     expect(others[0]).toHaveTextContent("2 500 ₽");
     expect(others[0]).not.toHaveTextContent("KYB");
     expect(others[1]).toHaveTextContent("2 600 ₽");
-    fireEvent.click(screen.getByRole("button", { name: "скрыть" }));
+    fireEvent.click(more);
     expect(
       screen.queryByRole("list", { name: "Другие склады" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "показать др. склады (2)" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveTextContent("показать др. склады (2)");
   });
 
   it("marks analogs and my stock", () => {

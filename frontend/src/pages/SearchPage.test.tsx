@@ -473,7 +473,7 @@ describe("SearchPage", () => {
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     const toggle = await screen.findByRole("button", {
-      name: "показать др. склады (1)",
+      name: "Другие склады: 1",
     });
     const row = toggle.closest("li") as HTMLElement;
     expect(row).toHaveTextContent("500 ₽");
@@ -483,22 +483,7 @@ describe("SearchPage", () => {
     expect(row).not.toHaveTextContent("500 ₽");
   });
 
-  it("keeps the last search when coming back from the stock screen", async () => {
-    let calls = 0;
-    mockApi({
-      "GET /api/health": () => ({ status: "ok", database: "ok" }),
-      "GET /api/search": () => stock,
-      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
-      "GET /api/search/suppliers/rossko": () => {
-        calls += 1;
-        return supplierResult({
-          groups: [
-            partGroup({ brand: "Mann", key: "MANN|W683", name: "Фильтр" }),
-            partGroup({ brand: "MGA", key: "MGA|W683", name: "Насос" }),
-          ],
-        });
-      },
-    });
+  function renderApp(route: string) {
     renderWithProviders(
       <Routes>
         <Route element={<Layout />}>
@@ -514,8 +499,31 @@ describe("SearchPage", () => {
           <Route path="/stock" element={<p>STOCK</p>} />
         </Route>
       </Routes>,
-      { route: "/?q=W68/3" },
+      { route },
     );
+  }
+
+  it("keeps the last search when coming back from the stock screen", async () => {
+    let calls = 0;
+    let stockCalls = 0;
+    mockApi({
+      "GET /api/health": () => ({ status: "ok", database: "ok" }),
+      "GET /api/search": () => {
+        stockCalls += 1;
+        return stock;
+      },
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => {
+        calls += 1;
+        return supplierResult({
+          groups: [
+            partGroup({ brand: "Mann", key: "MANN|W683", name: "Фильтр" }),
+            partGroup({ brand: "MGA", key: "MGA|W683", name: "Насос" }),
+          ],
+        });
+      },
+    });
+    renderApp("/?q=W68/3");
     fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));
     expect(await screen.findByText("Фильтр")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Склад" }));
@@ -525,7 +533,42 @@ describe("SearchPage", () => {
     const where = screen.getByLabelText("where").textContent;
     expect(new URLSearchParams(where).get("q")).toBe("W68/3");
     expect(new URLSearchParams(where).get("part")).toBe("MANN|W683");
+    // My stock is refetched (quantities may have changed), Rossko is not.
+    await waitFor(() => {
+      expect(stockCalls).toBe(2);
+    });
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toBe(1);
+  });
+
+  it("points the «Поиск» link at the current search right away", async () => {
+    mockApi({
+      "GET /api/health": () => ({ status: "ok", database: "ok" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": (_init, url) =>
+        url.searchParams.get("q") === "W68/3"
+          ? supplierResult({
+              groups: [
+                partGroup({ brand: "Mann", key: "MANN|W683", name: "Фильтр" }),
+                partGroup({ brand: "MGA", key: "MGA|W683", name: "Насос" }),
+              ],
+            })
+          : supplierResult(),
+    });
+    renderApp("/?q=W68/3");
+    const link = () => {
+      const href =
+        screen.getByRole("link", { name: "Поиск" }).getAttribute("href") ?? "";
+      return new URLSearchParams(href.slice(href.indexOf("?")));
+    };
+    fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));
+    expect(link().get("q")).toBe("W68/3");
+    expect(link().get("part")).toBe("MANN|W683");
+    const input = screen.getByLabelText("OEM-номер или артикул");
+    fireEvent.change(input, { target: { value: "333114" } });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    expect(link().get("q")).toBe("333114");
+    expect(link().get("part")).toBeNull();
   });
 });

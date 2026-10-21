@@ -16,14 +16,16 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 export function Layout() {
-  // Re-render on navigation so "Поиск" points at the latest search.
-  useLocation();
+  // On the search page its own address is the latest search; elsewhere the
+  // remembered one (read on every navigation).
+  const location = useLocation();
+  const search = location.pathname === "/" ? location.search : getLastSearch();
   return (
     <>
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-2">
         <span className="font-semibold">Автозапчасти</span>
         <nav className="flex gap-1">
-          <NavLink to={`/${getLastSearch()}`} end className={navClass}>
+          <NavLink to={`/${search}`} end className={navClass}>
             Поиск
           </NavLink>
           <NavLink to="/stock" className={navClass}>
