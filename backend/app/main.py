@@ -30,7 +30,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="avto_app", lifespan=lifespan)
+    docs = {} if settings.api_docs else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(title="avto_app", lifespan=lifespan, **docs)  # type: ignore[arg-type]
     app.state.login_limiter = LoginLimiter()
     # Last added runs first: CORS -> no-store -> JSON-only -> routes.
     app.add_middleware(JsonOnlyMiddleware)
