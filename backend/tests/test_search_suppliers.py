@@ -50,6 +50,8 @@ def _group(brand: str, number: str, norm: str, requested: bool) -> PartGroup:
         name="Фильтр",
         is_requested=requested,
         offers=[_offer()],
+        key=f"{brand.upper()}|{norm}",
+        analog_of=[] if requested else ["MANN|W683"],
     )
 
 
@@ -176,3 +178,11 @@ async def test_delivery_times_are_aware(make_client: Any) -> None:
     r = await c.get("/api/search/suppliers/fake", params={"q": "W68/3"})
     offer = r.json()["groups"][0]["offers"][0]
     assert offer["delivery_from"].endswith("+03:00")
+
+
+async def test_group_key_and_analog_of_in_api(make_client: Any) -> None:
+    client = make_client(FakeSupplier(_result()))
+    response = await client.get("/api/search/suppliers/fake", params={"q": "W683"})
+    groups = {g["key"]: g for g in response.json()["groups"]}
+    assert groups["MANN|W683"]["analog_of"] == []
+    assert groups["METELLI|240683"]["analog_of"] == ["MANN|W683"]

@@ -63,6 +63,7 @@ def _add(
     seen: dict[tuple[str, str], set[str]],
     el: ElementTree.Element,
     requested: bool,
+    parent: str | None = None,
 ) -> None:
     brand = _text(el, "brand")
     number = _text(el, "partnumber")
@@ -76,11 +77,15 @@ def _add(
             name=_text(el, "name"),
             is_requested=requested,
             offers=[],
+            key=f"{key[0]}|{key[1]}",
+            analog_of=[],
         )
         groups[key] = group
         seen[key] = set()
     elif requested:
         group.is_requested = True
+    if parent is not None and not group.is_requested and parent not in group.analog_of:
+        group.analog_of.append(parent)
     for stock in el.findall(f"{_Q}stocks/{_Q}stock"):
         stock_id = _text(stock, "id")
         if stock_id and stock_id in seen[key]:
@@ -107,8 +112,10 @@ def parse_search(xml: bytes) -> SupplierResult:
         for top in tops:
             _add(groups, seen, top, requested=True)
         for top in tops:
+            brand = normalize_brand(_text(top, "brand"))
+            parent = f"{brand}|{normalize_number(_text(top, 'partnumber'))}"
             for cross in top.findall(f"{_Q}crosses/{_Q}Part"):
-                _add(groups, seen, cross, requested=False)
+                _add(groups, seen, cross, requested=False, parent=parent)
         return SupplierResult(groups=list(groups.values()), message=message)
     except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
         raise SupplierError(BAD_RESPONSE) from exc

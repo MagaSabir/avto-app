@@ -44,6 +44,8 @@ class PartGroupOut(BaseModel):
     number_norm: str
     name: str
     is_requested: bool
+    key: str
+    analog_of: list[str]
     offers: list[OfferOut]
 
 

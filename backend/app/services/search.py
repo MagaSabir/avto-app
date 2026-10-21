@@ -72,6 +72,8 @@ async def search_supplier(
             number_norm=g.number_norm,
             name=g.name,
             is_requested=g.is_requested,
+            key=g.key,
+            analog_of=g.analog_of,
             offers=[
                 OfferOut(
                     **{f: getattr(o, f) for f in OfferOut.model_fields if f != "price"},

@@ -142,3 +142,30 @@ def test_broken_xml_raises() -> None:
     with pytest.raises(SupplierError) as exc:
         parse_search(b"<oops")
     assert exc.value.message == "Росско вернул непонятный ответ"
+
+
+def test_parse_w683_analog_of() -> None:
+    result = parse_search(load("w683"))
+    requested = {"MGA|W683", "MANN|W683"}
+    by_key = {g.key: g for g in result.groups}
+    assert set(g.key for g in result.groups if g.is_requested) == requested
+    assert by_key["MANN|W683"].analog_of == []
+    assert by_key["MGA|W683"].analog_of == []
+    analogs = [g for g in result.groups if not g.is_requested]
+    assert analogs
+    for g in analogs:
+        assert g.analog_of
+        assert set(g.analog_of) <= requested
+    metelli = next(g for g in analogs if g.brand.lower() == "metelli" and g.number_norm == "240683")
+    assert metelli.analog_of == ["MGA|W683"]
+
+
+def test_analog_of_two_parents() -> None:
+    shared = part("Metelli", "24-0683")
+    xml = wrap(
+        part("MGA", "W683", crosses=shared)
+        + part("Mann", "W 68/3", crosses=shared + part("Bosch", "F 1"))
+    )
+    groups = {g.key: g for g in parse_search(xml).groups}
+    assert groups["METELLI|240683"].analog_of == ["MGA|W683", "MANN|W683"]
+    assert groups["BOSCH|F1"].analog_of == ["MANN|W683"]

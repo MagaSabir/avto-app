@@ -27,6 +27,8 @@ class PartGroup:
     name: str
     is_requested: bool
     offers: list[Offer]
+    key: str
+    analog_of: list[str]
 
 
 @dataclass(frozen=True)
