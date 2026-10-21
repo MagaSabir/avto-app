@@ -1,0 +1,10 @@
+api.rossmik.ru {
+    encode zstd gzip
+    header Strict-Transport-Security "max-age=31536000"
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        respond 404
+    }
+}
