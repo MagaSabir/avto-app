@@ -1,16 +1,35 @@
+import logging
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
+
+import httpx
 
 from app.domain.numbers import normalize_brand, normalize_number
 from app.suppliers.base import Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.ratelimit import RateLimiter
 
 NS = "https://api.rossko.ru/"
 MOSCOW = timezone(timedelta(hours=3))
 NOT_FOUND = "Ничего не найдено"
 BAD_RESPONSE = "Росско вернул непонятный ответ"
 
+URL = "https://api.rossko.ru/service/v2.1/GetSearch"
+TIMEOUT = 15.0
+
 _Q = f"{{{NS}}}"
+_log = logging.getLogger("app.suppliers")
+
+_ENVELOPE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    f' xmlns:r="{NS}"><soap:Body><r:GetSearch>'
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:text>{text}</r:text>"
+    "<r:delivery_id>{delivery_id}</r:delivery_id><r:address_id>{address_id}</r:address_id>"
+    "</r:GetSearch></soap:Body></soap:Envelope>"
+)
 
 
 def _text(el: ElementTree.Element, tag: str) -> str:
@@ -93,3 +112,67 @@ def parse_search(xml: bytes) -> SupplierResult:
         return SupplierResult(groups=list(groups.values()), message=message)
     except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
         raise SupplierError(BAD_RESPONSE) from exc
+
+
+class RosskoSupplier:
+    code = "rossko"
+    title = "Росско"
+
+    def __init__(
+        self,
+        key1: str,
+        key2: str,
+        delivery_id: str,
+        address_id: str,
+        limiter: RateLimiter | None = None,
+    ) -> None:
+        self._key1 = key1
+        self._key2 = key2
+        self._delivery_id = delivery_id
+        self._address_id = address_id
+        self._limiter = limiter or RateLimiter(300, 60)
+
+    async def search(self, number: str) -> SupplierResult:
+        started = time.monotonic()
+        try:
+            result = await self._search(number)
+        except SupplierError as exc:
+            self._log(number, exc.message, started)
+            raise
+        self._log(number, "ok", started)
+        return result
+
+    def _log(self, number: str, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s number=%s outcome=%s duration_ms=%d",
+            self.code,
+            number,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
+    async def _search(self, number: str) -> SupplierResult:
+        if not self._key1 or not self._key2:
+            raise SupplierError("Росско не настроен")
+        if not self._limiter.try_acquire():
+            raise SupplierError("Лимит запросов к Росско, повторите через минуту")
+        body = _ENVELOPE.format(
+            key1=escape(self._key1),
+            key2=escape(self._key2),
+            text=escape(number),
+            delivery_id=escape(self._delivery_id),
+            address_id=escape(self._address_id),
+        )
+        headers = {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": f'"{NS}GetSearch"',
+        }
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                response = await client.post(URL, content=body.encode(), headers=headers)
+            response.raise_for_status()
+        except httpx.TimeoutException:
+            raise SupplierError("Росско не ответил за 15 с") from None
+        except httpx.HTTPError:
+            raise SupplierError("Росско недоступен, повторите позже") from None
+        return parse_search(response.content)

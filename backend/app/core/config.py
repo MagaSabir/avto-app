@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     test_database_url: str | None = None
     cors_origins: Annotated[list[str], NoDecode] = []
     suppliers: Annotated[list[str], NoDecode] = ["rossko"]
-    rossko_key1: str = ""
-    rossko_key2: str = ""
+    rossko_key1: str = Field(default="", repr=False)
+    rossko_key2: str = Field(default="", repr=False)
     rossko_delivery_id: str = "000000002"
     rossko_address_id: str = "171801"
 

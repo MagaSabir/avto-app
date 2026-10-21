@@ -48,3 +48,10 @@ def test_rossko_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.rossko_delivery_id == "000000002"
     assert settings.rossko_address_id == "171801"
     assert settings.suppliers == ["rossko"]
+
+
+def test_rossko_keys_not_in_repr() -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None, database_url="x", rossko_key1="SECRET1", rossko_key2="SECRET2"
+    )
+    assert "SECRET" not in repr(settings)
