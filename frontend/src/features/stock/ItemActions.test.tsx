@@ -1,5 +1,5 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StockItemDetail } from "@/api/stock";
 import { mockApi, renderWithProviders } from "@/test/mockApi";
@@ -37,7 +37,30 @@ function click(name: string) {
   fireEvent.click(screen.getByRole("button", { name }));
 }
 
-afterEach(() => vi.unstubAllGlobals());
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (
+    this: HTMLDialogElement,
+  ) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
+});
+
+afterEach(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.clearAllMocks();
+});
 
 describe("ItemActions", () => {
   it("sells with the item price and sends money as a string", async () => {
@@ -168,5 +191,67 @@ describe("ItemActions", () => {
     click("Отмена");
     expect(screen.getByRole("button", { name: "Продать" })).toBeVisible();
     expect(screen.queryByLabelText("Причина")).toBeNull();
+  });
+
+  describe("delete", () => {
+    const deleted = vi.fn();
+    function setup(handler: () => Response) {
+      const calls: string[] = [];
+      mockApi({
+        "DELETE /api/stock/items/3": () => {
+          calls.push("DELETE");
+          return handler();
+        },
+      });
+      renderWithProviders(
+        <ItemActions item={ITEM} moveCount={22} onDeleted={deleted} />,
+      );
+      return calls;
+    }
+
+    it("asks for confirmation and sends nothing on cancel", () => {
+      const calls = setup(() => new Response(null, { status: 204 }));
+      click("Удалить");
+      expect(
+        screen.getByText(
+          "Удалить W 68/3 · MANN-FILTER вместе со всей историей (22 движения)? Остаток: 7 шт. Это нельзя отменить.",
+        ),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
+      expect(calls).toEqual([]);
+    });
+
+    it("deletes once and reports it", async () => {
+      const calls = setup(() => new Response(null, { status: 204 }));
+      click("Удалить");
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Удалить",
+        }),
+      );
+      await waitFor(() => {
+        expect(deleted).toHaveBeenCalledTimes(1);
+      });
+      expect(calls).toEqual(["DELETE"]);
+    });
+
+    it("keeps the dialog and shows the error on failure", async () => {
+      setup(
+        () =>
+          new Response(JSON.stringify({ message: "Позиция не найдена" }), {
+            status: 404,
+          }),
+      );
+      click("Удалить");
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Удалить",
+        }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Позиция не найдена",
+      );
+      expect(screen.getByRole("dialog")).toBeVisible();
+    });
   });
 });

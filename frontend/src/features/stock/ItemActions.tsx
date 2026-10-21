@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { DeleteItem } from "./DeleteItem";
 import { cents, errorText, Field } from "./formBits";
 import { formatPrice, trimPercent } from "./format";
 import {
@@ -391,7 +392,15 @@ function EditForm({ item, onCancel, onDone }: FormProps) {
   );
 }
 
-export function ItemActions({ item }: { item: StockItemDetail }) {
+export function ItemActions({
+  item,
+  moveCount,
+  onDeleted,
+}: {
+  item: StockItemDetail;
+  moveCount?: number | undefined;
+  onDeleted?: () => void;
+}) {
   const [mode, setMode] = useState<Mode | null>(null);
   const [done, setDone] = useFlash();
 
@@ -426,6 +435,13 @@ export function ItemActions({ item }: { item: StockItemDetail }) {
               {label}
             </Button>
           ))}
+          {onDeleted && (
+            <DeleteItem
+              item={item}
+              moveCount={moveCount}
+              onDeleted={onDeleted}
+            />
+          )}
         </div>
       )}
       {(mode === "sale" || mode === "return") && (

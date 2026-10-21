@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import ColumnElement, and_, func, or_, select, text
+from sqlalchemy import ColumnElement, and_, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.numbers import normalize_number
@@ -144,6 +144,12 @@ async def list_moves(session: AsyncSession, item_id: int) -> list[StockMove]:
         .order_by(StockMove.created_at.desc(), StockMove.id.desc())
     )
     return list(result.scalars())
+
+
+async def delete_item_with_moves(session: AsyncSession, item: StockItem) -> None:
+    await session.execute(delete(StockMove).where(StockMove.item_id == item.id))
+    await session.delete(item)
+    await session.flush()
 
 
 async def lookup(session: AsyncSession, number_norm: str) -> list[StockItem]:
