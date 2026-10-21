@@ -1,10 +1,30 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useNavigationType } from "react-router";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { mockApi, renderWithProviders } from "@/test/mockApi";
 
 import { StockPage } from "./StockPage";
+
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (
+    this: HTMLDialogElement,
+  ) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
+});
+
+afterEach(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -167,4 +187,42 @@ it("does not lock page scroll on desktop after a row click", async () => {
     expect(panel()).toHaveAttribute("data-open", "true");
   });
   expect(document.body.style.overflow).toBe("");
+});
+
+it("clears the selection and flashes after deleting an item", async () => {
+  const calls: string[] = [];
+  mockApi({
+    "GET /api/settings": () => ({ default_markup: "30.00" }),
+    "GET /api/stock/items": () => ({
+      items: [mk(4), mk(5)],
+      counts: { all: 2, low: 0, out: 0 },
+    }),
+    "GET /api/stock/brands": () => [],
+    "GET /api/stock/suppliers": () => [],
+    "GET /api/stock/lookup": () => [],
+    "GET /api/stock/items/5": () => detail(5),
+    "GET /api/stock/items/5/moves": () => [],
+    "DELETE /api/stock/items/5": () => {
+      calls.push("DELETE");
+      return new Response(null, { status: 204 });
+    },
+  });
+  renderWithProviders(<StockPage />, { route: "/stock?item=5" });
+  const open = await screen.findByRole("button", { name: "Удалить" });
+  await waitFor(() => {
+    expect(open).toBeEnabled();
+  });
+  fireEvent.click(open);
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Удалить" }),
+  );
+  expect(await screen.findByText("✓ Позиция удалена")).toBeVisible();
+  expect(calls).toEqual(["DELETE"]);
+  expect(
+    await screen.findByText("Выберите позицию в таблице"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("OC-5").closest("tr")).toHaveAttribute(
+    "aria-selected",
+    "false",
+  );
 });

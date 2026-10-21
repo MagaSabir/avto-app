@@ -6,6 +6,7 @@ import {
   formatMoney,
   formatPrice,
   formatShortDateTime,
+  movesLabel,
 } from "./format";
 
 const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, " ");
@@ -31,5 +32,23 @@ describe("format", () => {
     const d = new Date(2026, 9, 20, 14, 32);
     expect(formatDateTime(d.toISOString())).toBe("20.10.2026 14:32");
     expect(formatDate(d.toISOString())).toBe("20.10.2026");
+  });
+});
+
+describe("movesLabel", () => {
+  it.each([
+    [1, "1 движение"],
+    [2, "2 движения"],
+    [4, "4 движения"],
+    [5, "5 движений"],
+    [11, "11 движений"],
+    [12, "12 движений"],
+    [14, "14 движений"],
+    [21, "21 движение"],
+    [22, "22 движения"],
+    [25, "25 движений"],
+    [0, "0 движений"],
+  ])("%i", (n, text) => {
+    expect(movesLabel(n)).toBe(text);
   });
 });

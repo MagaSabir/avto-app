@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { DefaultMarkupField } from "@/features/stock/DefaultMarkupField";
 import { ItemPanel } from "@/features/stock/ItemPanel";
 import { ReceiptForm } from "@/features/stock/ReceiptForm";
+import { useFlash } from "@/features/stock/useFlash";
 import { StockTable } from "@/features/stock/StockTable";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ export function StockPage() {
   const selectedId = Number.isInteger(raw) && raw > 0 ? raw : null;
 
   const [panelOpen, setPanelOpen] = useState(false);
+  const [flash, setFlash] = useFlash();
 
   useEffect(() => {
     if (!panelOpen || typeof window.matchMedia !== "function") return;
@@ -46,6 +48,14 @@ export function StockPage() {
           }}
         />
       </Card>
+      {flash && (
+        <p
+          role="status"
+          className="rounded-lg bg-status-ok-bg px-3 py-2 text-[13px] font-medium text-status-ok"
+        >
+          {flash}
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <StockTable
           selectedId={selectedId}
@@ -75,7 +85,14 @@ export function StockPage() {
               Закрыть
             </Button>
           )}
-          <ItemPanel itemId={selectedId} />
+          <ItemPanel
+            itemId={selectedId}
+            onDeleted={() => {
+              setParams({}, { replace: true });
+              setPanelOpen(false);
+              setFlash("✓ Позиция удалена");
+            }}
+          />
         </div>
       </div>
     </div>

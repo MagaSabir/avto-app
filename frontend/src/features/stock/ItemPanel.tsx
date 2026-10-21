@@ -21,7 +21,13 @@ function Stat({ label, children }: { label: string; children: string }) {
   );
 }
 
-export function ItemPanel({ itemId }: { itemId: number | null }) {
+export function ItemPanel({
+  itemId,
+  onDeleted,
+}: {
+  itemId: number | null;
+  onDeleted?: () => void;
+}) {
   const item = useStockItem(itemId);
   const moves = useStockMoves(itemId);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -89,7 +95,12 @@ export function ItemPanel({ itemId }: { itemId: number | null }) {
           <Stat label="Продано за 30 дн.">{`${String(d.sold_30d)} шт`}</Stat>
         </div>
 
-        <ItemActions key={d.id} item={d} />
+        <ItemActions
+          key={d.id}
+          item={d}
+          moveCount={moves.data?.length}
+          onDeleted={onDeleted}
+        />
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
