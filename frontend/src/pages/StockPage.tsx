@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,15 @@ export function StockPage() {
   const selectedId = Number.isInteger(raw) && raw > 0 ? raw : null;
 
   const [panelOpen, setPanelOpen] = useState(false);
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [panelOpen]);
 
   const select = (id: number) => {
     setParams({ item: String(id) }, { replace: true });
@@ -40,11 +49,12 @@ export function StockPage() {
           }}
         />
         <div
+          data-testid="item-panel"
           data-open={panelOpen}
           className={cn(
-            "lg:sticky lg:top-3 lg:z-auto lg:block lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto lg:bg-transparent lg:p-0",
+            "lg:sticky lg:top-3 lg:block lg:max-h-[calc(100vh-1.5rem)] lg:self-start lg:overflow-y-auto",
             panelOpen
-              ? "fixed inset-0 z-40 overflow-y-auto bg-background p-3"
+              ? "max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:bg-background max-lg:p-3"
               : "hidden",
           )}
         >

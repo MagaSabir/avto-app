@@ -78,7 +78,7 @@ it("replaces the history entry when a row is selected", async () => {
   expect(screen.getByLabelText("navigation")).toHaveTextContent("REPLACE");
 });
 
-const panel = () => document.querySelector("[data-open]");
+const panel = () => screen.getByTestId("item-panel");
 
 it("opens the panel overlay on row click and closes it keeping selection", async () => {
   mockPage();
@@ -89,7 +89,9 @@ it("opens the panel overlay on row click and closes it keeping selection", async
   await waitFor(() => {
     expect(panel()).toHaveAttribute("data-open", "true");
   });
+  expect(document.body.style.overflow).toBe("hidden");
   fireEvent.click(await screen.findByRole("button", { name: "Закрыть" }));
+  expect(document.body.style.overflow).toBe("");
   expect(panel()).toHaveAttribute("data-open", "false");
   expect(screen.getAllByRole("row")[1]).toHaveAttribute(
     "aria-selected",
