@@ -32,3 +32,10 @@ class EmptyNumber(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Введите номер")
+
+
+class SupplierNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Поставщик не найден")

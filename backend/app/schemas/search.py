@@ -1,8 +1,11 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
 from app.schemas.stock import StockItemOut
+from app.schemas.types import Money, Percent
+from app.suppliers.base import OfferKind
 
 
 class StockSearchItem(StockItemOut):
@@ -15,3 +18,40 @@ class StockSearchResult(BaseModel):
     query: str
     number_norm: str
     items: list[StockSearchItem]
+
+
+class SupplierInfo(BaseModel):
+    code: str
+    title: str
+
+
+class OfferOut(BaseModel):
+    warehouse: str
+    qty: int
+    multiplicity: int
+    delivery_days: int | None
+    delivery_from: datetime | None
+    delivery_to: datetime | None
+    kind: OfferKind
+    kind_code: str
+    purchase_price: Money
+    price: Money
+
+
+class PartGroupOut(BaseModel):
+    brand: str
+    number: str
+    number_norm: str
+    name: str
+    is_requested: bool
+    offers: list[OfferOut]
+
+
+class SupplierSearchResult(BaseModel):
+    code: str
+    title: str
+    status: Literal["ok", "error"]
+    message: str | None
+    markup: Percent
+    groups: list[PartGroupOut]
+    stock_matches: list[StockSearchItem]

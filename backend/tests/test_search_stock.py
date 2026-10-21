@@ -68,4 +68,5 @@ async def test_search_empty_number_422(client: AsyncClient) -> None:
 
 async def test_search_no_store(client: AsyncClient) -> None:
     r = await client.get("/api/search", params={"q": "W683"})
+    assert r.status_code == 200
     assert r.headers["cache-control"] == "no-store"
