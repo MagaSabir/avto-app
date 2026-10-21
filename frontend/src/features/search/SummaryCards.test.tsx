@@ -87,4 +87,18 @@ describe("SummaryCards", () => {
     expect(within(card("Быстрее всего")).getByText("—")).toBeInTheDocument();
     expect(within(card("Мой склад")).getByText("—")).toBeInTheDocument();
   });
+
+  it("shows a dash for my stock when the stock request failed", () => {
+    render(
+      <SummaryCards
+        items={undefined}
+        stockFailed={true}
+        results={[]}
+        pending={false}
+        opts={opts}
+      />,
+    );
+    expect(card("Мой склад")).toHaveAttribute("aria-busy", "false");
+    expect(within(card("Мой склад")).getByText("—")).toBeInTheDocument();
+  });
 });

@@ -13,7 +13,7 @@ import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
 import { MyStockBlock } from "@/features/search/MyStockBlock";
 import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
-import { Card } from "@/components/ui/card";
+import { SuppliersBlock } from "@/features/search/SuppliersBlock";
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -32,7 +32,8 @@ export function SearchPage() {
 
   const onSearch = (next: string) => {
     if (next === q)
-      void queryClient.invalidateQueries({ queryKey: ["search"] });
+      // Reset (not invalidate) so blocks drop old data and show loading again.
+      void queryClient.resetQueries({ queryKey: ["search"] });
     else setParams({ q: next });
   };
 
@@ -52,6 +53,13 @@ export function SearchPage() {
   const rows = stock.data
     ? visibleStock(stock.data.items, matches, filters)
     : undefined;
+  const stockNumbers = new Map<string, number>();
+  for (const it of [...(stock.data?.items ?? []), ...matches])
+    stockNumbers.set(
+      it.number_norm,
+      (stockNumbers.get(it.number_norm) ?? 0) + it.qty,
+    );
+  const now = new Date();
 
   return (
     <div className="flex flex-col gap-3">
@@ -67,21 +75,23 @@ export function SearchPage() {
           />
           <SummaryCards
             items={rows?.map((r) => r.item)}
+            stockFailed={stock.isError}
             results={results}
             pending={pending}
-            opts={{ showAnalogs: filters.showAnalogs, now: new Date() }}
+            opts={{ showAnalogs: filters.showAnalogs, now }}
           />
-          {stock.isError ? (
-            <Card title="На моём складе">
-              <p className="py-4 text-center text-status-out">
-                Не удалось загрузить склад
-              </p>
-            </Card>
-          ) : (
-            <MyStockBlock
-              rows={rows}
-              results={results}
-              loadingMatches={pending}
+          <MyStockBlock
+            rows={rows}
+            results={results}
+            loadingMatches={pending}
+            error={stock.error}
+          />
+          {(suppliers.data?.length ?? 0) > 0 && (
+            <SuppliersBlock
+              suppliers={suppliers.data ?? []}
+              queries={searches}
+              opts={{ ...filters, now }}
+              stockNumbers={stockNumbers}
             />
           )}
         </>

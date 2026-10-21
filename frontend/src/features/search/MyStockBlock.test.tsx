@@ -112,4 +112,29 @@ describe("MyStockBlock", () => {
     );
     expect(screen.getByText("На складе нет")).toBeInTheDocument();
   });
+
+  it("links the number to the stock item for keyboard users", () => {
+    renderWithProviders(
+      <MyStockBlock
+        rows={[{ item: mine, isAnalog: false }]}
+        results={[]}
+        loadingMatches={false}
+      />,
+    );
+    expect(
+      within(table()).getByRole("link", { name: "333114" }),
+    ).toHaveAttribute("href", "/stock?item=7");
+  });
+
+  it("shows the stock request error", () => {
+    renderWithProviders(
+      <MyStockBlock
+        rows={undefined}
+        results={[]}
+        loadingMatches={false}
+        error={new Error("Сервер недоступен")}
+      />,
+    );
+    expect(screen.getByText("Сервер недоступен")).toBeInTheDocument();
+  });
 });

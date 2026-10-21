@@ -15,6 +15,7 @@ type Props = {
   rows: StockRow[] | undefined;
   results: SupplierSearchResult[];
   loadingMatches: boolean;
+  error?: Error | null;
 };
 
 const HEADERS: { label: string; right?: boolean }[] = [
@@ -69,15 +70,24 @@ function SupplierPrice({
   );
 }
 
-export function MyStockBlock({ rows, results, loadingMatches }: Props) {
+export function MyStockBlock({
+  rows,
+  results,
+  loadingMatches,
+  error = null,
+}: Props) {
   const navigate = useNavigate();
   const priceOf = (it: StockSearchItem) =>
     bestPriceFor(results, it.number_norm);
 
   return (
     <Card title="На моём складе">
-      <div aria-busy={rows === undefined || loadingMatches}>
-        {rows === undefined ? (
+      <div aria-busy={error === null && (rows === undefined || loadingMatches)}>
+        {error !== null ? (
+          <p className="py-4 text-center text-status-out [overflow-wrap:anywhere]">
+            {error.message}
+          </p>
+        ) : rows === undefined ? (
           <div className="flex flex-col gap-2 py-1">
             <Skeleton />
             <Skeleton />
@@ -118,7 +128,16 @@ export function MyStockBlock({ rows, results, loadingMatches }: Props) {
                         <StatusBadge status={it.status} />
                       </td>
                       <td className="px-2 font-mono font-medium whitespace-nowrap">
-                        {it.number_raw}
+                        <Link
+                          to={itemUrl(it.id)}
+                          onClick={(e) => {
+                            // The row navigates too; avoid a second push.
+                            e.stopPropagation();
+                          }}
+                          className="hover:underline"
+                        >
+                          {it.number_raw}
+                        </Link>
                       </td>
                       <td className="px-2 whitespace-nowrap">{it.brand}</td>
                       <td className="px-2">{it.name}</td>
@@ -202,7 +221,7 @@ export function MyStockBlock({ rows, results, loadingMatches }: Props) {
             </ul>
           </>
         )}
-        {loadingMatches && rows !== undefined && (
+        {error === null && loadingMatches && rows !== undefined && (
           <div className="mt-2 flex flex-col gap-2">
             <Skeleton className="w-2/3" />
           </div>

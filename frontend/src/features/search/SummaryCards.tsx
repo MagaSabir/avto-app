@@ -4,23 +4,16 @@ import type { StockSearchItem, SupplierSearchResult } from "@/api/search";
 import { formatPrice } from "@/features/stock/format";
 
 import { cheapest, fastest, stockSummary, type Pick } from "./derive";
-import { formatDelivery } from "./format";
+import { formatDelivery, plural } from "./format";
 import { Skeleton } from "./Tag";
 
 type Props = {
   items: StockSearchItem[] | undefined;
+  stockFailed?: boolean;
   results: SupplierSearchResult[];
   pending: boolean;
   opts: { showAnalogs: boolean; now: Date };
 };
-
-function plural(n: number, one: string, few: string, many: string): string {
-  const d = n % 10;
-  const dd = n % 100;
-  if (d === 1 && dd !== 11) return one;
-  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return few;
-  return many;
-}
 
 function SummaryCard({
   title,
@@ -76,7 +69,13 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function SummaryCards({ items, results, pending, opts }: Props) {
+export function SummaryCards({
+  items,
+  stockFailed = false,
+  results,
+  pending,
+  opts,
+}: Props) {
   const mine = items === undefined ? null : stockSummary(items);
   const cheap = cheapest(results, opts.showAnalogs);
   const fast = fastest(results, opts.showAnalogs, opts.now);
@@ -98,7 +97,7 @@ export function SummaryCards({ items, results, pending, opts }: Props) {
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
       <SummaryCard
         title="Мой склад"
-        busy={mine === null}
+        busy={mine === null && !stockFailed}
         value={
           mine === null || mine.positions === 0 ? (
             "—"
