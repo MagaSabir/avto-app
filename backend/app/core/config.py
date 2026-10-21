@@ -1,8 +1,11 @@
 from functools import lru_cache
 from typing import Annotated, Any
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+# Codes build_suppliers() in app/suppliers knows how to build.
+KNOWN_SUPPLIERS = ("rossko",)
 
 
 class Settings(BaseSettings):
@@ -11,6 +14,26 @@ class Settings(BaseSettings):
     database_url: str
     test_database_url: str | None = None
     cors_origins: Annotated[list[str], NoDecode] = []
+    suppliers: Annotated[list[str], NoDecode] = ["rossko"]
+    rossko_key1: str = Field(default="", repr=False)
+    rossko_key2: str = Field(default="", repr=False)
+    rossko_delivery_id: str = "000000001"
+    rossko_address_id: str = ""
+
+    @field_validator("suppliers", mode="before")
+    @classmethod
+    def parse_suppliers(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = [code.strip() for code in value.split(",")]
+        if isinstance(value, list):
+            value = [code for code in value if code]
+            unknown = [code for code in value if code not in KNOWN_SUPPLIERS]
+            if unknown:
+                raise ValueError(
+                    f"Unknown supplier in SUPPLIERS: {', '.join(unknown)}; "
+                    f"known: {', '.join(KNOWN_SUPPLIERS)}"
+                )
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
