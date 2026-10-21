@@ -57,7 +57,7 @@ sudo -iu deploy /home/deploy/avto_app/deploy.sh
 
 Ограничения:
 - CD выкатывает текущий `main` на момент `git pull`, а не строго SHA, прошедший CI.
-- CI и выкат запускают изменения в `backend/**`, `deploy.sh`, `scripts/**`, `docker-compose.prod.yml`, `Caddyfile`, `.github/workflows/ci-backend.yml` и `deploy-backend.yml`. Остальное (`docs/`, `.env.prod.example`, frontend) их не запускает.
+- CI и выкат запускают изменения в `backend/**`, `deploy.sh`, `scripts/**`, `docker-compose.prod.yml`, `caddy/**`, `.github/workflows/ci-backend.yml` и `deploy-backend.yml`. Остальное (`docs/`, `.env.prod.example`, frontend) их не запускает.
 - Правка `.env` на сервере сама ничего не применяет: нужен ручной `deploy.sh` или `docker compose ... up -d`.
 - Для секретов выката можно создать GitHub Environment `production`, ограниченный веткой `main`, и привязать к нему job `deploy`; тогда секреты недоступны с других веток.
 - Порядок выпуска: сначала backend, потом frontend. Изменения API обратно совместимы.

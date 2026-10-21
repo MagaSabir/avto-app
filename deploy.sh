@@ -117,6 +117,12 @@ start_stack() {
   if ! dc up -d </dev/null; then
     rollback "не удалось запустить контейнеры"
   fi
+  # The Caddyfile is bind-mounted and "up -d" does not recreate caddy when its compose config is unchanged
+  STEP="перечитывание конфигурации Caddy"
+  log "Перечитываю конфигурацию Caddy"
+  if ! dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile </dev/null; then
+    rollback "не удалось перечитать конфигурацию Caddy"
+  fi
 }
 
 wait_health() {

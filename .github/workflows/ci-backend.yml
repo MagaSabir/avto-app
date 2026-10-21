@@ -8,7 +8,7 @@ on:
       - "deploy.sh"
       - "scripts/**"
       - "docker-compose.prod.yml"
-      - "Caddyfile"
+      - "caddy/**"
       - ".github/workflows/ci-backend.yml"
       - ".github/workflows/deploy-backend.yml"
   push:
@@ -18,7 +18,7 @@ on:
       - "deploy.sh"
       - "scripts/**"
       - "docker-compose.prod.yml"
-      - "Caddyfile"
+      - "caddy/**"
       - ".github/workflows/ci-backend.yml"
       - ".github/workflows/deploy-backend.yml"
 
