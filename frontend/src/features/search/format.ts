@@ -1,4 +1,5 @@
 import type { Offer } from "../../api/search";
+import { PARTNER_WAREHOUSE } from "./derive";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const hhmm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -53,7 +54,7 @@ export function plural(
 
 // Rossko hides third-party stock behind "Партнерский склад".
 export function warehouseLabel(offer: Offer): string {
-  return offer.warehouse === "Партнерский склад"
+  return offer.warehouse === PARTNER_WAREHOUSE
     ? "склад партнёра"
     : offer.warehouse;
 }

@@ -170,6 +170,43 @@ describe("arrangeGroups", () => {
     ]);
   });
 
+  it("puts Rossko's own warehouses before partner stock", () => {
+    const partner = "Партнерский склад";
+    const g = group("X", true, [
+      offer("100.00", { warehouse: partner }),
+      offer("300.00", { warehouse: "г. Грозный" }),
+      offer("200.00", { warehouse: "Краснодар" }),
+    ]);
+    const out = arrangeGroups([g], { showAnalogs: true, sort: "price", now });
+    expect(out[0]?.offers.map((o) => o.purchase_price)).toEqual([
+      "200.00",
+      "300.00",
+      "100.00",
+    ]);
+  });
+
+  it("ranks analogs with own stock above partner-only analogs", () => {
+    const partner = "Партнерский склад";
+    const out = arrangeGroups(
+      [
+        group("P", false, [offer("10.00", { warehouse: partner })]),
+        group("O", false, [offer("90.00", { warehouse: "Пятигорск" })]),
+      ],
+      { showAnalogs: true, sort: "price", now },
+    );
+    expect(out.map((g) => g.number_norm)).toEqual(["O", "P"]);
+  });
+
+  it("keeps the summary picks honest across warehouses", () => {
+    const r = result("a", [
+      group("X", true, [
+        offer("100.00", { warehouse: "Партнерский склад" }),
+        offer("300.00", { warehouse: "г. Грозный" }),
+      ]),
+    ]);
+    expect(cheapest([r], true)?.offer.purchase_price).toBe("100.00");
+  });
+
   it("hides analogs", () => {
     const out = arrangeGroups([...analogs, requested], {
       showAnalogs: false,

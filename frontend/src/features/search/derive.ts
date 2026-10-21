@@ -48,11 +48,21 @@ function offerCmp(sort: SortMode, now: Date) {
       : byTime(a, b) || byPrice(a, b);
 }
 
+// Rossko's name for third-party stock; its own warehouses carry an address.
+export const PARTNER_WAREHOUSE = "Партнерский склад";
+
+const ownFirst = (a: Offer, b: Offer) =>
+  Number(a.warehouse === PARTNER_WAREHOUSE) -
+  Number(b.warehouse === PARTNER_WAREHOUSE);
+
 export function arrangeGroups(
   groups: PartGroup[],
   opts: { showAnalogs: boolean; sort: SortMode; now: Date },
 ): PartGroup[] {
-  const cmp = offerCmp(opts.sort, opts.now);
+  // Rows prefer Rossko's own warehouses (as on their site); the summary
+  // cards still pick across all offers.
+  const sortCmp = offerCmp(opts.sort, opts.now);
+  const cmp = (a: Offer, b: Offer) => ownFirst(a, b) || sortCmp(a, b);
   const sorted = groups.map((g) => ({
     ...g,
     offers: [...g.offers].sort(cmp),
