@@ -77,3 +77,72 @@ it("replaces the history entry when a row is selected", async () => {
   });
   expect(screen.getByLabelText("navigation")).toHaveTextContent("REPLACE");
 });
+
+const panel = () => document.querySelector("[data-open]");
+
+it("opens the panel overlay on row click and closes it keeping selection", async () => {
+  mockPage();
+  renderWithProviders(<StockPage />);
+  expect(await screen.findByText("OC-4")).toBeTruthy();
+  expect(panel()).toHaveAttribute("data-open", "false");
+  fireEvent.click(screen.getByText("OC-4"));
+  await waitFor(() => {
+    expect(panel()).toHaveAttribute("data-open", "true");
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Закрыть" }));
+  expect(panel()).toHaveAttribute("data-open", "false");
+  expect(screen.getAllByRole("row")[1]).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(await screen.findByRole("button", { name: "Продать" })).toBeTruthy();
+});
+
+it("does not open the overlay when loaded with ?item=", async () => {
+  mockPage();
+  renderWithProviders(<StockPage />, { route: "/stock?item=5" });
+  await screen.findByRole("button", { name: "Продать" });
+  expect(panel()).toHaveAttribute("data-open", "false");
+});
+
+it("does not open the overlay after a receipt is accepted", async () => {
+  mockApi({
+    "GET /api/settings": () => ({ default_markup: "30.00" }),
+    "GET /api/stock/items": () => ({
+      items: [mk(4)],
+      counts: { all: 1, low: 0, out: 0 },
+    }),
+    "GET /api/stock/brands": () => ["MANN"],
+    "GET /api/stock/suppliers": () => [],
+    "GET /api/stock/lookup": () => [],
+    "POST /api/stock/receipts": () =>
+      new Response(JSON.stringify({ item: mk(4), move: {} }), { status: 201 }),
+    "GET /api/stock/items/4": () => detail(4),
+    "GET /api/stock/items/4/moves": () => [],
+  });
+  renderWithProviders(<StockPage />);
+  await waitFor(() => {
+    expect(screen.getByLabelText<HTMLInputElement>("Наценка, %").value).toBe(
+      "30",
+    );
+  });
+  const type = (label: string, value: string) => {
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  };
+  type("Номер", "OC-4");
+  type("Бренд", "MANN");
+  type("Название", "Фильтр");
+  type("Кол-во", "4");
+  type("Закупка", "400");
+  fireEvent.click(screen.getByRole("button", { name: "Принять" }));
+  await screen.findByRole("button", { name: "Продать" });
+  expect(panel()).toHaveAttribute("data-open", "false");
+});
+
+it("makes the table header sticky", async () => {
+  mockPage();
+  renderWithProviders(<StockPage />);
+  await screen.findByText("OC-4");
+  const th = screen.getByText("Статус").closest("th");
+  expect(th).toHaveClass("sticky", "top-0", "bg-card");
+});
