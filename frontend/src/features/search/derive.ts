@@ -117,6 +117,7 @@ export function bestPriceFor(
   return min;
 }
 
+// qty counts every item; positions, price and cells only items in stock.
 export function stockSummary(items: StockSearchItem[]): {
   qty: number;
   positions: number;
@@ -126,13 +127,24 @@ export function stockSummary(items: StockSearchItem[]): {
   let minPrice: string | null = null;
   const cells = new Set<string>();
   let qty = 0;
+  let positions = 0;
   for (const it of items) {
     qty += it.qty;
+    if (it.qty <= 0) continue;
+    positions += 1;
     if (minPrice === null || cents(it.sale_price) < cents(minPrice))
       minPrice = it.sale_price;
     if (it.cell !== null && it.cell !== "") cells.add(it.cell);
   }
-  return { qty, positions: items.length, minPrice, cells: [...cells] };
+  return { qty, positions, minPrice, cells: [...cells] };
+}
+
+// How much cheaper the supplier is than my price, as a money string.
+export function cheaperBy(mine: string, theirs: string): string | null {
+  const diff = cents(mine) - cents(theirs);
+  if (diff <= 0n) return null;
+  const frac = String(diff % 100n).padStart(2, "0");
+  return `${String(diff / 100n)}.${frac}`;
 }
 
 export function visibleStock(

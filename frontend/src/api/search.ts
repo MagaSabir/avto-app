@@ -48,6 +48,8 @@ export function useSupplierSearches(
         ),
       enabled: q !== "",
       retry: false,
+      // Rossko is rate-limited; never re-request on our own.
+      refetchOnWindowFocus: false,
       staleTime: 0,
       gcTime: 0,
     })),

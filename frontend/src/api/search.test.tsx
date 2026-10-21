@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +12,7 @@ import { useSupplierSearches } from "./search";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  focusManager.setFocused(undefined);
 });
 
 function wrapper() {
@@ -55,6 +60,27 @@ describe("useSupplierSearches", () => {
     await waitFor(() => {
       expect(result.current[0]?.isError).toBe(true);
     });
+    expect(calls).toBe(1);
+  });
+
+  it("does not refetch on window focus", async () => {
+    let calls = 0;
+    mockApi({
+      "GET /api/search/suppliers/rossko": () => {
+        calls += 1;
+        return { code: "rossko", groups: [] };
+      },
+    });
+    const { result } = renderHook(
+      () => useSupplierSearches(["rossko"], "W683"),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => {
+      expect(result.current[0]?.isSuccess).toBe(true);
+    });
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await new Promise((r) => setTimeout(r, 20));
     expect(calls).toBe(1);
   });
 });

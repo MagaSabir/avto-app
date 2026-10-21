@@ -1,0 +1,36 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { SearchForm } from "./SearchForm";
+
+function field() {
+  return screen.getByLabelText("OEM-номер или артикул");
+}
+
+describe("SearchForm", () => {
+  it("submits the typed number on Enter", () => {
+    const onSearch = vi.fn();
+    render(<SearchForm initial="" onSearch={onSearch} />);
+    expect(field()).toHaveFocus();
+    fireEvent.change(field(), { target: { value: " W68/3 " } });
+    fireEvent.submit(field());
+    expect(onSearch).toHaveBeenCalledWith("W68/3");
+  });
+
+  it("shows the initial value", () => {
+    render(<SearchForm initial="W68/3" onSearch={vi.fn()} />);
+    expect(field()).toHaveValue("W68/3");
+  });
+
+  it("rejects input that is empty after normalization", () => {
+    const onSearch = vi.fn();
+    render(<SearchForm initial="" onSearch={onSearch} />);
+    fireEvent.change(field(), { target: { value: "-/." } });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    expect(screen.getByText("Введите номер")).toBeInTheDocument();
+    expect(onSearch).not.toHaveBeenCalled();
+    fireEvent.change(field(), { target: { value: "@abc" } });
+    fireEvent.submit(field());
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+});

@@ -10,6 +10,7 @@ import {
   arrangeGroups,
   bestPriceFor,
   cents,
+  cheaperBy,
   cheapest,
   deliveryRank,
   fastest,
@@ -229,9 +230,22 @@ describe("stockSummary", () => {
     ]);
     expect(s).toEqual({
       qty: 6,
-      positions: 4,
+      positions: 3,
       minPrice: "9.99",
       cells: ["A1", "B2"],
+    });
+  });
+
+  it("ignores zero-qty items for positions, price and cells", () => {
+    const s = stockSummary([
+      item(1, { qty: 0, sale_price: "1.00", cell: "Z9" }),
+      item(2, { qty: 2, sale_price: "50.00", cell: "A1" }),
+    ]);
+    expect(s).toEqual({
+      qty: 2,
+      positions: 1,
+      minPrice: "50.00",
+      cells: ["A1"],
     });
   });
 
@@ -242,6 +256,15 @@ describe("stockSummary", () => {
       minPrice: null,
       cells: [],
     });
+  });
+});
+
+describe("cheaperBy", () => {
+  it("returns the difference only when the supplier is cheaper", () => {
+    expect(cheaperBy("3190.00", "2940.00")).toBe("250.00");
+    expect(cheaperBy("100.00", "99.95")).toBe("0.05");
+    expect(cheaperBy("2940.00", "2940.00")).toBeNull();
+    expect(cheaperBy("2940.00", "3190.00")).toBeNull();
   });
 });
 
