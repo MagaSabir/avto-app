@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     suppliers: Annotated[list[str], NoDecode] = ["rossko"]
     rossko_key1: str = Field(default="", repr=False)
     rossko_key2: str = Field(default="", repr=False)
-    rossko_delivery_id: str = "000000002"
-    rossko_address_id: str = "171801"
+    rossko_delivery_id: str = "000000001"
+    rossko_address_id: str = ""
 
     @field_validator("suppliers", mode="before")
     @classmethod

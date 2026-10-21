@@ -27,7 +27,7 @@ _ENVELOPE = (
     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
     f' xmlns:r="{NS}"><soap:Body><r:GetSearch>'
     "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:text>{text}</r:text>"
-    "<r:delivery_id>{delivery_id}</r:delivery_id><r:address_id>{address_id}</r:address_id>"
+    "<r:delivery_id>{delivery_id}</r:delivery_id>{address}"
     "</r:GetSearch></soap:Body></soap:Envelope>"
 )
 
@@ -171,7 +171,12 @@ class RosskoSupplier:
             key2=escape(self._key2),
             text=escape(number),
             delivery_id=escape(self._delivery_id),
-            address_id=escape(self._address_id),
+            # Pickup has no address: Rossko rejects an empty address_id.
+            address=(
+                f"<r:address_id>{escape(self._address_id)}</r:address_id>"
+                if self._address_id
+                else ""
+            ),
         )
         headers = {
             "Content-Type": "text/xml; charset=utf-8",

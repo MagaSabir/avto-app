@@ -45,8 +45,8 @@ def test_rossko_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = Settings(_env_file=None, database_url="x")  # type: ignore[call-arg]
     assert settings.rossko_key1 == ""
     assert settings.rossko_key2 == ""
-    assert settings.rossko_delivery_id == "000000002"
-    assert settings.rossko_address_id == "171801"
+    assert settings.rossko_delivery_id == "000000001"
+    assert settings.rossko_address_id == ""
     assert settings.suppliers == ["rossko"]
 
 

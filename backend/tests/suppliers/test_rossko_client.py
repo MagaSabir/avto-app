@@ -61,6 +61,17 @@ async def test_search_sends_soap_request(caplog: pytest.LogCaptureFixture) -> No
 
 
 @respx.mock
+async def test_pickup_omits_address() -> None:
+    route = respx.post(URL).respond(200, content=FIXTURE.read_bytes())
+    supplier = RosskoSupplier("SECRET1", "SECRET2", "000000001", "", limiter=None)
+    await supplier.search("W68/3")
+    body = route.calls.last.request.content.decode()
+    assert "<r:delivery_id>000000001</r:delivery_id>" in body
+    assert "address_id" not in body
+    ElementTree.fromstring(body)
+
+
+@respx.mock
 async def test_number_is_xml_escaped() -> None:
     route = respx.post(URL).respond(200, content=FIXTURE.read_bytes())
     await make().search("A&B<1>")
