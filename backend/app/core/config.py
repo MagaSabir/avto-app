@@ -11,6 +11,20 @@ class Settings(BaseSettings):
     database_url: str
     test_database_url: str | None = None
     cors_origins: Annotated[list[str], NoDecode] = []
+    suppliers: Annotated[list[str], NoDecode] = ["rossko"]
+    rossko_key1: str = ""
+    rossko_key2: str = ""
+    rossko_delivery_id: str = "000000002"
+    rossko_address_id: str = "171801"
+
+    @field_validator("suppliers", mode="before")
+    @classmethod
+    def parse_suppliers(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            value = [code.strip() for code in value.split(",")]
+        if isinstance(value, list):
+            value = [code for code in value if code]
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
