@@ -557,7 +557,7 @@ describe("SearchPage", () => {
     expect(await screen.findByText("Фильтр")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Склад" }));
     expect(await screen.findByText("STOCK")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Поиск" }));
+    fireEvent.click(screen.getAllByRole("link", { name: "Поиск" })[0]);
     expect(await screen.findByText("Фильтр")).toBeInTheDocument();
     const where = screen.getByLabelText("where").textContent;
     expect(new URLSearchParams(where).get("q")).toBe("W68/3");
@@ -588,7 +588,9 @@ describe("SearchPage", () => {
     renderApp("/?q=W68/3");
     const link = () => {
       const href =
-        screen.getByRole("link", { name: "Поиск" }).getAttribute("href") ?? "";
+        screen
+          .getAllByRole("link", { name: "Поиск" })[0]
+          .getAttribute("href") ?? "";
       return new URLSearchParams(href.slice(href.indexOf("?")));
     };
     fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));

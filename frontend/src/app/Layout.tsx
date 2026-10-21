@@ -1,4 +1,8 @@
-import { NavLink, Outlet, useLocation } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
+
+import { useLogout, useMe } from "@/api/auth";
+import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
 
 import { getLastSearch } from "@/features/search/lastSearch";
 import { cn } from "@/lib/utils";
@@ -20,10 +24,15 @@ export function Layout() {
   // remembered one (read on every navigation).
   const location = useLocation();
   const search = location.pathname === "/" ? location.search : getLastSearch();
+  const navigate = useNavigate();
+  const { data: me } = useMe();
+  const logout = useLogout();
   return (
     <>
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-2">
-        <span className="font-semibold">Автозапчасти</span>
+        <NavLink to={`/${search}`} aria-label="Поиск" end>
+          <Logo className="h-7 w-auto" />
+        </NavLink>
         <nav className="flex gap-1">
           <NavLink to={`/${search}`} end className={navClass}>
             Поиск
@@ -32,7 +41,20 @@ export function Layout() {
             Склад
           </NavLink>
         </nav>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-muted-foreground">{me?.login}</span>
+          <Button
+            className="h-auto px-3 py-1.5"
+            onClick={() => {
+              logout.mutate(undefined, {
+                onSettled: () => {
+                  void navigate("/login", { replace: true });
+                },
+              });
+            }}
+          >
+            Выйти
+          </Button>
           <ThemeToggle />
         </div>
       </header>
