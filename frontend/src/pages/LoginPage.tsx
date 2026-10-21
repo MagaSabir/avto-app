@@ -68,6 +68,7 @@ export function LoginPage() {
                   setUsername(e.target.value);
                 }}
                 autoComplete="username"
+                required
                 autoFocus={lastLogin === ""}
               />
             </div>
@@ -88,6 +89,7 @@ export function LoginPage() {
                   setPassword(e.target.value);
                 }}
                 autoComplete="current-password"
+                required
                 autoFocus={lastLogin !== ""}
               />
             </div>

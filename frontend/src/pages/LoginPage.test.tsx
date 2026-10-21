@@ -52,6 +52,21 @@ describe("LoginPage", () => {
     localStorage.clear();
   });
 
+  it("sends nothing when a field is empty", async () => {
+    const login = vi.fn(() => new Response(null, { status: 204 }));
+    mockApi({
+      "GET /api/auth/me": notSignedIn,
+      "POST /api/auth/login": login,
+    });
+    renderAt("/login");
+    fireEvent.change(await screen.findByLabelText("Логин"), {
+      target: { value: "sabir" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Войти" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(login).not.toHaveBeenCalled();
+  });
+
   it("goes to next after login", async () => {
     let signedIn = false;
     mockApi({
