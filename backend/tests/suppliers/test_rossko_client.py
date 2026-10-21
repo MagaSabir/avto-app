@@ -18,15 +18,27 @@ def make(limiter: RateLimiter | None = None, key1: str = "SECRET1", key2: str = 
     return RosskoSupplier(key1, key2, "000000002", "171801", limiter=limiter)
 
 
+@pytest.fixture(autouse=True)
+def _capture_logs(caplog: pytest.LogCaptureFixture) -> None:
+    # alembic's fileConfig (run by the DB fixtures) disables pre-existing loggers
+    logging.getLogger("app.suppliers").disabled = False
+    caplog.set_level(logging.INFO, logger="app.suppliers")
+
+
 def assert_clean(message: str, caplog: pytest.LogCaptureFixture) -> None:
+    records = [r for r in caplog.records if r.name == "app.suppliers"]
+    assert records, "no app.suppliers log record captured"
     for secret in SECRETS:
         assert secret not in message
         assert secret not in caplog.text
 
 
+def last_log(caplog: pytest.LogCaptureFixture) -> str:
+    return [r for r in caplog.records if r.name == "app.suppliers"][-1].getMessage()
+
+
 @respx.mock
 async def test_search_sends_soap_request(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.INFO, logger="app.suppliers")
     route = respx.post(URL).respond(200, content=FIXTURE.read_bytes())
     result = await make().search("W68/3")
     request = route.calls.last.request
@@ -37,8 +49,15 @@ async def test_search_sends_soap_request(caplog: pytest.LogCaptureFixture) -> No
     assert 'xmlns:r="https://api.rossko.ru/"' in body
     assert request.headers["Content-Type"] == "text/xml; charset=utf-8"
     assert request.headers["SOAPAction"] == '"https://api.rossko.ru/GetSearch"'
+    assert "<r:KEY1>SECRET1</r:KEY1>" in body
+    assert "<r:KEY2>SECRET2</r:KEY2>" in body
     assert sum(g.is_requested for g in result.groups) == 2
     assert_clean("", caplog)
+    line = last_log(caplog)
+    assert "supplier=rossko" in line
+    assert "number='W68/3'" in line
+    assert "outcome=ok" in line
+    assert "duration_ms=" in line
 
 
 @respx.mock
@@ -57,6 +76,7 @@ async def test_timeout(caplog: pytest.LogCaptureFixture) -> None:
         await make().search("X")
     assert exc.value.message == "Росско не ответил за 15 с"
     assert_clean(exc.value.message, caplog)
+    assert "Росско не ответил за 15 с" in last_log(caplog)
 
 
 @respx.mock
@@ -78,6 +98,7 @@ async def test_not_configured(caplog: pytest.LogCaptureFixture) -> None:
         await make(key1="", key2="").search("X")
     assert exc.value.message == "Росско не настроен"
     assert route.called is False
+    assert_clean(exc.value.message, caplog)
 
 
 @respx.mock

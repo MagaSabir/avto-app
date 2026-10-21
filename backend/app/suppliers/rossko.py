@@ -144,7 +144,7 @@ class RosskoSupplier:
 
     def _log(self, number: str, outcome: str, started: float) -> None:
         _log.info(
-            "supplier=%s number=%s outcome=%s duration_ms=%d",
+            "supplier=%s number=%r outcome=%s duration_ms=%d",
             self.code,
             number,
             outcome,
@@ -172,7 +172,7 @@ class RosskoSupplier:
                 response = await client.post(URL, content=body.encode(), headers=headers)
             response.raise_for_status()
         except httpx.TimeoutException:
-            raise SupplierError("Росско не ответил за 15 с") from None
+            raise SupplierError(f"Росско не ответил за {TIMEOUT:g} с") from None
         except httpx.HTTPError:
             raise SupplierError("Росско недоступен, повторите позже") from None
         return parse_search(response.content)
