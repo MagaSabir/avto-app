@@ -12,6 +12,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const isBefore = (a: HTMLElement, b: HTMLElement) =>
+  (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
 const opts = {
   showAnalogs: true,
   sort: "price" as const,
@@ -65,7 +68,7 @@ describe("SuppliersBlock", () => {
     expect(screen.getByText("Росско · ждём ответ…")).toBeInTheDocument();
   });
 
-  it("shows the parts count, markup and groups", async () => {
+  it("shows the parts count, the part, then its analogs", async () => {
     answer(
       supplierResult({
         groups: [
@@ -82,11 +85,25 @@ describe("SuppliersBlock", () => {
     );
     renderWithProviders(<Harness />);
     expect(await screen.findByText("Росско · 2 детали")).toBeInTheDocument();
-    expect(
-      screen.getByText("цены с наценкой 20%, округление вверх до 10 ₽"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("SACHS")).toBeInTheDocument();
+    expect(screen.queryByText(/цены с наценкой/)).not.toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "Аналоги" });
+    const sachs = screen.getByText("SACHS");
+    expect(isBefore(screen.getByText("KYB"), heading)).toBe(true);
+    expect(isBefore(heading, sachs)).toBe(true);
     expect(screen.getByText("у вас 1 шт")).toBeInTheDocument();
+    for (const h of ["Бренд", "Номер", "Наименование", "Можно забрать"])
+      expect(screen.getAllByText(h).length).toBeGreaterThan(0);
+    for (const h of ["Кратн.", "Тип", "Закупка", "К заказу"])
+      expect(screen.queryByText(h)).not.toBeInTheDocument();
+  });
+
+  it("has no analogs heading without analogs", async () => {
+    answer(supplierResult());
+    renderWithProviders(<Harness />);
+    expect(await screen.findByText("KYB")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Аналоги" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the supplier message", async () => {

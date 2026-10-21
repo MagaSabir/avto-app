@@ -2,14 +2,17 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import type { SupplierInfo, SupplierSearchResult } from "@/api/search";
+import type {
+  PartGroup,
+  SupplierInfo,
+  SupplierSearchResult,
+} from "@/api/search";
 import { Button } from "@/components/ui/button";
-import { trimPercent } from "@/features/stock/format";
 import { cn } from "@/lib/utils";
 
 import { arrangeGroups, requestedParts, type SortMode } from "./derive";
 import { plural } from "./format";
-import { PartGroupCard } from "./PartGroupCard";
+import { PART_COLS, PartRow } from "./PartRow";
 import { Skeleton } from "./Tag";
 
 type Props = {
@@ -57,6 +60,74 @@ function Plaque({ tone, text }: { tone: State["kind"]; text: string }) {
   );
 }
 
+const HEADERS: { label: string; right?: boolean }[] = [
+  { label: "Бренд" },
+  { label: "Номер" },
+  { label: "Наименование" },
+  { label: "Можно забрать" },
+  { label: "Остаток", right: true },
+  { label: "Цена", right: true },
+];
+
+function PartList({
+  groups,
+  stockNumbers,
+  now,
+}: {
+  groups: PartGroup[];
+  stockNumbers: Map<string, number>;
+  now: Date;
+}) {
+  return (
+    <div className="text-[13.5px]">
+      <div
+        aria-hidden="true"
+        className={cn(
+          "hidden border-b px-2 py-1.5 text-[12px] font-medium text-muted-foreground md:grid",
+          PART_COLS,
+        )}
+      >
+        {HEADERS.map(({ label, right }) => (
+          <span key={label} className={cn(right && "text-right")}>
+            {label}
+          </span>
+        ))}
+      </div>
+      <ul>
+        {groups.map((g) => (
+          <PartRow
+            key={g.key}
+            group={g}
+            stockQty={stockNumbers.get(g.number_norm)}
+            now={now}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// The chosen part first, then its analogs under their own heading.
+function Parts(props: {
+  groups: PartGroup[];
+  stockNumbers: Map<string, number>;
+  now: Date;
+}) {
+  const requested = props.groups.filter((g) => g.is_requested);
+  const analogs = props.groups.filter((g) => !g.is_requested);
+  return (
+    <>
+      {requested.length > 0 && <PartList {...props} groups={requested} />}
+      {analogs.length > 0 && (
+        <>
+          <h3 className="mt-2 text-[15px] font-semibold">Аналоги</h3>
+          <PartList {...props} groups={analogs} />
+        </>
+      )}
+    </>
+  );
+}
+
 export function SuppliersBlock({
   suppliers,
   queries,
@@ -79,11 +150,10 @@ export function SuppliersBlock({
       result === null
         ? 0
         : picker !== undefined
-          ? requestedParts([result]).length
+          ? requestedParts([result], opts.now).length
           : groups.length;
     return { supplier: s, query, state, groups, count };
   });
-  const markup = entries.find((e) => e.state.kind === "ok");
 
   return (
     <section className="rounded-lg border bg-card p-3.5 text-card-foreground">
@@ -102,12 +172,6 @@ export function SuppliersBlock({
             }
           />
         ))}
-        {markup?.state.kind === "ok" && (
-          <span className="text-[13px] text-muted-foreground md:ml-auto">
-            цены с наценкой {trimPercent(markup.state.result.markup)}%,
-            округление вверх до 10 ₽
-          </span>
-        )}
       </div>
       {backTo !== undefined && (
         <Link
@@ -158,15 +222,11 @@ export function SuppliersBlock({
                     Ничего не найдено
                   </p>
                 ) : (
-                  groups.map((g) => (
-                    <PartGroupCard
-                      key={g.key}
-                      group={g}
-                      supplier={supplier.title}
-                      stockQty={stockNumbers.get(g.number_norm)}
-                      now={opts.now}
-                    />
-                  ))
+                  <Parts
+                    groups={groups}
+                    stockNumbers={stockNumbers}
+                    now={opts.now}
+                  />
                 )}
               </>
             )}

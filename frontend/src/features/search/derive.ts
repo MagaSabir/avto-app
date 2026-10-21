@@ -35,9 +35,11 @@ function cmpBig(a: bigint, b: bigint): number {
   return a === b ? 0 : a < b ? -1 : 1;
 }
 
+// Search shows Rossko's own price ("as on their site"), never our markup.
+const byPrice = (a: Offer, b: Offer) =>
+  cmpBig(cents(a.purchase_price), cents(b.purchase_price));
+
 function offerCmp(sort: SortMode, now: Date) {
-  const byPrice = (a: Offer, b: Offer) =>
-    cmpBig(cents(a.price), cents(b.price));
   const byTime = (a: Offer, b: Offer) =>
     cmpNum(deliveryRank(a, now), deliveryRank(b, now));
   return (a: Offer, b: Offer) =>
@@ -91,9 +93,7 @@ export function cheapest(
   results: SupplierSearchResult[],
   showAnalogs: boolean,
 ): Pick | null {
-  return best(picks(results, showAnalogs), (a, b) =>
-    cmpBig(cents(a.price), cents(b.price)),
-  );
+  return best(picks(results, showAnalogs), byPrice);
 }
 
 export function fastest(
@@ -113,7 +113,8 @@ export function bestPriceFor(
     for (const g of r.groups)
       if (g.number_norm === numberNorm)
         for (const o of g.offers)
-          if (min === null || cents(o.price) < cents(min)) min = o.price;
+          if (min === null || cents(o.purchase_price) < cents(min))
+            min = o.purchase_price;
   return min;
 }
 
@@ -139,7 +140,7 @@ export function stockSummary(items: StockSearchItem[]): {
   return { qty, positions, minPrice, cells: [...cells] };
 }
 
-// How much cheaper the supplier is than my price, as a money string.
+// How much cheaper the supplier is than my purchase price, as money.
 export function cheaperBy(mine: string, theirs: string): string | null {
   const diff = cents(mine) - cents(theirs);
   if (diff <= 0n) return null;
@@ -168,11 +169,16 @@ export type PartChoice = {
   name: string;
   offers: number;
   minPrice: string | null;
+  fastest: Offer | null;
   analogs: number;
 };
 
 // One row per requested part (by key), merged across suppliers.
-export function requestedParts(results: SupplierSearchResult[]): PartChoice[] {
+export function requestedParts(
+  results: SupplierSearchResult[],
+  now: Date,
+): PartChoice[] {
+  const byTime = offerCmp("time", now);
   const parts = new Map<string, PartChoice>();
   const analogs = new Map<string, Set<string>>();
   for (const r of results)
@@ -185,13 +191,19 @@ export function requestedParts(results: SupplierSearchResult[]): PartChoice[] {
           name: g.name,
           offers: 0,
           minPrice: null,
+          fastest: null,
           analogs: 0,
         };
         if (p.name === "") p.name = g.name;
         p.offers += g.offers.length;
-        for (const o of g.offers)
-          if (p.minPrice === null || cents(o.price) < cents(p.minPrice))
-            p.minPrice = o.price;
+        for (const o of g.offers) {
+          if (
+            p.minPrice === null ||
+            cents(o.purchase_price) < cents(p.minPrice)
+          )
+            p.minPrice = o.purchase_price;
+          if (p.fastest === null || byTime(o, p.fastest) < 0) p.fastest = o;
+        }
         parts.set(g.key, p);
       }
       for (const k of g.analog_of) {
@@ -226,4 +238,19 @@ export function selectPart(
       ),
     };
   });
+}
+
+// Step 1 cards: parts with the same name (case and edge spaces aside).
+export function groupPartsByName(
+  parts: PartChoice[],
+): { name: string; parts: PartChoice[] }[] {
+  const cards = new Map<string, { name: string; parts: PartChoice[] }>();
+  for (const p of parts) {
+    const name = p.name.trim();
+    const key = name.toLowerCase();
+    const card = cards.get(key) ?? { name, parts: [] };
+    card.parts.push(p);
+    cards.set(key, card);
+  }
+  return [...cards.values()];
 }

@@ -42,10 +42,11 @@ function lastReceipt(it: StockSearchItem): string {
     : `${date} · ${it.last_receipt_supplier}`;
 }
 
+// Rossko below my purchase price: restocking there is worth a look.
 function Cheaper({ by }: { by: string }) {
   return (
-    <span className="rounded-full bg-status-low-bg px-2 py-0.5 text-[12px] font-medium whitespace-nowrap text-status-low">
-      на {formatPrice(by)} ₽ дешевле
+    <span className="text-[12px] font-medium whitespace-nowrap text-status-low">
+      {`на ${formatPrice(by)} ₽ дешевле закупки`}
     </span>
   );
 }
@@ -61,7 +62,7 @@ function SupplierPrice({
 }) {
   if (price === null)
     return loading ? <Skeleton className="ml-auto w-16" /> : <>—</>;
-  const by = cheaperBy(item.sale_price, price);
+  const by = cheaperBy(item.purchase_price, price);
   return (
     <span className="inline-flex items-center gap-1.5">
       <span>{formatPrice(price)} ₽</span>
@@ -177,7 +178,7 @@ export function MyStockBlock({
               {rows.map(({ item: it, isAnalog }) => {
                 const price = priceOf(it);
                 const by =
-                  price === null ? null : cheaperBy(it.sale_price, price);
+                  price === null ? null : cheaperBy(it.purchase_price, price);
                 return (
                   <li key={it.id}>
                     <Link

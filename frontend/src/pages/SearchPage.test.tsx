@@ -9,7 +9,10 @@ import {
   supplierResult,
 } from "@/test/searchFixtures";
 
-import { useLocation, useNavigate } from "react-router";
+import { Route, Routes, useLocation, useNavigate } from "react-router";
+
+import { Layout } from "@/app/Layout";
+import { setLastSearch } from "@/features/search/lastSearch";
 
 import { SearchPage } from "./SearchPage";
 
@@ -32,6 +35,7 @@ function Where() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  setLastSearch("");
 });
 
 const json = (body: object) =>
@@ -175,14 +179,26 @@ describe("SearchPage", () => {
               number_norm: "S1",
               is_requested: false,
               analog_of: ["KYB|333114"],
-              offers: [offer({ price: "1000.00", delivery_days: 6 })],
+              offers: [
+                offer({
+                  purchase_price: "1000.00",
+                  price: "9000.00",
+                  delivery_days: 6,
+                }),
+              ],
             }),
             partGroup({
               brand: "FASTDEAR",
               number_norm: "F1",
               is_requested: false,
               analog_of: ["KYB|333114"],
-              offers: [offer({ price: "5000.00", delivery_from: soon })],
+              offers: [
+                offer({
+                  purchase_price: "5000.00",
+                  price: "100.00",
+                  delivery_from: soon,
+                }),
+              ],
             }),
           ],
         }),
@@ -286,7 +302,7 @@ describe("SearchPage", () => {
           number_norm: "W683",
           name: "Фильтр масляный",
           key: mann,
-          offers: [offer({ price: "710.00" })],
+          offers: [offer({ purchase_price: "710.00", price: "860.00" })],
         }),
         partGroup({
           brand: "MGA",
@@ -332,7 +348,7 @@ describe("SearchPage", () => {
 
     it("asks to pick a part first, then shows only its offers", async () => {
       setup("/?q=W68/3");
-      expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
+      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
       expect(screen.getByText("Росско · 2 детали")).toBeInTheDocument();
       expect(
         screen.getByRole("region", { name: "Дешевле всего" }),
@@ -344,6 +360,11 @@ describe("SearchPage", () => {
         within(screen.getByRole("table")).getByText("W 68/3"),
       ).toBeInTheDocument();
       expect(screen.queryByText("BOSCHMANN")).not.toBeInTheDocument();
+      expect(
+        within(screen.getByRole("button", { name: /MGA W68\/3/ })).getByText(
+          "нет в наличии",
+        ),
+      ).toBeInTheDocument();
 
       fireEvent.click(
         screen.getByRole("button", { name: /Mann W 68\/3 Фильтр масляный/ }),
@@ -351,15 +372,16 @@ describe("SearchPage", () => {
       expect(screen.getByLabelText("where")).toHaveTextContent(
         `part=${encodeURIComponent(mann)}`,
       );
-      expect(screen.queryByText("Выберите деталь")).not.toBeInTheDocument();
+      expect(screen.queryByText("Результаты поиска")).not.toBeInTheDocument();
       expect(screen.getByText("BOSCHMANN")).toBeInTheDocument();
       expect(screen.queryByText("LUZARMGA")).not.toBeInTheDocument();
       expect(
         screen.getByRole("region", { name: "Дешевле всего" }),
       ).toHaveTextContent("710 ₽");
+      expect(screen.queryByText(/860/)).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("link", { name: "← все детали" }));
-      expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
+      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
     });
 
@@ -372,13 +394,13 @@ describe("SearchPage", () => {
       );
       expect(await screen.findByText("BOSCHMANN")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "history-back" }));
-      expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
+      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
     });
 
     it("shows supplier prices in my stock only for a chosen part", async () => {
       setup("/?q=W68/3");
-      await screen.findByText("Выберите деталь");
+      await screen.findByText("Результаты поиска");
       const row = within(screen.getByRole("table"))
         .getByText("W 68/3")
         .closest("tr");
@@ -391,12 +413,12 @@ describe("SearchPage", () => {
       const [mine] = screen.getAllByRole("table");
       const chosen = within(mine).getByText("W 68/3").closest("tr");
       expect(chosen?.lastElementChild).toHaveTextContent("710 ₽");
-      expect(chosen).toHaveTextContent("на 2 480 ₽ дешевле");
+      expect(chosen).toHaveTextContent("на 1 739,85 ₽ дешевле закупки");
     });
 
     it("shows the part list for an unknown part", async () => {
       setup("/?q=W68/3&part=NOPE|1");
-      expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
+      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
     });
 
     it("drops the part on a new number", async () => {
@@ -418,8 +440,92 @@ describe("SearchPage", () => {
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     expect(await screen.findByText("Росско · 1 деталь")).toBeInTheDocument();
-    expect(screen.queryByText("Выберите деталь")).not.toBeInTheDocument();
+    expect(screen.queryByText("Результаты поиска")).not.toBeInTheDocument();
     expect(screen.queryByText("← все детали")).not.toBeInTheDocument();
     expect(screen.getByText("Стойка амортизационная")).toBeInTheDocument();
+  });
+
+  it("shows the cheapest or the fastest offer in each row", async () => {
+    const now = new Date();
+    const soon = new Date(now.getTime() + 3_600_000).toISOString();
+    mockApi({
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () =>
+        supplierResult({
+          groups: [
+            partGroup({
+              offers: [
+                offer({
+                  purchase_price: "900.00",
+                  price: "100.00",
+                  delivery_from: soon,
+                }),
+                offer({
+                  purchase_price: "500.00",
+                  price: "9000.00",
+                  delivery_days: 6,
+                }),
+              ],
+            }),
+          ],
+        }),
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    const toggle = await screen.findByRole("button", {
+      name: "показать др. склады (1)",
+    });
+    const row = toggle.closest("li") as HTMLElement;
+    expect(row).toHaveTextContent("500 ₽");
+    expect(row).not.toHaveTextContent("900 ₽");
+    fireEvent.click(screen.getByRole("button", { name: "Срок" }));
+    expect(row).toHaveTextContent("900 ₽");
+    expect(row).not.toHaveTextContent("500 ₽");
+  });
+
+  it("keeps the last search when coming back from the stock screen", async () => {
+    let calls = 0;
+    mockApi({
+      "GET /api/health": () => ({ status: "ok", database: "ok" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => {
+        calls += 1;
+        return supplierResult({
+          groups: [
+            partGroup({ brand: "Mann", key: "MANN|W683", name: "Фильтр" }),
+            partGroup({ brand: "MGA", key: "MGA|W683", name: "Насос" }),
+          ],
+        });
+      },
+    });
+    renderWithProviders(
+      <Routes>
+        <Route element={<Layout />}>
+          <Route
+            path="/"
+            element={
+              <>
+                <SearchPage />
+                <Where />
+              </>
+            }
+          />
+          <Route path="/stock" element={<p>STOCK</p>} />
+        </Route>
+      </Routes>,
+      { route: "/?q=W68/3" },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));
+    expect(await screen.findByText("Фильтр")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Склад" }));
+    expect(await screen.findByText("STOCK")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Поиск" }));
+    expect(await screen.findByText("Фильтр")).toBeInTheDocument();
+    const where = screen.getByLabelText("where").textContent;
+    expect(new URLSearchParams(where).get("q")).toBe("W68/3");
+    expect(new URLSearchParams(where).get("part")).toBe("MANN|W683");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(calls).toBe(1);
   });
 });

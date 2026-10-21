@@ -40,7 +40,17 @@ describe("MyStockBlock", () => {
     renderWithProviders(
       <MyStockBlock
         rows={[{ item: mine, isAnalog: false }]}
-        results={[supplierResult()]}
+        results={[
+          supplierResult({
+            groups: [
+              partGroup({
+                offers: [
+                  offer({ purchase_price: "2199.85", price: "2640.00" }),
+                ],
+              }),
+            ],
+          }),
+        ]}
         loadingMatches={false}
       />,
     );
@@ -50,23 +60,29 @@ describe("MyStockBlock", () => {
     const row = within(t.getByText("333114").closest("tr") as HTMLElement);
     expect(row.getByText("в наличии")).toBeInTheDocument();
     expect(row.getByText("12.10.2026 · Росско")).toBeInTheDocument();
-    expect(row.getByText("2 940 ₽")).toBeInTheDocument();
-    expect(row.getByText("на 250 ₽ дешевле")).toBeInTheDocument();
+    expect(row.getByText("2 199,85 ₽")).toBeInTheDocument();
+    expect(row.getByText("на 250 ₽ дешевле закупки")).toHaveClass(
+      "text-status-low",
+    );
   });
 
-  it("does not say cheaper when the supplier price is higher", () => {
+  it("does not say cheaper when Rossko is above my purchase price", () => {
     renderWithProviders(
       <MyStockBlock
         rows={[{ item: mine, isAnalog: false }]}
         results={[
           supplierResult({
-            groups: [partGroup({ offers: [offer({ price: "3500.00" })] })],
+            groups: [
+              partGroup({
+                offers: [offer({ purchase_price: "2800.00", price: "1.00" })],
+              }),
+            ],
           }),
         ]}
         loadingMatches={false}
       />,
     );
-    expect(within(table()).getByText("3 500 ₽")).toBeInTheDocument();
+    expect(within(table()).getByText("2 800 ₽")).toBeInTheDocument();
     expect(screen.queryByText(/дешевле/)).not.toBeInTheDocument();
   });
 

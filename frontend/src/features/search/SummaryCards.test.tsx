@@ -32,7 +32,12 @@ const results = [
             delivery_from: new Date(2026, 9, 21, 17, 0).toISOString(),
             delivery_to: new Date(2026, 9, 21, 20, 0).toISOString(),
           }),
-          offer({ price: "3500.00", qty: 50, delivery_days: 6 }),
+          offer({
+            purchase_price: "2300.00",
+            price: "3500.00",
+            qty: 50,
+            delivery_days: 6,
+          }),
         ],
       }),
     ],
@@ -57,12 +62,12 @@ describe("SummaryCards", () => {
     expect(mine).toHaveTextContent("ячейки A-2-4, A-2-5");
 
     const cheap = card("Дешевле всего");
-    expect(within(cheap).getByText("2 940 ₽")).toBeInTheDocument();
-    expect(cheap).toHaveTextContent("KYB 333114 · Росско · 20 шт");
+    expect(within(cheap).getByText("2 300 ₽")).toBeInTheDocument();
+    expect(cheap).toHaveTextContent("KYB 333114 · Росско · 50 шт");
 
     const fast = card("Быстрее всего");
     expect(fast).toHaveTextContent("Сегодня 17:00–20:00");
-    expect(fast).toHaveTextContent("KYB 333114 · 2 940 ₽");
+    expect(fast).toHaveTextContent("KYB 333114 · 2 449,85 ₽");
   });
 
   it("shows loading placeholders while suppliers are pending", () => {

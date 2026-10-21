@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import type { StockSearchItem, SupplierSearchResult } from "@/api/search";
@@ -14,6 +14,7 @@ import {
   visibleStock,
 } from "@/features/search/derive";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
+import { setLastSearch } from "@/features/search/lastSearch";
 import { MyStockBlock } from "@/features/search/MyStockBlock";
 import { PartPicker } from "@/features/search/PartPicker";
 import { SearchForm } from "@/features/search/SearchForm";
@@ -24,6 +25,12 @@ export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const q = (params.get("q") ?? "").trim();
   const queryClient = useQueryClient();
+  const search = params.toString();
+
+  // Remembered for the "Поиск" link in the header.
+  useEffect(() => {
+    if (q !== "") setLastSearch(`?${search}`);
+  }, [q, search]);
   const [filters, setFilters] = useState<SearchFilters>({
     inStockOnly: false,
     showAnalogs: true,
@@ -51,7 +58,8 @@ export function SearchPage() {
 
   // Two steps when one number names several parts: pick a part, then see
   // only its offers and analogs. A single part skips the list.
-  const parts = requestedParts(answered);
+  const now = new Date();
+  const parts = requestedParts(answered, now);
   const partParam = params.get("part");
   const chosen =
     parts.find((p) => p.key === partParam) ??
@@ -78,7 +86,6 @@ export function SearchPage() {
       it.number_norm,
       (stockNumbers.get(it.number_norm) ?? 0) + it.qty,
     );
-  const now = new Date();
 
   return (
     <div className="flex flex-col gap-3">
@@ -118,6 +125,7 @@ export function SearchPage() {
                 picking ? (
                   <PartPicker
                     parts={parts}
+                    now={now}
                     onPick={(part) => {
                       setParams({ q, part });
                     }}

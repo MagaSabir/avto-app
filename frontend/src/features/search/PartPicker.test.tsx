@@ -1,16 +1,26 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { offer } from "@/test/searchFixtures";
+
+import type { PartChoice } from "./derive";
 import { PartPicker } from "./PartPicker";
 
-const parts = [
+const now = new Date(2026, 9, 21, 10, 0);
+
+const parts: PartChoice[] = [
   {
     key: "MANN|W683",
     brand: "Mann",
     number: "W 68/3",
     name: "Фильтр масляный",
     offers: 3,
-    minPrice: "710.00",
+    minPrice: "540.00",
+    fastest: offer({
+      purchase_price: "696.00",
+      price: "840.00",
+      delivery_days: 1,
+    }),
     analogs: 80,
   },
   {
@@ -20,42 +30,57 @@ const parts = [
     name: "Насос водяной",
     offers: 0,
     minPrice: null,
+    fastest: null,
     analogs: 1,
+  },
+  {
+    key: "BIG|W683",
+    brand: "BIG",
+    number: "W683",
+    name: " фильтр масляный",
+    offers: 0,
+    minPrice: null,
+    fastest: null,
+    analogs: 0,
   },
 ];
 
 describe("PartPicker", () => {
-  it("lists parts with offers, price and analogs", () => {
-    render(<PartPicker parts={parts} onPick={() => undefined} />);
-    expect(screen.getByText("Выберите деталь")).toBeInTheDocument();
-    const mann = screen.getByRole("button", {
+  it("shows cards by part name with the fastest offer", () => {
+    render(<PartPicker parts={parts} now={now} onPick={() => undefined} />);
+    expect(
+      screen.getByRole("heading", { name: "Результаты поиска" }),
+    ).toBeInTheDocument();
+    const filters = screen.getByRole("region", { name: "Фильтр масляный" });
+    expect(within(filters).getByText("Бренд")).toBeInTheDocument();
+    expect(
+      within(filters).getByText("Артикул / Наименование"),
+    ).toBeInTheDocument();
+    expect(within(filters).getByText("Цена")).toBeInTheDocument();
+    const mann = within(filters).getByRole("button", {
       name: /Mann W 68\/3 Фильтр масляный/,
     });
-    expect(mann).toHaveTextContent("3 предложения");
-    expect(mann).toHaveTextContent("от 710 ₽");
-    expect(mann).toHaveTextContent("80 аналогов");
-    expect(screen.getByText("W 68/3")).toHaveClass("font-mono");
-    const mga = screen.getByRole("button", { name: /MGA W68\/3/ });
-    expect(mga).toHaveTextContent("нет предложений");
-    expect(mga).toHaveTextContent("1 аналог");
-    expect(mga).not.toHaveTextContent("от ");
+    expect(within(mann).getByText("Mann")).toBeInTheDocument();
+    expect(within(mann).getByText("W 68/3")).toHaveClass("font-mono");
+    expect(within(mann).getByText("696 ₽")).toBeInTheDocument();
+    expect(within(mann).getByText("1 дн.")).toBeInTheDocument();
+    expect(within(mann).getByText("+ 80 аналогов")).toBeInTheDocument();
+    expect(mann).not.toHaveTextContent("840");
+    expect(
+      within(filters).getByRole("button", { name: /BIG W683/ }),
+    ).toBeInTheDocument();
+
+    const pump = screen.getByRole("region", { name: "Насос водяной" });
+    const mga = within(pump).getByRole("button", { name: /MGA W68\/3/ });
+    expect(within(mga).getByText("—")).toBeInTheDocument();
+    expect(within(mga).getByText("нет в наличии")).toBeInTheDocument();
+    expect(within(mga).getByText("+ 1 аналог")).toBeInTheDocument();
   });
 
   it("picks a part by key", () => {
     const onPick = vi.fn();
-    render(<PartPicker parts={parts} onPick={onPick} />);
+    render(<PartPicker parts={parts} now={now} onPick={onPick} />);
     fireEvent.click(screen.getByRole("button", { name: /MGA W68\/3/ }));
     expect(onPick).toHaveBeenCalledWith("MGA|W683");
-  });
-
-  it("keeps brand and number on one line and joins the meta", () => {
-    render(<PartPicker parts={parts} onPick={() => undefined} />);
-    const number = screen.getByText("W 68/3");
-    expect(number.parentElement).toHaveClass("whitespace-nowrap");
-    expect(number.parentElement).toHaveTextContent(/^Mann W 68\/3$/);
-    expect(
-      screen.getByText("3 предложения · от 710 ₽ · 80 аналогов"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("нет предложений · 1 аналог")).toBeInTheDocument();
   });
 });

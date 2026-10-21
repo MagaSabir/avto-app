@@ -50,3 +50,10 @@ export function plural(
   if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return few;
   return many;
 }
+
+// Rossko hides third-party stock behind "Партнерский склад".
+export function warehouseLabel(offer: Offer): string {
+  return offer.warehouse === "Партнерский склад"
+    ? "склад партнёра"
+    : offer.warehouse;
+}

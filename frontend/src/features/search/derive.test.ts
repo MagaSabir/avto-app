@@ -14,8 +14,10 @@ import {
   cheapest,
   deliveryRank,
   fastest,
+  groupPartsByName,
   requestedParts,
   selectPart,
+  type PartChoice,
   stockSummary,
   visibleStock,
 } from "./derive";
@@ -35,7 +37,8 @@ function offer(price: string, over: Partial<Offer> = {}): Offer {
     kind: "normal",
     kind_code: "0",
     purchase_price: price,
-    price,
+    // Price with markup is not used on screen; a constant proves it.
+    price: "1.00",
     ...over,
   };
 }
@@ -129,7 +132,10 @@ describe("arrangeGroups", () => {
       now,
     });
     expect(out.map((g) => g.number_norm)).toEqual(["REQ", "A1", "A2", "A3"]);
-    expect(out[0]?.offers.map((o) => o.price)).toEqual(["100.00", "5000.00"]);
+    expect(out[0]?.offers.map((o) => o.purchase_price)).toEqual([
+      "100.00",
+      "5000.00",
+    ]);
   });
 
   it("sorts by time, no-time last, empty groups last", () => {
@@ -158,7 +164,10 @@ describe("arrangeGroups", () => {
       offer("5.00", { delivery_from: at(23) }),
     ]);
     const out = arrangeGroups([g], { showAnalogs: true, sort: "time", now });
-    expect(out[0]?.offers.map((o) => o.price)).toEqual(["5.00", "9.00"]);
+    expect(out[0]?.offers.map((o) => o.purchase_price)).toEqual([
+      "5.00",
+      "9.00",
+    ]);
   });
 
   it("hides analogs", () => {
@@ -181,15 +190,15 @@ describe("cheapest / fastest", () => {
   ]);
 
   it("finds the cheapest, with and without analogs", () => {
-    expect(cheapest([r1, r2], false)?.offer.price).toBe("200.00");
+    expect(cheapest([r1, r2], false)?.offer.purchase_price).toBe("200.00");
     const p = cheapest([r1, r2], true);
-    expect(p?.offer.price).toBe("50.00");
+    expect(p?.offer.purchase_price).toBe("50.00");
     expect(p?.supplier).toBe("b");
     expect(p?.group.number_norm).toBe("AN");
   });
 
   it("finds the fastest", () => {
-    expect(fastest([r1, r2], true, now)?.offer.price).toBe("200.00");
+    expect(fastest([r1, r2], true, now)?.offer.purchase_price).toBe("200.00");
   });
 
   it("prefers cheaper on equal delivery", () => {
@@ -264,6 +273,29 @@ describe("stockSummary", () => {
   });
 });
 
+describe("groupPartsByName", () => {
+  const part = (key: string, name: string): PartChoice => ({
+    key,
+    brand: key,
+    number: key,
+    name,
+    offers: 0,
+    minPrice: null,
+    fastest: null,
+    analogs: 0,
+  });
+
+  it("joins names ignoring case and edge spaces, in first-seen order", () => {
+    const a = part("A", "Фильтр масляный");
+    const b = part("B", "Насос водяной");
+    const c = part("C", " фильтр масляный ");
+    expect(groupPartsByName([a, b, c])).toEqual([
+      { name: "Фильтр масляный", parts: [a, c] },
+      { name: "Насос водяной", parts: [b] },
+    ]);
+  });
+});
+
 describe("cheaperBy", () => {
   it("returns the difference only when the supplier is cheaper", () => {
     expect(cheaperBy("3190.00", "2940.00")).toBe("250.00");
@@ -321,8 +353,8 @@ function twoParts(): SupplierSearchResult[] {
           name: "Фильтр масляный",
           key: MANN,
           offers: [
-            fx.offer({ price: "900.00" }),
-            fx.offer({ price: "710.00" }),
+            fx.offer({ purchase_price: "900.00", delivery_days: 1 }),
+            fx.offer({ purchase_price: "710.00", delivery_days: 5 }),
           ],
         }),
         fx.partGroup({
@@ -362,7 +394,7 @@ function twoParts(): SupplierSearchResult[] {
           number_norm: "W683",
           name: "Фильтр масляный",
           key: MANN,
-          offers: [fx.offer({ price: "750.00" })],
+          offers: [fx.offer({ purchase_price: "750.00" })],
         }),
         fx.partGroup({
           brand: "BOSCH",
@@ -385,7 +417,11 @@ function twoParts(): SupplierSearchResult[] {
 
 describe("requestedParts", () => {
   it("merges a part across suppliers in first-seen order", () => {
-    expect(requestedParts(twoParts())).toEqual([
+    const parts = requestedParts(twoParts(), now).map((p) => ({
+      ...p,
+      fastest: p.fastest?.purchase_price ?? null,
+    }));
+    expect(parts).toEqual([
       {
         key: MANN,
         brand: "Mann",
@@ -393,6 +429,7 @@ describe("requestedParts", () => {
         name: "Фильтр масляный",
         offers: 3,
         minPrice: "710.00",
+        fastest: "900.00",
         analogs: 2,
       },
       {
@@ -402,13 +439,14 @@ describe("requestedParts", () => {
         name: "Насос водяной",
         offers: 0,
         minPrice: null,
+        fastest: null,
         analogs: 2,
       },
     ]);
   });
 
   it("is empty without results", () => {
-    expect(requestedParts([])).toEqual([]);
+    expect(requestedParts([], now)).toEqual([]);
   });
 });
 

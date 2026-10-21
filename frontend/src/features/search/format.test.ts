@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Offer } from "../../api/search";
-import { formatDelivery, kindLabel } from "./format";
+import { formatDelivery, kindLabel, warehouseLabel } from "./format";
 
 function offer(over: Partial<Offer> = {}): Offer {
   return {
@@ -68,5 +68,15 @@ describe("kindLabel", () => {
     expect(kindLabel(offer({ kind: "defect" }))).toBe("некондиция");
     expect(kindLabel(offer({ kind: "air" }))).toBe("авиатовар");
     expect(kindLabel(offer({ kind: "other", kind_code: "7" }))).toBe("тип 7");
+  });
+});
+
+describe("warehouseLabel", () => {
+  it("names Rossko partner stock and keeps addresses", () => {
+    expect(warehouseLabel(offer({ warehouse: "Партнерский склад" }))).toBe(
+      "склад партнёра",
+    );
+    const address = "г. Грозный, Старопромысловское шоссе, 21А, лит.Б4";
+    expect(warehouseLabel(offer({ warehouse: address }))).toBe(address);
   });
 });

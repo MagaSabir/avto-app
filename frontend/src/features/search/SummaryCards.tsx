@@ -127,7 +127,9 @@ export function SummaryCards({
       <SummaryCard
         title="Дешевле всего"
         busy={pending}
-        value={cheap === null ? none : `${formatPrice(cheap.offer.price)} ₽`}
+        value={
+          cheap === null ? none : `${formatPrice(cheap.offer.purchase_price)} ₽`
+        }
         sub={
           cheap === null ? undefined : (
             <>
@@ -147,7 +149,8 @@ export function SummaryCards({
         sub={
           fast === null ? undefined : (
             <>
-              <PartName pick={fast} /> · {formatPrice(fast.offer.price)} ₽
+              <PartName pick={fast} /> ·{" "}
+              {formatPrice(fast.offer.purchase_price)} ₽
             </>
           )
         }
