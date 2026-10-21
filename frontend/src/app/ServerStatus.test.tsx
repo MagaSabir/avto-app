@@ -47,7 +47,7 @@ describe("ServerStatus", () => {
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
     renderStatus();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Сервер недоступен: проверьте, что ПК включён и Tailscale подключён",
+      "Сервер недоступен, попробуйте позже",
     );
   });
 

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiFetch, ServerUnavailableError } from "./client";
+import {
+  ApiError,
+  apiFetch,
+  ServerUnavailableError,
+  UnauthorizedError,
+} from "./client";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -32,7 +37,7 @@ describe("apiFetch", () => {
     const error = await apiFetch("/api/health").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ServerUnavailableError);
     expect((error as Error).message).toBe(
-      "Сервер недоступен: проверьте, что ПК включён и Tailscale подключён",
+      "Сервер недоступен, попробуйте позже",
     );
   });
 
@@ -97,5 +102,26 @@ describe("apiFetch", () => {
   it("returns parsed JSON on 2xx", async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { status: "ok" }));
     await expect(apiFetch("/api/health")).resolves.toEqual({ status: "ok" });
+  });
+
+  it("sends credentials", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {}));
+    await apiFetch("/api/x");
+    expect(fetchMock.mock.lastCall?.[1]?.credentials).toBe("include");
+  });
+
+  it("rejects with UnauthorizedError on 401", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(401, { message: "Требуется вход" }),
+    );
+    const error = await apiFetch("/api/x").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UnauthorizedError);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 401, message: "Требуется вход" });
+  });
+
+  it("returns null on 204", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(apiFetch("/api/x", { method: "POST" })).resolves.toBeNull();
   });
 });
