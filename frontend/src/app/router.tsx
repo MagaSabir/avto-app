@@ -1,16 +1,24 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
 
+import { LoginPage } from "@/pages/LoginPage";
 import { SearchPage } from "@/pages/SearchPage";
 import { StockPage } from "@/pages/StockPage";
 
 import { Layout } from "./Layout";
+import { RequireAuth } from "./RequireAuth";
 
 export const routes: RouteObject[] = [
+  { path: "/login", element: <LoginPage /> },
   {
-    element: <Layout />,
+    element: <RequireAuth />,
     children: [
-      { path: "/", element: <SearchPage /> },
-      { path: "/stock", element: <StockPage /> },
+      {
+        element: <Layout />,
+        children: [
+          { path: "/", element: <SearchPage /> },
+          { path: "/stock", element: <StockPage /> },
+        ],
+      },
     ],
   },
 ];

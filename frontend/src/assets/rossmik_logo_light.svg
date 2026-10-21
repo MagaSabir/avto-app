@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="72" viewBox="0 0 420 72" role="img" aria-labelledby="title">
+  <title id="title">ROSSMIK — подбор автозапчастей</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 7 55 19 55 43 34 55 13 43 13 19Z" stroke="#1B2028" stroke-width="5"/>
+    <circle cx="34" cy="31" r="13" stroke="#3478E5" stroke-width="5"/>
+    <path d="M44 41 57 54" stroke="#3478E5" stroke-width="7"/>
+    <circle cx="34" cy="31" r="5" fill="#3478E5" stroke="none"/>
+  </g>
+  <text x="75" y="48" font-family="Arial, Helvetica, sans-serif" font-size="43" font-weight="800" letter-spacing="-1.6" fill="#1B2028">ROSSMI<tspan fill="#3478E5">K</tspan></text>
+</svg>
