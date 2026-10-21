@@ -6,11 +6,15 @@ set -Eeuo pipefail
 APP_DIR="${APP_DIR:-/home/deploy/avto_app}"
 BACKUP_DIR="${BACKUP_DIR:-/home/deploy/backups}"
 HEALTH_URL="${HEALTH_URL:-https://api.rossmik.ru/api/health}"
+# The very first deploy (Let's Encrypt issuance) should be run with HEALTH_TIMEOUT=180
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 LOCK_FILE="${LOCK_FILE:-${HOME}/deploy.lock}"
 KEEP_PRE_DEPLOY=10
 
 STEP="запуск"
+MAIN_PID=$$
+OLD_RUNNING=0 # a previous api container was running before this deploy
+STARTED=0     # containers were (re)started by this deploy
 
 dc() { docker compose -p avto_prod -f "$APP_DIR/docker-compose.prod.yml" --env-file "$APP_DIR/.env" "$@"; }
 
@@ -18,7 +22,12 @@ log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 on_error() {
   local code=$?
+  # Command substitutions inherit the trap; report only from the main shell
+  [ "$BASHPID" = "$MAIN_PID" ] || exit "$code"
   printf 'Выкат прерван на шаге: %s (код %s)\n' "$STEP" "$code" >&2
+  if [ "$OLD_RUNNING" = 1 ] && [ "$STARTED" = 0 ]; then
+    echo "Предыдущая версия продолжает работать." >&2
+  fi
   exit "$code"
 }
 
@@ -35,16 +44,20 @@ take_lock() {
 pull_code() {
   STEP="обновление кода (git pull)"
   log "Обновляю код из origin/main"
-  git -C "$APP_DIR" pull --ff-only origin main
+  GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only origin main </dev/null
 }
 
 tag_previous() {
   STEP="сохранение предыдущего образа"
-  if docker image inspect avto_api:latest >/dev/null 2>&1; then
-    docker tag avto_api:latest avto_api:previous
-    log "Предыдущая версия сохранена как avto_api:previous"
+  local cid
+  cid="$(dc ps -q api </dev/null)"
+  if [ -n "$cid" ]; then
+    # Tag the image of the running container, not :latest (which may be a never-run build)
+    docker tag "$(docker inspect -f '{{.Image}}' "$cid")" avto_api:previous
+    OLD_RUNNING=1
+    log "Работающая версия сохранена как avto_api:previous"
   else
-    log "Первый выкат — предыдущей версии нет"
+    log "Первый выкат — предыдущей версии нет, откатываться некуда"
   fi
 }
 
@@ -56,8 +69,9 @@ build_api() {
 
 backup_db() {
   STEP="резервная копия БД"
-  local dir="$BACKUP_DIR/pre-deploy" file tmp
-  if [ -z "$(dc ps --status running -q db)" ]; then
+  local dir="$BACKUP_DIR/pre-deploy" file tmp running
+  running="$(dc ps --status running -q db </dev/null)"
+  if [ -z "$running" ]; then
     log "База не запущена — резервная копия пропущена"
     return 0
   fi
@@ -67,7 +81,10 @@ backup_db() {
   log "Делаю резервную копию: $file"
   # Credentials come from the container's own environment
   # shellcheck disable=SC2016
-  dc exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null | gzip >"$tmp"
+  if ! dc exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null | gzip >"$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
   mv "$tmp" "$file"
   # Keep only the newest copies
   # shellcheck disable=SC2012
@@ -83,6 +100,7 @@ run_migrations() {
 start_stack() {
   STEP="запуск контейнеров"
   log "Запускаю контейнеры"
+  STARTED=1
   dc up -d </dev/null
 }
 
@@ -109,6 +127,11 @@ check_health() {
     docker tag avto_api:previous avto_api:latest
     dc up -d api </dev/null
     echo "Возвращена предыдущая версия; смотрите: docker compose -p avto_prod logs api" >&2
+    if wait_health; then
+      echo "Предыдущая версия работает." >&2
+    else
+      echo "Предыдущая версия тоже не отвечает — нужна ручная проверка." >&2
+    fi
   else
     echo "Предыдущей версии нет, откат невозможен; смотрите: docker compose -p avto_prod logs api" >&2
   fi

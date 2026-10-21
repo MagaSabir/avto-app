@@ -8,24 +8,20 @@ KEEP_DAILY=14
 
 dc() { docker compose -p avto_prod -f "$APP_DIR/docker-compose.prod.yml" --env-file "$APP_DIR/.env" "$@"; }
 
-# Read only the two needed keys; the rest of .env is not sourced
-env_value() { grep -m1 "^$1=" "$APP_DIR/.env" | cut -d= -f2-; }
-
 main() {
   trap 'echo "Резервная копия не создана" >&2' ERR
-  local user db dir file tmp
-  user="$(env_value POSTGRES_USER)"
-  db="$(env_value POSTGRES_DB)"
-  if [ -z "$user" ] || [ -z "$db" ]; then
-    echo "В $APP_DIR/.env не заданы POSTGRES_USER / POSTGRES_DB" >&2
-    exit 1
-  fi
+  local dir file tmp
   dir="$BACKUP_DIR/daily"
   mkdir -p "$dir"
   file="$dir/avto-$(date -u +%F).sql.gz"
   tmp="$file.part"
   rm -f "$tmp"
-  dc exec -T db pg_dump -U "$user" "$db" </dev/null | gzip >"$tmp"
+  # Credentials come from the container's own environment
+  # shellcheck disable=SC2016
+  if ! dc exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null | gzip >"$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
   mv "$tmp" "$file"
   echo "Резервная копия создана: $file"
   # shellcheck disable=SC2012
