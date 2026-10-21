@@ -29,6 +29,7 @@ async def test_login_sets_cookie(anon_client: httpx.AsyncClient, db_session: Asy
     assert "SameSite=lax" in cookie
     assert "Max-Age=2592000" in cookie
     assert "Path=/" in cookie
+    assert "domain" not in cookie.lower()
 
 
 async def test_login_wrong_password_401(
@@ -53,7 +54,7 @@ async def test_login_rate_limited_429(
         assert (await _login(anon_client, "wrong-password")).status_code == 401
     response = await _login(anon_client, "wrong-password")
     assert response.status_code == 429
-    assert response.json()["message"]
+    assert response.json() == {"message": "Слишком много попыток входа, подождите несколько минут"}
 
 
 async def test_me_after_login(anon_client: httpx.AsyncClient, db_session: AsyncSession) -> None:

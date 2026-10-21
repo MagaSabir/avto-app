@@ -26,3 +26,6 @@ def test_new_password_error() -> None:
     assert new_password_error("a" * 9, "a" * 9) == "Пароль короче 10 символов"
     assert new_password_error("a" * 10, "b" * 10) == "Пароли не совпадают"
     assert new_password_error("a" * 9, "b" * 9) == "Пароли не совпадают"
+    assert new_password_error("a" * 200, "a" * 200) is None
+    assert new_password_error("a" * 201, "a" * 201) == "Пароль длиннее 200 символов"
+    assert new_password_error("a" * 201, "b" * 201) == "Пароли не совпадают"

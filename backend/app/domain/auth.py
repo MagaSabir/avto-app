@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 SESSION_TTL = timedelta(days=30)
 RENEW_THRESHOLD = timedelta(days=29)
 MIN_PASSWORD_LENGTH = 10
+MAX_PASSWORD_LENGTH = 200
 
 
 def normalize_login(raw: str) -> str:
@@ -23,4 +24,6 @@ def new_password_error(password: str, confirm: str) -> str | None:
         return "Пароли не совпадают"
     if len(password) < MIN_PASSWORD_LENGTH:
         return f"Пароль короче {MIN_PASSWORD_LENGTH} символов"
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return f"Пароль длиннее {MAX_PASSWORD_LENGTH} символов"
     return None
