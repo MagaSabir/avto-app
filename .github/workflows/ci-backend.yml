@@ -5,12 +5,22 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "deploy.sh"
+      - "scripts/**"
+      - "docker-compose.prod.yml"
+      - "Caddyfile"
       - ".github/workflows/ci-backend.yml"
+      - ".github/workflows/deploy-backend.yml"
   push:
     branches: [main]
     paths:
       - "backend/**"
+      - "deploy.sh"
+      - "scripts/**"
+      - "docker-compose.prod.yml"
+      - "Caddyfile"
       - ".github/workflows/ci-backend.yml"
+      - ".github/workflows/deploy-backend.yml"
 
 concurrency:
   group: ci-backend-${{ github.ref }}
@@ -55,3 +65,12 @@ jobs:
         run: uv run pytest
       - name: Migrations match models
         run: uv run alembic upgrade head && uv run alembic check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck deploy scripts
+        run: shellcheck deploy.sh scripts/backup.sh
+      - name: Build API image
+        run: docker build backend/
