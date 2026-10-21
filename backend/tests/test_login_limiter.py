@@ -35,3 +35,19 @@ def test_ips_independent() -> None:
         limiter.record_failure("1.1.1.1")
     assert limiter.is_blocked("1.1.1.1")
     assert not limiter.is_blocked("2.2.2.2")
+
+
+def test_try_acquire_blocks_after_limit() -> None:
+    limiter = LoginLimiter(clock=FakeClock())
+    assert all(limiter.try_acquire("1.1.1.1") for _ in range(10))
+    assert not limiter.try_acquire("1.1.1.1")
+    assert limiter.is_blocked("1.1.1.1")
+
+
+def test_forgive_removes_last_attempt() -> None:
+    limiter = LoginLimiter(clock=FakeClock())
+    for _ in range(10):
+        limiter.try_acquire("1.1.1.1")
+    limiter.forgive("1.1.1.1")
+    assert not limiter.is_blocked("1.1.1.1")
+    limiter.forgive("2.2.2.2")

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -116,3 +117,21 @@ async def test_set_password_creates_then_changes_and_drops_sessions(
     await db_session.refresh(user)
     assert verify_password(user.password_hash, "second-password-2")
     assert await sessions_repo.get_active(db_session, hash_token("t"), NOW) is None
+
+
+async def test_parallel_wrong_logins_are_limited(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A shared session cannot run queries concurrently, so the lookup is faked with a
+    # real suspension point: every request must have recorded its attempt before it.
+    async def slow_lookup(session: AsyncSession, login: str) -> None:
+        await asyncio.sleep(0.01)
+
+    monkeypatch.setattr(users_repo, "get_by_login", slow_lookup)
+    limiter = LoginLimiter()
+    results = await asyncio.gather(
+        *(auth.login(db_session, limiter, "1.1.1.1", "x", "wrong", NOW) for _ in range(15)),
+        return_exceptions=True,
+    )
+    assert sum(isinstance(r, InvalidCredentials) for r in results) == 10
+    assert sum(isinstance(r, TooManyLoginAttempts) for r in results) == 5

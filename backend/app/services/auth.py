@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -32,18 +33,18 @@ async def login(
     password: str,
     now: datetime,
 ) -> str:
-    if limiter.is_blocked(ip):
+    # The attempt is recorded before any await so parallel requests cannot all pass the check.
+    if not limiter.try_acquire(ip):
         raise TooManyLoginAttempts()
     user = await users_repo.get_by_login(session, normalize_login(login))
     if user is None:
-        verify_dummy_password(password)
-        limiter.record_failure(ip)
+        await asyncio.to_thread(verify_dummy_password, password)
         raise InvalidCredentials()
-    if not verify_password(user.password_hash, password):
-        limiter.record_failure(ip)
+    if not await asyncio.to_thread(verify_password, user.password_hash, password):
         raise InvalidCredentials()
+    limiter.forgive(ip)
     if password_needs_rehash(user.password_hash):
-        user.password_hash = hash_password(password)
+        user.password_hash = await asyncio.to_thread(hash_password, password)
     await sessions_repo.delete_expired(session, now)
     token = new_session_token()
     await sessions_repo.add(session, user.id, hash_token(token), now + SESSION_TTL)
@@ -78,9 +79,9 @@ async def set_password(session: AsyncSession, login: str, password: str) -> bool
     user = await users_repo.get_by_login(session, name)
     created = user is None
     if user is None:
-        await users_repo.add(session, name, hash_password(password))
+        await users_repo.add(session, name, await asyncio.to_thread(hash_password, password))
     else:
-        user.password_hash = hash_password(password)
+        user.password_hash = await asyncio.to_thread(hash_password, password)
         await sessions_repo.delete_for_user(session, user.id)
     await session.commit()
     return created

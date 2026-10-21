@@ -30,6 +30,25 @@ class LoginLimiter:
     def is_blocked(self, ip: str) -> bool:
         return len(self._recent(ip)) >= self._max_failures
 
+    def try_acquire(self, ip: str) -> bool:
+        """Atomically (no await) check the limit and record an attempt; False if blocked."""
+        recent = self._recent(ip)
+        if len(recent) >= self._max_failures:
+            return False
+        recent.append(self._clock())
+        self._failures[ip] = recent
+        return True
+
+    def forgive(self, ip: str) -> None:
+        """Drop the most recent attempt (called after a successful login)."""
+        recent = self._recent(ip)
+        if recent:
+            recent.pop()
+            if recent:
+                self._failures[ip] = recent
+            else:
+                self._failures.pop(ip, None)
+
     def record_failure(self, ip: str) -> None:
         recent = self._recent(ip)
         recent.append(self._clock())
