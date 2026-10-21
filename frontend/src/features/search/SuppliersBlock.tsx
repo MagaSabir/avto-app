@@ -7,12 +7,7 @@ import { Button } from "@/components/ui/button";
 import { trimPercent } from "@/features/stock/format";
 import { cn } from "@/lib/utils";
 
-import {
-  arrangeGroups,
-  requestedParts,
-  selectPart,
-  type SortMode,
-} from "./derive";
+import { arrangeGroups, requestedParts, type SortMode } from "./derive";
 import { plural } from "./format";
 import { PartGroupCard } from "./PartGroupCard";
 import { Skeleton } from "./Tag";
@@ -20,11 +15,11 @@ import { Skeleton } from "./Tag";
 type Props = {
   suppliers: SupplierInfo[];
   queries: UseQueryResult<SupplierSearchResult>[];
+  // Successful answers to show, already narrowed to the chosen part.
+  results: SupplierSearchResult[];
   opts: { showAnalogs: boolean; sort: SortMode; now: Date };
   // Stock qty by normalized number, for "у вас N шт".
   stockNumbers: Map<string, number>;
-  // Step 2: show only this requested part and its analogs.
-  partKey: string | null;
   // Step 1: the part list, shown instead of the groups.
   picker?: ReactNode;
   // Link back to the part list, when there are several parts.
@@ -36,12 +31,15 @@ type State =
   | { kind: "error"; message: string }
   | { kind: "ok"; result: SupplierSearchResult };
 
-function stateOf(q: UseQueryResult<SupplierSearchResult> | undefined): State {
+function stateOf(
+  q: UseQueryResult<SupplierSearchResult> | undefined,
+  shown: SupplierSearchResult | undefined,
+): State {
   if (q === undefined || q.isPending || q.isFetching) return { kind: "wait" };
   if (q.isError) return { kind: "error", message: q.error.message };
   if (q.data.status === "error")
     return { kind: "error", message: q.data.message ?? "Ошибка поставщика" };
-  return { kind: "ok", result: q.data };
+  return shown === undefined ? { kind: "wait" } : { kind: "ok", result: shown };
 }
 
 function Plaque({ tone, text }: { tone: State["kind"]; text: string }) {
@@ -62,21 +60,19 @@ function Plaque({ tone, text }: { tone: State["kind"]; text: string }) {
 export function SuppliersBlock({
   suppliers,
   queries,
+  results,
   opts,
   stockNumbers,
-  partKey,
   picker,
   backTo,
 }: Props) {
   const entries = suppliers.map((s, i) => {
     const query = queries.at(i);
-    const state = stateOf(query);
-    const result =
-      state.kind !== "ok"
-        ? null
-        : partKey === null
-          ? state.result
-          : (selectPart([state.result], partKey)[0] ?? state.result);
+    const state = stateOf(
+      query,
+      results.find((r) => r.code === s.code),
+    );
+    const result = state.kind === "ok" ? state.result : null;
     const groups = result === null ? [] : arrangeGroups(result.groups, opts);
     // Step 1 counts requested parts, step 2 the groups shown.
     const count =

@@ -9,12 +9,25 @@ import {
   supplierResult,
 } from "@/test/searchFixtures";
 
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import { SearchPage } from "./SearchPage";
 
 function Where() {
-  return <output aria-label="where">{useLocation().search}</output>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <output aria-label="where">{useLocation().search}</output>
+      <button
+        type="button"
+        onClick={() => {
+          void navigate(-1);
+        }}
+      >
+        history-back
+      </button>
+    </>
+  );
 }
 
 afterEach(() => {
@@ -348,6 +361,37 @@ describe("SearchPage", () => {
       fireEvent.click(screen.getByRole("link", { name: "← все детали" }));
       expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
+    });
+
+    it("returns to the part list with browser Back", async () => {
+      setup("/?q=W68/3");
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: /Mann W 68\/3 Фильтр масляный/,
+        }),
+      );
+      expect(await screen.findByText("BOSCHMANN")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "history-back" }));
+      expect(await screen.findByText("Выберите деталь")).toBeInTheDocument();
+      expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
+    });
+
+    it("shows supplier prices in my stock only for a chosen part", async () => {
+      setup("/?q=W68/3");
+      await screen.findByText("Выберите деталь");
+      const row = within(screen.getByRole("table"))
+        .getByText("W 68/3")
+        .closest("tr");
+      expect(row).not.toBeNull();
+      expect(row?.lastElementChild).toHaveTextContent(/^—$/);
+      expect(screen.queryByText(/дешевле/)).not.toBeInTheDocument();
+      fireEvent.click(
+        screen.getByRole("button", { name: /Mann W 68\/3 Фильтр масляный/ }),
+      );
+      const [mine] = screen.getAllByRole("table");
+      const chosen = within(mine).getByText("W 68/3").closest("tr");
+      expect(chosen?.lastElementChild).toHaveTextContent("710 ₽");
+      expect(chosen).toHaveTextContent("на 2 480 ₽ дешевле");
     });
 
     it("shows the part list for an unknown part", async () => {

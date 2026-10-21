@@ -8,6 +8,18 @@ type Props = {
   onPick: (key: string) => void;
 };
 
+function meta(p: PartChoice): string {
+  return [
+    p.offers === 0
+      ? "нет предложений"
+      : `${String(p.offers)} ${plural(p.offers, "предложение", "предложения", "предложений")}`,
+    p.minPrice !== null && `от ${formatPrice(p.minPrice)} ₽`,
+    `${String(p.analogs)} ${plural(p.analogs, "аналог", "аналога", "аналогов")}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function PartPicker({ parts, onPick }: Props) {
   return (
     <div>
@@ -20,34 +32,18 @@ export function PartPicker({ parts, onPick }: Props) {
               onClick={() => {
                 onPick(p.key);
               }}
-              className="flex min-h-9 w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-0.5 rounded-sm px-2 py-1.5 text-left hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+              className="flex min-h-9 w-full cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 text-left hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none md:flex-row md:items-center md:gap-x-3"
             >
-              <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-                <span className="font-semibold">{p.brand}</span>{" "}
-                <span className="font-mono font-semibold [overflow-wrap:anywhere]">
-                  {p.number}
-                </span>{" "}
-                {p.name !== "" && (
-                  <span className="min-w-0 [overflow-wrap:anywhere]">
-                    {p.name}
-                  </span>
-                )}
+              <span className="font-semibold whitespace-nowrap">
+                {p.brand} <span className="font-mono">{p.number}</span>
               </span>{" "}
-              <span className="flex flex-wrap gap-x-3 text-[13px] text-muted-foreground tabular-nums">
-                <span>
-                  {p.offers === 0
-                    ? "нет предложений"
-                    : `${String(p.offers)} ${plural(p.offers, "предложение", "предложения", "предложений")}`}
-                </span>{" "}
-                {p.minPrice !== null && (
-                  <span className="font-semibold text-foreground">
-                    от {formatPrice(p.minPrice)} ₽
-                  </span>
-                )}{" "}
-                <span>
-                  {p.analogs}{" "}
-                  {plural(p.analogs, "аналог", "аналога", "аналогов")}
+              {p.name !== "" && (
+                <span className="min-w-0 md:flex-1 [overflow-wrap:anywhere]">
+                  {p.name}
                 </span>
+              )}{" "}
+              <span className="text-[13px] text-muted-foreground tabular-nums md:ml-auto md:whitespace-nowrap">
+                {meta(p)}
               </span>
             </button>
           </li>

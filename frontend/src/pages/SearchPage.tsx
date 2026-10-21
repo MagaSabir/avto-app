@@ -102,7 +102,8 @@ export function SearchPage() {
           />
           <MyStockBlock
             rows={rows}
-            results={results}
+            // Prices match by number only, which mixes parts: none on step 1.
+            results={picking ? [] : results}
             loadingMatches={pending}
             error={stock.error}
           />
@@ -111,8 +112,8 @@ export function SearchPage() {
               suppliers={suppliers.data ?? []}
               queries={searches}
               opts={{ ...filters, now }}
+              results={results}
               stockNumbers={stockNumbers}
-              partKey={partKey}
               picker={
                 picking ? (
                   <PartPicker

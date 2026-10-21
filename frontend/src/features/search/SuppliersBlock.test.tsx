@@ -5,6 +5,7 @@ import { useSupplierSearches } from "@/api/search";
 import { mockApi, renderWithProviders } from "@/test/mockApi";
 import { partGroup, supplierResult } from "@/test/searchFixtures";
 
+import { selectPart } from "./derive";
 import { SuppliersBlock } from "./SuppliersBlock";
 
 afterEach(() => {
@@ -19,13 +20,14 @@ const opts = {
 
 function Harness(props: { partKey?: string; picking?: boolean }) {
   const queries = useSupplierSearches(["rossko"], "333114");
+  const ok = queries.flatMap((q) => (q.data?.status === "ok" ? [q.data] : []));
   return (
     <SuppliersBlock
       suppliers={[{ code: "rossko", title: "Росско" }]}
       queries={queries}
+      results={props.partKey === undefined ? ok : selectPart(ok, props.partKey)}
       opts={opts}
       stockNumbers={new Map([["290074", 1]])}
-      partKey={props.partKey ?? null}
       picker={props.picking === true ? <p>PICKER</p> : undefined}
     />
   );

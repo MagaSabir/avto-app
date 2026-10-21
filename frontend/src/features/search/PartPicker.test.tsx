@@ -47,4 +47,15 @@ describe("PartPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: /MGA W68\/3/ }));
     expect(onPick).toHaveBeenCalledWith("MGA|W683");
   });
+
+  it("keeps brand and number on one line and joins the meta", () => {
+    render(<PartPicker parts={parts} onPick={() => undefined} />);
+    const number = screen.getByText("W 68/3");
+    expect(number.parentElement).toHaveClass("whitespace-nowrap");
+    expect(number.parentElement).toHaveTextContent(/^Mann W 68\/3$/);
+    expect(
+      screen.getByText("3 предложения · от 710 ₽ · 80 аналогов"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("нет предложений · 1 аналог")).toBeInTheDocument();
+  });
 });
