@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.stock import StockMove
 
+JSON = {"Content-Type": "application/json"}
+
 
 async def _receive(client: AsyncClient, qty: int = 3) -> dict[str, Any]:
     r = await client.post(
@@ -154,3 +156,43 @@ async def test_qty_matches_moves(client: AsyncClient, db_session: AsyncSession) 
         .limit(1)
     )
     assert qty == total == last == 7
+
+
+async def test_delete_item_removes_history_only_for_that_item(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    item = await _receive(client)
+    await client.post(_url(item, "sales"), json={"qty": 1, "price": "540"})
+    await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    other = await client.post(
+        "/api/stock/receipts",
+        json={
+            "number": "OC 90",
+            "brand": "KNECHT",
+            "name": "Oil filter",
+            "qty": 2,
+            "purchase_price": "100",
+            "markup": "30",
+            "sale_price": "130",
+        },
+    )
+    other_item = other.json()["item"]
+
+    r = await client.delete(f"/api/stock/items/{item['id']}", headers=JSON)
+    assert r.status_code == 204
+    assert r.content == b""
+
+    assert (await client.get(f"/api/stock/items/{item['id']}")).status_code == 404
+    moves = await db_session.scalar(
+        select(func.count()).select_from(StockMove).where(StockMove.item_id == item["id"])
+    )
+    assert moves == 0
+    assert (await client.get(f"/api/stock/items/{other_item['id']}")).status_code == 200
+    kept = await client.get(f"/api/stock/items/{other_item['id']}/moves")
+    assert len(kept.json()) == 1
+
+
+async def test_delete_unknown_item(client: AsyncClient) -> None:
+    r = await client.delete("/api/stock/items/999999", headers=JSON)
+    assert r.status_code == 404
+    assert r.json() == {"message": "Позиция не найдена"}
