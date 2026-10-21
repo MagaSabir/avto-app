@@ -7,8 +7,10 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import current_user
 from app.core.db import get_session
 from app.main import create_app
+from app.models.auth import User
 from app.suppliers import get_suppliers
 from app.suppliers.base import Offer, PartGroup, Supplier, SupplierError, SupplierResult
 
@@ -76,6 +78,7 @@ async def make_client(db_session: AsyncSession) -> AsyncIterator[Any]:
             yield db_session
 
         app.dependency_overrides[get_session] = override_get_session
+        app.dependency_overrides[current_user] = lambda: User(id=0, login="test")
         app.dependency_overrides[get_suppliers] = lambda: {supplier.code: supplier}
         c = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
         clients.append(c)

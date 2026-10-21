@@ -8,9 +8,11 @@ from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
+from app.api.deps import current_user
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.main import create_app
+from app.models.auth import User
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 UNAVAILABLE = (
@@ -70,7 +72,24 @@ async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
     async def override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
+    async def override_current_user() -> User:
+        return User(id=0, login="test")
+
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[current_user] = override_current_user
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture
+async def anon_client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app()
+
+    async def override_get_session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="https://test") as ac:
         yield ac
