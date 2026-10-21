@@ -34,9 +34,9 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
       - name: Deploy
         # The server's forced command runs deploy.sh; no remote command is given.
-        run: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes deploy@31.77.10.194
+        run: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=4 deploy@31.77.10.194
       - name: Health check
-        run: curl -fsS --retry 5 --retry-delay 5 https://api.rossmik.ru/api/health
+        run: curl -fsS --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://api.rossmik.ru/api/health
       - name: Remove SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key

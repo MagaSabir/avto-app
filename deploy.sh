@@ -9,6 +9,8 @@ HEALTH_URL="${HEALTH_URL:-https://api.rossmik.ru/api/health}"
 # The very first deploy (Let's Encrypt issuance) should be run with HEALTH_TIMEOUT=180
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 LOCK_FILE="${LOCK_FILE:-${HOME}/deploy.lock}"
+# The first deploy (before the PR is merged) runs with DEPLOY_BRANCH=feature/deploy
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 KEEP_PRE_DEPLOY=10
 
 STEP="запуск"
@@ -41,10 +43,21 @@ take_lock() {
   fi
 }
 
+check_branch() {
+  STEP="проверка ветки"
+  local branch
+  branch="$(git -C "$APP_DIR" symbolic-ref --short HEAD </dev/null)"
+  log "Ветка $branch, коммит $(git -C "$APP_DIR" rev-parse --short HEAD </dev/null)"
+  if [ "$branch" != "$DEPLOY_BRANCH" ]; then
+    echo "На сервере выбрана ветка $branch, а выкатывается $DEPLOY_BRANCH. Выкат отменён." >&2
+    exit 1
+  fi
+}
+
 pull_code() {
   STEP="обновление кода (git pull)"
-  log "Обновляю код из origin/main"
-  GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only origin main </dev/null
+  log "Обновляю код из origin/$DEPLOY_BRANCH"
+  GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only origin "$DEPLOY_BRANCH" </dev/null
 }
 
 tag_previous() {
@@ -101,7 +114,9 @@ start_stack() {
   STEP="запуск контейнеров"
   log "Запускаю контейнеры"
   STARTED=1
-  dc up -d </dev/null
+  if ! dc up -d </dev/null; then
+    rollback "не удалось запустить контейнеры"
+  fi
 }
 
 wait_health() {
@@ -115,14 +130,9 @@ wait_health() {
   return 1
 }
 
-check_health() {
-  STEP="проверка работоспособности"
-  log "Жду ответа $HEALTH_URL (до ${HEALTH_TIMEOUT} с)"
-  if wait_health; then
-    return 0
-  fi
+rollback() {
   STEP="откат"
-  echo "Выкат не удался: $HEALTH_URL не ответил за ${HEALTH_TIMEOUT} с." >&2
+  echo "Выкат не удался: $1." >&2
   if docker image inspect avto_api:previous >/dev/null 2>&1; then
     docker tag avto_api:previous avto_api:latest
     dc up -d api </dev/null
@@ -138,9 +148,24 @@ check_health() {
   exit 1
 }
 
+check_health() {
+  STEP="проверка работоспособности"
+  log "Жду ответа $HEALTH_URL (до ${HEALTH_TIMEOUT} с)"
+  if wait_health; then
+    return 0
+  fi
+  rollback "$HEALTH_URL не ответил за ${HEALTH_TIMEOUT} с"
+}
+
 main() {
+  # Survive a dropped SSH session (CD): ignore HUP/PIPE and mirror all output to a log file
+  trap '' HUP PIPE
+  LOG="${LOG:-$HOME/deploy.log}"
+  exec > >(tee -a "$LOG" --output-error=warn-nopipe) 2>&1
   trap on_error ERR
+  printf '=== Выкат %s UTC ===\n' "$(date -u '+%F %T')"
   take_lock
+  check_branch
   pull_code
   tag_previous
   build_api
@@ -149,6 +174,8 @@ main() {
   start_stack
   check_health
   STEP="завершение"
+  # Remove dangling images left by rebuilds
+  docker image prune -f >/dev/null || true
   log "Выкат завершён: $(git -C "$APP_DIR" rev-parse --short HEAD)"
 }
 

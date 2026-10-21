@@ -22,6 +22,9 @@ on:
       - ".github/workflows/ci-backend.yml"
       - ".github/workflows/deploy-backend.yml"
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-backend-${{ github.ref }}
   cancel-in-progress: true

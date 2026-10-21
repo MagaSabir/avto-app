@@ -24,15 +24,15 @@
 
 ## Первый запуск
 
-1. Сервер: пользователи, ufw, fail2ban, swap, Docker (официальный apt-репозиторий) и git настроены по `docs/infra-journal.md`.
+1. Сервер: пользователи, ufw, fail2ban, swap, Docker (официальный apt-репозиторий) и git настроены по локальному журналу администратора (не в репозитории).
 2. Под `deploy` клонировать репозиторий в `/home/deploy/avto_app`. Для чтения используется read-only deploy key репозитория (GitHub: Settings, Deploy keys).
 3. Создать `.env` из `.env.prod.example`, права `chmod 600`. Пароль БД: `openssl rand -hex 24` (только URL-безопасные символы). Он должен совпадать в `POSTGRES_PASSWORD` и в `DATABASE_URL`. Ключи Росско и адрес доставки вносятся вручную.
-4. DNS: `A api → 31.77.10.194` (см. `CLAUDE.md`).
-5. Первый выкат: `HEALTH_TIMEOUT=180` нужен, потому что Caddy получает сертификат:
+4. DNS: `A api → 31.77.10.194` .
+5. Первый выкат: `HEALTH_TIMEOUT=180` нужен, потому что Caddy получает сертификат; `DEPLOY_BRANCH=feature/deploy` нужен только пока код не слит в `main` (по умолчанию выкатывается `main`, и скрипт отказывается работать на другой ветке):
 
    ```
    ssh sabir@31.77.10.194
-   sudo -iu deploy env HEALTH_TIMEOUT=180 /home/deploy/avto_app/deploy.sh
+   sudo -iu deploy env HEALTH_TIMEOUT=180 DEPLOY_BRANCH=feature/deploy /home/deploy/avto_app/deploy.sh
    ```
 6. Создать пользователя сайта (см. ниже).
 7. Проверить: `https://api.rossmik.ru/api/health` отвечает 200; `/api/stock/items` без входа даёт 401; `/docs` и `/` дают 404.
@@ -51,11 +51,15 @@ sudo -iu deploy /home/deploy/avto_app/deploy.sh
 
 Либо в GitHub: Actions, Deploy backend, «Run workflow» (`workflow_dispatch`).
 
-`deploy.sh`: блокировка от параллельного запуска, `git pull --ff-only`, сохранение работающего образа как `avto_api:previous`, сборка, дамп БД, миграции, `up -d`, проверка health. Если health не отвечает, скрипт сам возвращает `avto_api:previous` и сообщает, что произошло.
+Лог каждого выката (с временем UTC): `/home/deploy/deploy.log` (меняется переменной `LOG`). Скрипт игнорирует обрыв SSH-сессии и дописывает вывод в лог.
+
+`deploy.sh`: блокировка от параллельного запуска, проверка ветки (`DEPLOY_BRANCH`, по умолчанию `main`), `git pull --ff-only`, сохранение работающего образа как `avto_api:previous`, сборка, дамп БД, миграции, `up -d`, проверка health. Если `up -d` падает или health не отвечает, скрипт сам возвращает `avto_api:previous` и сообщает, что произошло. После успешного выката удаляются неиспользуемые (dangling) образы.
 
 Ограничения:
 - CD выкатывает текущий `main` на момент `git pull`, а не строго SHA, прошедший CI.
-- Изменения вне путей, за которыми следит CI (`backend/**`), выкат не запускают. Для них используйте «Run workflow» или ручной выкат.
+- CI и выкат запускают изменения в `backend/**`, `deploy.sh`, `scripts/**`, `docker-compose.prod.yml`, `Caddyfile`, `.github/workflows/ci-backend.yml` и `deploy-backend.yml`. Остальное (`docs/`, `.env.prod.example`, frontend) их не запускает.
+- Правка `.env` на сервере сама ничего не применяет: нужен ручной `deploy.sh` или `docker compose ... up -d`.
+- Для секретов выката можно создать GitHub Environment `production`, ограниченный веткой `main`, и привязать к нему job `deploy`; тогда секреты недоступны с других веток.
 - Порядок выпуска: сначала backend, потом frontend. Изменения API обратно совместимы.
 
 ## Откат
@@ -73,17 +77,27 @@ docker compose -p avto_prod -f /home/deploy/avto_app/docker-compose.prod.yml up 
 
 - `avto-backup.timer` (systemd) каждый день в 03:30 UTC запускает `scripts/backup.sh` от `deploy`: `pg_dump | gzip` в `/home/deploy/backups/daily/avto-<дата>.sql.gz`, хранится 14 копий.
 - Перед каждым выкатом `deploy.sh` делает дамп в `/home/deploy/backups/pre-deploy` (10 копий).
-- Пока копии лежат только на сервере. Копии за пределами VPS (на ПК с Windows) запланированы позже.
+- Пока копии лежат только на сервере. Копии за пределами VPS — позже.
 
-Восстановление (в пустую базу; для проверки сначала `createdb` временной БД):
+Восстановление. Дальше `dc` означает `docker compose -p avto_prod -f /home/deploy/avto_app/docker-compose.prod.yml`, файл дампа `F=/home/deploy/backups/daily/avto-YYYY-MM-DD.sql.gz`, под пользователем `deploy`.
+
+Проверка копии (боевая база не затрагивается):
 
 ```
-cd /home/deploy/avto_app
-gunzip -c /home/deploy/backups/daily/avto-YYYY-MM-DD.sql.gz | \
-  docker compose -p avto_prod -f docker-compose.prod.yml exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+dc exec -T db sh -c 'createdb -U "$POSTGRES_USER" avto_restore_check'
+gunzip -c "$F" | dc exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" avto_restore_check'
+dc exec -T db sh -c 'psql -U "$POSTGRES_USER" avto_restore_check -c "select count(*) from stock_items"'
+dc exec -T db sh -c 'dropdb -U "$POSTGRES_USER" avto_restore_check'
 ```
 
-Для боевой базы сначала остановите `api` и пересоздайте базу пустой.
+ВНИМАНИЕ: восстановление в боевую базу стирает все текущие данные. Сначала сделайте свежий дамп и убедитесь, что копия проходит проверку выше.
+
+```
+dc stop api
+dc exec -T db sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+gunzip -c "$F" | dc exec -T db sh -c 'psql -v ON_ERROR_STOP=1 --single-transaction -U "$POSTGRES_USER" "$POSTGRES_DB"'
+dc up -d api
+```
 
 ## Пользователи сайта
 
@@ -101,8 +115,11 @@ ssh -t sabir@31.77.10.194 \
 
 ```
 docker compose -p avto_prod -f /home/deploy/avto_app/docker-compose.prod.yml logs -f api
-journalctl -u avto-backup
+sudo journalctl -u avto-backup.service
+systemctl list-timers avto-backup.timer
 ```
+
+Лог выкатов: `/home/deploy/deploy.log`.
 
 Аналогично для `caddy` и `db`.
 
