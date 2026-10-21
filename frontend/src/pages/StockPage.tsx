@@ -17,10 +17,16 @@ export function StockPage() {
   const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 1023.98px)");
     const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const sync = () => {
+      document.body.style.overflow = mq.matches ? "hidden" : prev;
+    };
+    sync();
+    mq.addEventListener("change", sync);
     return () => {
+      mq.removeEventListener("change", sync);
       document.body.style.overflow = prev;
     };
   }, [panelOpen]);

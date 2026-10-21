@@ -8,6 +8,14 @@ import { StockPage } from "./StockPage";
 
 afterEach(() => vi.unstubAllGlobals());
 
+function stubPhone(matches: boolean) {
+  vi.stubGlobal("matchMedia", () => ({
+    matches,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+}
+
 const mk = (id: number) => ({
   id,
   number_raw: `OC-${String(id)}`,
@@ -81,6 +89,7 @@ it("replaces the history entry when a row is selected", async () => {
 const panel = () => screen.getByTestId("item-panel");
 
 it("opens the panel overlay on row click and closes it keeping selection", async () => {
+  stubPhone(true);
   mockPage();
   renderWithProviders(<StockPage />);
   expect(await screen.findByText("OC-4")).toBeTruthy();
@@ -147,4 +156,15 @@ it("makes the table header sticky", async () => {
   await screen.findByText("OC-4");
   const th = screen.getByText("Статус").closest("th");
   expect(th).toHaveClass("sticky", "top-0", "bg-card");
+});
+
+it("does not lock page scroll on desktop after a row click", async () => {
+  stubPhone(false);
+  mockPage();
+  renderWithProviders(<StockPage />);
+  fireEvent.click(await screen.findByText("OC-4"));
+  await waitFor(() => {
+    expect(panel()).toHaveAttribute("data-open", "true");
+  });
+  expect(document.body.style.overflow).toBe("");
 });
