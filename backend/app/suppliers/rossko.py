@@ -45,6 +45,9 @@ def _moscow(value: str) -> datetime | None:
 def _offer(stock: ElementTree.Element) -> Offer:
     code = _text(stock, "type")
     delivery = _text(stock, "delivery")
+    price = Decimal(_text(stock, "price"))
+    if not price.is_finite() or price <= 0:
+        raise ValueError("bad price")
     return Offer(
         warehouse=_text(stock, "description"),
         qty=int(_text(stock, "count")),
@@ -54,7 +57,7 @@ def _offer(stock: ElementTree.Element) -> Offer:
         delivery_to=_moscow(_text(stock, "deliveryEnd")),
         kind="normal" if code == "0" else "other",
         kind_code=code,
-        purchase_price=Decimal(_text(stock, "price")),
+        purchase_price=price,
     )
 
 

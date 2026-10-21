@@ -55,3 +55,8 @@ def test_rossko_keys_not_in_repr() -> None:
         _env_file=None, database_url="x", rossko_key1="SECRET1", rossko_key2="SECRET2"
     )
     assert "SECRET" not in repr(settings)
+
+
+def test_suppliers_rejects_unknown_code() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, database_url="x", suppliers="nope")  # type: ignore[call-arg]

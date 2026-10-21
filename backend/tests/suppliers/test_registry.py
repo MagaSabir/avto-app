@@ -11,6 +11,7 @@ def test_builds_rossko() -> None:
 
 
 def test_unknown_code_raises() -> None:
-    settings = Settings(_env_file=None, database_url="x", suppliers=["nope"])  # type: ignore[call-arg]
+    # Settings rejects unknown codes itself; bypass it to check the registry guard.
+    settings = Settings.model_construct(suppliers=["nope"])
     with pytest.raises(ValueError):
         build_suppliers(settings)

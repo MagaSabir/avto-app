@@ -48,7 +48,15 @@ export function SearchPage() {
       // The supplier list stays: it does not depend on the number.
       void queryClient.resetQueries({ queryKey: ["search", "stock"] });
       void queryClient.resetQueries({ queryKey: ["search", "supplier"] });
-    } else setParams({ q: next });
+    } else {
+      // A new submit always asks suppliers again, even if this number was
+      // answered earlier (the cache is for Back and the Stock screen only).
+      queryClient.removeQueries({
+        queryKey: ["search", "supplier"],
+        predicate: (query) => query.queryKey[3] === next,
+      });
+      setParams({ q: next });
+    }
   };
 
   const answered: SupplierSearchResult[] = searches.flatMap((s) =>

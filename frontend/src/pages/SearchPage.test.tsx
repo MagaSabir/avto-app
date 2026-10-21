@@ -277,6 +277,35 @@ describe("SearchPage", () => {
     expect(screen.getByText("BRAND-B2")).toBeInTheDocument();
   });
 
+  it("requests the supplier again when a number is searched anew via «Найти»", async () => {
+    mockApi({
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+    });
+    const asked: string[] = [];
+    routeSupplier((q) => {
+      asked.push(q);
+      return json(supplierResult({ groups: [] }));
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=A1" });
+    const input = screen.getByLabelText("OEM-номер или артикул");
+    await waitFor(() => {
+      expect(asked).toEqual(["A1"]);
+    });
+    fireEvent.change(input, { target: { value: "B2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    await waitFor(() => {
+      expect(asked).toEqual(["A1", "B2"]);
+    });
+    fireEvent.change(screen.getByLabelText("OEM-номер или артикул"), {
+      target: { value: "A1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    await waitFor(() => {
+      expect(asked).toEqual(["A1", "B2", "A1"]);
+    });
+  });
+
   it("shows the stock error instead of endless loading", async () => {
     mockApi({
       "GET /api/search": () =>

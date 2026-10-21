@@ -4,6 +4,9 @@ from typing import Annotated, Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+# Codes build_suppliers() in app/suppliers knows how to build.
+KNOWN_SUPPLIERS = ("rossko",)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -24,6 +27,12 @@ class Settings(BaseSettings):
             value = [code.strip() for code in value.split(",")]
         if isinstance(value, list):
             value = [code for code in value if code]
+            unknown = [code for code in value if code not in KNOWN_SUPPLIERS]
+            if unknown:
+                raise ValueError(
+                    f"Unknown supplier in SUPPLIERS: {', '.join(unknown)}; "
+                    f"known: {', '.join(KNOWN_SUPPLIERS)}"
+                )
         return value
 
     @field_validator("cors_origins", mode="before")

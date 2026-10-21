@@ -169,3 +169,10 @@ def test_analog_of_two_parents() -> None:
     groups = {g.key: g for g in parse_search(xml).groups}
     assert groups["METELLI|240683"].analog_of == ["MGA|W683", "MANN|W683"]
     assert groups["BOSCH|F1"].analog_of == ["MANN|W683"]
+
+
+@pytest.mark.parametrize("price", ["NaN", "Infinity", "-Infinity", "0", "-5"])
+def test_parse_rejects_non_finite_or_non_positive_price(price: str) -> None:
+    st = stock("1").replace("<ns1:price>100.5</ns1:price>", f"<ns1:price>{price}</ns1:price>")
+    with pytest.raises(SupplierError):
+        parse_search(wrap(part("B", "1", st)))
