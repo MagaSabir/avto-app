@@ -17,7 +17,7 @@ const opts = {
   now: new Date(2026, 9, 21, 10, 0),
 };
 
-function Harness() {
+function Harness(props: { partKey?: string; picking?: boolean }) {
   const queries = useSupplierSearches(["rossko"], "333114");
   return (
     <SuppliersBlock
@@ -25,9 +25,24 @@ function Harness() {
       queries={queries}
       opts={opts}
       stockNumbers={new Map([["290074", 1]])}
+      partKey={props.partKey ?? null}
+      picker={props.picking === true ? <p>PICKER</p> : undefined}
     />
   );
 }
+
+const twoParts = supplierResult({
+  groups: [
+    partGroup({ brand: "MANN", key: "MANN|W683" }),
+    partGroup({ brand: "MGA", key: "MGA|W683" }),
+    partGroup({
+      brand: "BOSCH",
+      key: "BOSCH|F1",
+      is_requested: false,
+      analog_of: ["MANN|W683"],
+    }),
+  ],
+});
 
 function answer(result: object | Response) {
   let calls = 0;
@@ -58,6 +73,7 @@ describe("SuppliersBlock", () => {
             number: "290 074",
             number_norm: "290074",
             is_requested: false,
+            analog_of: ["KYB|333114"],
           }),
         ],
       }),
@@ -115,5 +131,28 @@ describe("SuppliersBlock", () => {
     expect(
       screen.getByRole("button", { name: "Повторить" }),
     ).toBeInTheDocument();
+  });
+
+  it("names a supplier error without a message", async () => {
+    answer(supplierResult({ status: "error", message: null, groups: [] }));
+    renderWithProviders(<Harness />);
+    expect(await screen.findByText("Ошибка поставщика")).toBeInTheDocument();
+  });
+
+  it("counts parts and shows the picker on step 1", async () => {
+    answer(twoParts);
+    renderWithProviders(<Harness picking />);
+    expect(await screen.findByText("Росско · 2 детали")).toBeInTheDocument();
+    expect(screen.getByText("PICKER")).toBeInTheDocument();
+    expect(screen.queryByText("BOSCH")).not.toBeInTheDocument();
+  });
+
+  it("shows only the chosen part and its analogs on step 2", async () => {
+    answer(twoParts);
+    renderWithProviders(<Harness partKey="MANN|W683" />);
+    expect(await screen.findByText("Росско · 2 детали")).toBeInTheDocument();
+    expect(screen.getByText("MANN")).toBeInTheDocument();
+    expect(screen.getByText("BOSCH")).toBeInTheDocument();
+    expect(screen.queryByText("MGA")).not.toBeInTheDocument();
   });
 });

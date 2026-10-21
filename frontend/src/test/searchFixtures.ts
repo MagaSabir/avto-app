@@ -52,6 +52,8 @@ export function partGroup(over: Partial<PartGroup> = {}): PartGroup {
     number_norm: "333114",
     name: "Стойка амортизационная",
     is_requested: true,
+    key: "KYB|333114",
+    analog_of: [],
     offers: [offer()],
     ...over,
   };

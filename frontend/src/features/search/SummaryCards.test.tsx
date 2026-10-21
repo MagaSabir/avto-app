@@ -101,4 +101,20 @@ describe("SummaryCards", () => {
     expect(card("Мой склад")).toHaveAttribute("aria-busy", "false");
     expect(within(card("Мой склад")).getByText("—")).toBeInTheDocument();
   });
+
+  it("asks to pick a part instead of best offers", () => {
+    render(
+      <SummaryCards
+        items={items}
+        results={results}
+        pending={false}
+        pickPart={true}
+        opts={opts}
+      />,
+    );
+    expect(card("Дешевле всего")).toHaveAttribute("aria-busy", "false");
+    expect(card("Дешевле всего")).toHaveTextContent("выберите деталь");
+    expect(card("Быстрее всего")).toHaveTextContent("выберите деталь");
+    expect(card("Мой склад")).toHaveTextContent("4 шт");
+  });
 });

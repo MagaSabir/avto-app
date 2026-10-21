@@ -8,9 +8,14 @@ import {
   useSupplierSearches,
   useSuppliers,
 } from "@/api/search";
-import { visibleStock } from "@/features/search/derive";
+import {
+  requestedParts,
+  selectPart,
+  visibleStock,
+} from "@/features/search/derive";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
 import { MyStockBlock } from "@/features/search/MyStockBlock";
+import { PartPicker } from "@/features/search/PartPicker";
 import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
 import { SuppliersBlock } from "@/features/search/SuppliersBlock";
@@ -31,21 +36,35 @@ export function SearchPage() {
   const searches = useSupplierSearches(codes, q);
 
   const onSearch = (next: string) => {
-    if (next === q)
+    if (next === q) {
       // Reset (not invalidate) so blocks drop old data and show loading again.
-      void queryClient.resetQueries({ queryKey: ["search"] });
-    else setParams({ q: next });
+      // The supplier list stays: it does not depend on the number.
+      void queryClient.resetQueries({ queryKey: ["search", "stock"] });
+      void queryClient.resetQueries({ queryKey: ["search", "supplier"] });
+    } else setParams({ q: next });
   };
 
-  const results: SupplierSearchResult[] = searches.flatMap((s) =>
+  const answered: SupplierSearchResult[] = searches.flatMap((s) =>
     s.data?.status === "ok" ? [s.data] : [],
   );
   const pending = suppliers.isPending || searches.some((s) => s.isPending);
 
+  // Two steps when one number names several parts: pick a part, then see
+  // only its offers and analogs. A single part skips the list.
+  const parts = requestedParts(answered);
+  const partParam = params.get("part");
+  const chosen =
+    parts.find((p) => p.key === partParam) ??
+    (parts.length === 1 ? parts[0] : undefined);
+  const picking = parts.length > 1 && chosen === undefined;
+  const partKey = chosen?.key ?? null;
+  const results = partKey === null ? answered : selectPart(answered, partKey);
+
   // The same stock item may match analogs of several suppliers.
+  // Analog matches belong to a part, so none are shown before one is chosen.
   const matches = [
     ...new Map(
-      results
+      (picking ? [] : results)
         .flatMap((r) => r.stock_matches)
         .map((it): [number, StockSearchItem] => [it.id, it]),
     ).values(),
@@ -78,6 +97,7 @@ export function SearchPage() {
             stockFailed={stock.isError}
             results={results}
             pending={pending}
+            pickPart={picking}
             opts={{ showAnalogs: filters.showAnalogs, now }}
           />
           <MyStockBlock
@@ -92,6 +112,22 @@ export function SearchPage() {
               queries={searches}
               opts={{ ...filters, now }}
               stockNumbers={stockNumbers}
+              partKey={partKey}
+              picker={
+                picking ? (
+                  <PartPicker
+                    parts={parts}
+                    onPick={(part) => {
+                      setParams({ q, part });
+                    }}
+                  />
+                ) : undefined
+              }
+              backTo={
+                parts.length > 1 && !picking
+                  ? `?${new URLSearchParams({ q }).toString()}`
+                  : undefined
+              }
             />
           )}
         </>

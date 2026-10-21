@@ -160,3 +160,70 @@ export function visibleStock(
   ];
   return opts.inStockOnly ? rows.filter((r) => r.item.qty > 0) : rows;
 }
+
+export type PartChoice = {
+  key: string;
+  brand: string;
+  number: string;
+  name: string;
+  offers: number;
+  minPrice: string | null;
+  analogs: number;
+};
+
+// One row per requested part (by key), merged across suppliers.
+export function requestedParts(results: SupplierSearchResult[]): PartChoice[] {
+  const parts = new Map<string, PartChoice>();
+  const analogs = new Map<string, Set<string>>();
+  for (const r of results)
+    for (const g of r.groups) {
+      if (g.is_requested) {
+        const p = parts.get(g.key) ?? {
+          key: g.key,
+          brand: g.brand,
+          number: g.number,
+          name: g.name,
+          offers: 0,
+          minPrice: null,
+          analogs: 0,
+        };
+        if (p.name === "") p.name = g.name;
+        p.offers += g.offers.length;
+        for (const o of g.offers)
+          if (p.minPrice === null || cents(o.price) < cents(p.minPrice))
+            p.minPrice = o.price;
+        parts.set(g.key, p);
+      }
+      for (const k of g.analog_of) {
+        const set = analogs.get(k) ?? new Set<string>();
+        set.add(g.key);
+        analogs.set(k, set);
+      }
+    }
+  return [...parts.values()].map((p) => ({
+    ...p,
+    analogs: analogs.get(p.key)?.size ?? 0,
+  }));
+}
+
+// Narrows each answer to one requested part, its analogs and their stock.
+export function selectPart(
+  results: SupplierSearchResult[],
+  key: string,
+): SupplierSearchResult[] {
+  return results.map((r) => {
+    const groups = r.groups.filter(
+      (g) => g.key === key || g.analog_of.includes(key),
+    );
+    const numbers = new Set(
+      groups.filter((g) => !g.is_requested).map((g) => g.number_norm),
+    );
+    return {
+      ...r,
+      groups,
+      stock_matches: r.stock_matches.filter((it) =>
+        numbers.has(it.number_norm),
+      ),
+    };
+  });
+}

@@ -14,9 +14,12 @@ import {
   cheapest,
   deliveryRank,
   fastest,
+  requestedParts,
+  selectPart,
   stockSummary,
   visibleStock,
 } from "./derive";
+import * as fx from "@/test/searchFixtures";
 
 const now = new Date(2026, 9, 22, 10, 0);
 const at = (d: number, h = 9) => new Date(2026, 9, d, h, 0).toISOString();
@@ -49,6 +52,8 @@ function group(
     number_norm: norm,
     name: "n",
     is_requested: requested,
+    key: `${brand}|${norm}`,
+    analog_of: [],
     offers,
   };
 }
@@ -298,5 +303,130 @@ describe("visibleStock", () => {
         showAnalogs: false,
       }).map((r) => r.item.id),
     ).toEqual([1, 2]);
+  });
+});
+
+const MANN = "MANN|W683";
+const MGA = "MGA|W683";
+
+function twoParts(): SupplierSearchResult[] {
+  return [
+    fx.supplierResult({
+      code: "rossko",
+      groups: [
+        fx.partGroup({
+          brand: "Mann",
+          number: "W 68/3",
+          number_norm: "W683",
+          name: "Фильтр масляный",
+          key: MANN,
+          offers: [
+            fx.offer({ price: "900.00" }),
+            fx.offer({ price: "710.00" }),
+          ],
+        }),
+        fx.partGroup({
+          brand: "MGA",
+          number: "W68/3",
+          number_norm: "W683",
+          name: "Насос водяной",
+          key: MGA,
+          offers: [],
+        }),
+        fx.partGroup({
+          brand: "BOSCH",
+          number_norm: "F026",
+          key: "BOSCH|F026",
+          is_requested: false,
+          analog_of: [MANN],
+        }),
+        fx.partGroup({
+          brand: "LUZAR",
+          number_norm: "LP01",
+          key: "LUZAR|LP01",
+          is_requested: false,
+          analog_of: [MGA],
+        }),
+      ],
+      stock_matches: [
+        fx.stockItem(5, { number_norm: "F026" }),
+        fx.stockItem(6, { number_norm: "LP01" }),
+      ],
+    }),
+    fx.supplierResult({
+      code: "other",
+      groups: [
+        fx.partGroup({
+          brand: "Mann",
+          number: "W 68/3",
+          number_norm: "W683",
+          name: "Фильтр масляный",
+          key: MANN,
+          offers: [fx.offer({ price: "750.00" })],
+        }),
+        fx.partGroup({
+          brand: "BOSCH",
+          number_norm: "F026",
+          key: "BOSCH|F026",
+          is_requested: false,
+          analog_of: [MANN],
+        }),
+        fx.partGroup({
+          brand: "MAHLE",
+          number_norm: "OC1",
+          key: "MAHLE|OC1",
+          is_requested: false,
+          analog_of: [MANN, MGA],
+        }),
+      ],
+    }),
+  ];
+}
+
+describe("requestedParts", () => {
+  it("merges a part across suppliers in first-seen order", () => {
+    expect(requestedParts(twoParts())).toEqual([
+      {
+        key: MANN,
+        brand: "Mann",
+        number: "W 68/3",
+        name: "Фильтр масляный",
+        offers: 3,
+        minPrice: "710.00",
+        analogs: 2,
+      },
+      {
+        key: MGA,
+        brand: "MGA",
+        number: "W68/3",
+        name: "Насос водяной",
+        offers: 0,
+        minPrice: null,
+        analogs: 2,
+      },
+    ]);
+  });
+
+  it("is empty without results", () => {
+    expect(requestedParts([])).toEqual([]);
+  });
+});
+
+describe("selectPart", () => {
+  it("keeps only the part, its analogs and their stock matches", () => {
+    const [a, b] = selectPart(twoParts(), MANN);
+    expect(a.groups.map((g) => g.key)).toEqual([MANN, "BOSCH|F026"]);
+    expect(a.stock_matches.map((it) => it.id)).toEqual([5]);
+    expect(b.groups.map((g) => g.key)).toEqual([
+      MANN,
+      "BOSCH|F026",
+      "MAHLE|OC1",
+    ]);
+  });
+
+  it("keeps a part without offers and its analogs", () => {
+    const [a] = selectPart(twoParts(), MGA);
+    expect(a.groups.map((g) => g.key)).toEqual([MGA, "LUZAR|LP01"]);
+    expect(a.stock_matches.map((it) => it.id)).toEqual([6]);
   });
 });

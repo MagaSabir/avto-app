@@ -12,6 +12,8 @@ type Props = {
   stockFailed?: boolean;
   results: SupplierSearchResult[];
   pending: boolean;
+  // Step 1 of the search: no part chosen yet, so no best offers.
+  pickPart?: boolean;
   opts: { showAnalogs: boolean; now: Date };
 };
 
@@ -74,11 +76,19 @@ export function SummaryCards({
   stockFailed = false,
   results,
   pending,
+  pickPart = false,
   opts,
 }: Props) {
   const mine = items === undefined ? null : stockSummary(items);
-  const cheap = cheapest(results, opts.showAnalogs);
-  const fast = fastest(results, opts.showAnalogs, opts.now);
+  const cheap = pickPart ? null : cheapest(results, opts.showAnalogs);
+  const fast = pickPart ? null : fastest(results, opts.showAnalogs, opts.now);
+  const none = pickPart ? (
+    <span className="text-[14px] font-normal text-muted-foreground">
+      выберите деталь
+    </span>
+  ) : (
+    "—"
+  );
   const title = (p: Pick) =>
     results.find((r) => r.code === p.supplier)?.title ?? p.supplier;
 
@@ -117,7 +127,7 @@ export function SummaryCards({
       <SummaryCard
         title="Дешевле всего"
         busy={pending}
-        value={cheap === null ? "—" : `${formatPrice(cheap.offer.price)} ₽`}
+        value={cheap === null ? none : `${formatPrice(cheap.offer.price)} ₽`}
         sub={
           cheap === null ? undefined : (
             <>
@@ -130,7 +140,9 @@ export function SummaryCards({
         title="Быстрее всего"
         busy={pending}
         value={
-          fast === null ? "—" : capitalize(formatDelivery(fast.offer, opts.now))
+          fast === null
+            ? none
+            : capitalize(formatDelivery(fast.offer, opts.now))
         }
         sub={
           fast === null ? undefined : (

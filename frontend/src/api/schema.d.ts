@@ -362,6 +362,10 @@ export interface components {
             name: string;
             /** Is Requested */
             is_requested: boolean;
+            /** Key */
+            key: string;
+            /** Analog Of */
+            analog_of: string[];
             /** Offers */
             offers: components["schemas"]["OfferOut"][];
         };
