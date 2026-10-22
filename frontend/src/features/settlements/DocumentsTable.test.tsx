@@ -64,4 +64,23 @@ describe("DocumentsTable", () => {
     expect(item).toHaveTextContent("2");
     expect(item).toHaveTextContent("412,00 ₽");
   });
+
+  it("lists sold items under their own headers, not the document columns", () => {
+    render(<DocumentsTable documents={[sale]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Товары: 1" }));
+    const items = screen.getByRole("table", { name: "Товары" });
+    expect(
+      within(items)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Товар", "Кол-во", "Цена"]);
+    const cells = within(items)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(cells).toEqual([
+      "W 68/3 Фильтр масляный MANN-FILTER",
+      "2",
+      "412,00 ₽",
+    ]);
+  });
 });

@@ -48,18 +48,35 @@ function DocumentRow({ doc }: { doc: SettlementDocument }) {
         <td className="px-2 whitespace-nowrap">{doc.status}</td>
         <td className="px-2 font-mono">{doc.order_id ?? ""}</td>
       </tr>
-      {open &&
-        doc.items.map((item, i) => (
-          <tr key={i} className="h-8 border-b bg-muted/40 text-[13px]">
-            <td />
-            <td className="px-2 pl-6">{item.name}</td>
-            <td className="px-2 text-right tabular-nums">{item.count}</td>
-            <td className="px-2 text-right font-mono whitespace-nowrap">
-              {`${formatMoney(item.price)} ₽`}
-            </td>
-            <td colSpan={2} />
-          </tr>
-        ))}
+      {open && (
+        <tr className="border-b bg-muted/40 text-[13px]">
+          <td />
+          <td colSpan={5} className="px-2 py-1.5">
+            <table aria-label="Товары" className="border-collapse">
+              <thead>
+                <tr className="text-left text-[12px] text-muted-foreground">
+                  <th className="pr-4 font-medium">Товар</th>
+                  <th className="pr-4 text-right font-medium">Кол-во</th>
+                  <th className="text-right font-medium">Цена</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doc.items.map((item, i) => (
+                  <tr key={i} className="h-7">
+                    <td className="pr-4">{item.name}</td>
+                    <td className="pr-4 text-right tabular-nums">
+                      {item.count}
+                    </td>
+                    <td className="text-right font-mono whitespace-nowrap">
+                      {`${formatMoney(item.price)} ₽`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
