@@ -59,6 +59,17 @@ describe("filterOrders", () => {
     expect(filterOrders(orders, "issued", "hczb")).toEqual([]);
     expect(filterOrders(orders, "refused", "hczb")).toEqual([a]);
   });
+
+  it("finds an order by id typed with symbols or spaces", () => {
+    const o = order(100000001, [part({ number: "Z9" })]);
+    expect(filterOrders([o], null, "№ 100000001")).toEqual([o]);
+    expect(filterOrders([o], null, "100 000 001")).toEqual([o]);
+  });
+
+  it("does not match by id when the query has no digits", () => {
+    const o = order(100000001, [part({ number: "Z9" })]);
+    expect(filterOrders([o], null, "№")).toEqual([]);
+  });
 });
 
 describe("normalizeNumber", () => {

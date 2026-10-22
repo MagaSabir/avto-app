@@ -18,8 +18,7 @@ function PartRow({ part }: { part: OrderPart }) {
     >
       <div className="min-w-0">
         <div className="font-mono text-[12.5px] font-medium">
-          <span data-testid="part-brand">{part.brand}</span>{" "}
-          <span>{part.number}</span>
+          <span>{part.brand}</span> <span>{part.number}</span>
         </div>
         <div>{part.name}</div>
         {part.comment && (
@@ -84,7 +83,10 @@ export function OrderCard({ order }: { order: Order }) {
   return (
     <section className="overflow-hidden rounded-lg border bg-card">
       <div
-        onClick={toggle}
+        onClick={() => {
+          if (window.getSelection()?.toString()) return;
+          toggle();
+        }}
         className="flex cursor-pointer flex-wrap items-start gap-x-6 gap-y-2 bg-muted px-4 py-3"
       >
         <div className="flex items-center gap-2">
@@ -136,8 +138,8 @@ export function OrderCard({ order }: { order: Order }) {
             <div className="text-right">Цена × кол-во</div>
             <div className="text-right">Сумма, ₽</div>
           </div>
-          {order.parts.map((p) => (
-            <PartRow key={p.guid} part={p} />
+          {order.parts.map((p, i) => (
+            <PartRow key={`${p.guid}-${String(i)}`} part={p} />
           ))}
           <div className="flex items-center justify-end gap-4 px-4 py-2.5 text-[13.5px] font-semibold">
             <span>ИТОГО:</span>

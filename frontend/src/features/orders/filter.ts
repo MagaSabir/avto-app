@@ -18,6 +18,7 @@ export function filterOrders(
   const query = text.trim();
   const lower = query.toLowerCase();
   const normalized = normalizeNumber(query);
+  const digits = query.replace(/\D/g, "");
   return orders.filter((order) => {
     if (
       group &&
@@ -25,7 +26,9 @@ export function filterOrders(
     )
       return false;
     if (!query) return true;
-    if (String(order.id).includes(query)) return true;
+    const id = String(order.id);
+    if (id.includes(query) || (digits !== "" && id.includes(digits)))
+      return true;
     return order.parts.some(
       (p) =>
         (normalized !== "" && normalizeNumber(p.number).includes(normalized)) ||

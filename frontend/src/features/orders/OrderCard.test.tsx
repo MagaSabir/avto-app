@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { formatDocDate } from "@/features/settlements/format";
 import { order, part } from "@/test/ordersFixtures";
@@ -42,6 +42,43 @@ describe("OrderCard", () => {
     );
     expect(screen.getByText("Самовывоз:")).toBeInTheDocument();
     expect(screen.getByText("26 сен 2026")).toBeInTheDocument();
+  });
+
+  describe("header click", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("does not collapse while text is selected", () => {
+      vi.spyOn(window, "getSelection").mockReturnValue({
+        toString: () => "100000001",
+      } as Selection);
+      render(<OrderCard order={order()} />);
+      fireEvent.click(screen.getByText("№ 100000001"));
+      expect(screen.getByText("ИТОГО:")).toBeInTheDocument();
+    });
+
+    it("collapses when the selection is empty", () => {
+      vi.spyOn(window, "getSelection").mockReturnValue({
+        toString: () => "",
+      } as Selection);
+      render(<OrderCard order={order()} />);
+      fireEvent.click(screen.getByText("№ 100000001"));
+      expect(screen.queryByText("ИТОГО:")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders parts with repeated guids without key warnings", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    render(
+      <OrderCard
+        order={order({
+          parts: [part({ guid: "" }), part({ guid: "" })],
+        })}
+      />,
+    );
+    expect(err).not.toHaveBeenCalled();
+    err.mockRestore();
   });
 
   it("is expanded by default", () => {
