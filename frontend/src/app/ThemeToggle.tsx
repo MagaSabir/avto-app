@@ -1,32 +1,45 @@
 import { Moon, Sun } from "lucide-react";
 import { useState } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { applyTheme, readTheme, type ThemeChoice } from "./theme";
 
-const LABELS: Record<ThemeChoice, string> = {
-  light: "Тема: светлая",
-  dark: "Тема: тёмная",
-};
+const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Moon }[] = [
+  { value: "dark", label: "Тёмная тема", Icon: Moon },
+  { value: "light", label: "Светлая тема", Icon: Sun },
+];
 
 export function ThemeToggle() {
   const [choice, setChoice] = useState<ThemeChoice>(readTheme);
-  const Icon = choice === "dark" ? Moon : Sun;
 
-  function toggle() {
-    const next = choice === "dark" ? "light" : "dark";
+  function select(next: ThemeChoice) {
     applyTheme(next);
     setChoice(next);
   }
 
   return (
-    <button
-      type="button"
-      aria-label={LABELS[choice]}
-      title={LABELS[choice]}
-      onClick={toggle}
-      className="text-muted-foreground hover:bg-selected inline-flex cursor-pointer items-center rounded-lg p-2"
-    >
-      <Icon size={16} aria-hidden="true" />
-    </button>
+    <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+      {OPTIONS.map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          aria-label={label}
+          title={label}
+          aria-pressed={choice === value}
+          onClick={() => {
+            select(value);
+          }}
+          className={cn(
+            "inline-flex cursor-pointer items-center rounded-md p-1.5",
+            choice === value
+              ? "bg-card text-primary shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icon size={15} aria-hidden="true" />
+        </button>
+      ))}
+    </div>
   );
 }

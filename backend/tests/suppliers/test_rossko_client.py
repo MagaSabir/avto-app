@@ -1,4 +1,6 @@
 import logging
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -8,7 +10,7 @@ import respx
 
 from app.suppliers.base import SupplierError
 from app.suppliers.ratelimit import RateLimiter
-from app.suppliers.rossko import URL, RosskoSupplier
+from app.suppliers.rossko import URL, URL_SETTLEMENTS, RosskoSupplier
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "rossko_search_w683.xml"
 SECRETS = ("SECRET1", "SECRET2")
@@ -122,3 +124,94 @@ async def test_rate_limit(caplog: pytest.LogCaptureFixture) -> None:
     assert exc.value.message == "Лимит запросов к Росско, повторите через минуту"
     assert route.call_count == 1
     assert_clean(exc.value.message, caplog)
+
+
+SETTLEMENTS = Path(__file__).parent.parent / "fixtures" / "rossko_settlements.xml"
+
+
+@respx.mock
+async def test_settlements_sends_soap_request(caplog: pytest.LogCaptureFixture) -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    result = await make().settlements(2)
+    assert route.call_count == 1
+    request = route.calls[0].request
+    assert request.headers["SOAPAction"] == '"https://api.rossko.ru/GetSettlements"'
+    body = ElementTree.fromstring(request.content)
+    ns = "{https://api.rossko.ru/}"
+    call = body.find(f".//{ns}GetSettlements")
+    assert call is not None
+    assert call.findtext(f"{ns}KEY1") == "SECRET1"
+    # Rossko counts offset in documents, not pages (checked on the live API)
+    assert call.findtext(f"{ns}offset") == "40"
+    assert result.balance == Decimal("-1250.40")
+    message = last_log(caplog)
+    assert "method=settlements" in message
+    assert "page=2" in message
+    assert "outcome=ok" in message
+    assert_clean(message, caplog)
+
+
+@respx.mock
+async def test_settlements_timeout(caplog: pytest.LogCaptureFixture) -> None:
+    respx.post(URL_SETTLEMENTS).mock(side_effect=httpx.ReadTimeout("t"))
+    with pytest.raises(SupplierError) as exc:
+        await make().settlements(0)
+    assert exc.value.message == "Росско не ответил за 15 с"
+    assert_clean(exc.value.message, caplog)
+
+
+@respx.mock
+@pytest.mark.parametrize("effect", [httpx.Response(500), httpx.ConnectError("c")])
+async def test_settlements_http_error(
+    effect: httpx.Response | Exception, caplog: pytest.LogCaptureFixture
+) -> None:
+    respx.post(URL_SETTLEMENTS).mock(side_effect=[effect])
+    with pytest.raises(SupplierError) as exc:
+        await make().settlements(0)
+    assert exc.value.message == "Росско недоступен, повторите позже"
+    assert_clean(exc.value.message, caplog)
+
+
+@respx.mock
+async def test_settlements_not_configured(caplog: pytest.LogCaptureFixture) -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    with pytest.raises(SupplierError) as exc:
+        await make(key1="", key2="").settlements(0)
+    assert exc.value.message == "Росско не настроен"
+    assert route.called is False
+
+
+@respx.mock
+async def test_settlements_rate_limited_shares_search_limit(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    respx.post(URL).respond(200, content=FIXTURE.read_bytes())
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    supplier = make(limiter=RateLimiter(1, 60))
+    await supplier.search("X")
+    with pytest.raises(SupplierError) as exc:
+        await supplier.settlements(0)
+    assert exc.value.message == "Лимит запросов к Росско, повторите через минуту"
+    assert route.called is False
+
+
+@respx.mock
+async def test_settlements_sends_filters() -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    await make().settlements(0, status="Оплачено", start=date(2026, 10, 1), end=date(2026, 10, 22))
+    ns = "{https://api.rossko.ru/}"
+    call = ElementTree.fromstring(route.calls[0].request.content).find(f".//{ns}GetSettlements")
+    assert call is not None
+    assert call.findtext(f"{ns}status") == "Оплачено"
+    assert call.findtext(f"{ns}startDate") == "2026-10-01"
+    assert call.findtext(f"{ns}endDate") == "2026-10-22"
+
+
+@respx.mock
+async def test_settlements_without_filters_sends_no_filter_tags() -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    await make().settlements(0)
+    body = route.calls[0].request.content
+    assert b"status" not in body
+    assert b"startDate" not in body
+    assert b"endDate" not in body

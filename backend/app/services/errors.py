@@ -60,3 +60,24 @@ class TooManyLoginAttempts(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Слишком много попыток входа, подождите несколько минут")
+
+
+class SettlementsNotSupported(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Поставщик не поддерживает взаиморасчёты")
+
+
+class IncompletePeriod(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Укажите обе даты периода")
+
+
+class InvertedPeriod(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Начало периода позже конца")

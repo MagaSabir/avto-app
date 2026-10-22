@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
@@ -8,7 +8,17 @@ from xml.sax.saxutils import escape
 import httpx
 
 from app.domain.numbers import normalize_brand, normalize_number
-from app.suppliers.base import Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.base import (
+    Offer,
+    PartGroup,
+    SettlementCustomer,
+    SettlementDocument,
+    SettlementItem,
+    SettlementPayment,
+    Settlements,
+    SupplierError,
+    SupplierResult,
+)
 from app.suppliers.ratelimit import RateLimiter
 
 NS = "https://api.rossko.ru/"
@@ -17,6 +27,9 @@ NOT_FOUND = "Ничего не найдено"
 BAD_RESPONSE = "Росско вернул непонятный ответ"
 
 URL = "https://api.rossko.ru/service/v2.1/GetSearch"
+URL_SETTLEMENTS = "https://api.rossko.ru/service/v2.1/GetSettlements"
+# Rossko returns settlement documents 20 at a time
+SETTLEMENTS_PAGE_SIZE = 20
 TIMEOUT = 15.0
 
 _Q = f"{{{NS}}}"
@@ -29,6 +42,14 @@ _ENVELOPE = (
     "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:text>{text}</r:text>"
     "<r:delivery_id>{delivery_id}</r:delivery_id>{address}"
     "</r:GetSearch></soap:Body></soap:Envelope>"
+)
+
+_SETTLEMENTS_ENVELOPE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    f' xmlns:r="{NS}"><soap:Body><r:GetSettlements>'
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>{filters}"
+    "</r:GetSettlements></soap:Body></soap:Envelope>"
 )
 
 
@@ -124,6 +145,98 @@ def parse_search(xml: bytes) -> SupplierResult:
         raise SupplierError(BAD_RESPONSE) from exc
 
 
+def _opt_int(el: ElementTree.Element, tag: str) -> int | None:
+    value = _text(el, tag)
+    return int(value) if value else None
+
+
+def _opt_decimal(el: ElementTree.Element, tag: str) -> Decimal | None:
+    value = _text(el, tag)
+    return _decimal(value) if value else None
+
+
+def _decimal(value: str) -> Decimal:
+    result = Decimal(value)
+    if not result.is_finite():
+        raise ValueError("bad number")
+    return result
+
+
+def _document(el: ElementTree.Element) -> SettlementDocument:
+    return SettlementDocument(
+        date=datetime.fromisoformat(_text(el, "date")).astimezone(UTC),
+        name=_text(el, "name"),
+        amount=_decimal(_text(el, "credit")),
+        balance=_decimal(_text(el, "balance")),
+        payer=_text(el, "payer"),
+        status=_text(el, "status"),
+        order_id=_opt_int(el, "orderId"),
+        days_remaining=_opt_int(el, "daysRemaining"),
+        items=[
+            SettlementItem(
+                name=_text(item, "name"),
+                count=int(_text(item, "count")),
+                price=_decimal(_text(item, "price")),
+            )
+            for item in el.findall(f"{_Q}Items")
+        ],
+    )
+
+
+def parse_settlements(xml: bytes) -> Settlements:
+    try:
+        root = ElementTree.fromstring(xml)
+        result = root.find(f".//{_Q}SettlementsResult")
+        if result is None:
+            raise SupplierError(BAD_RESPONSE)
+        if _text(result, "success").lower() != "true":
+            raise SupplierError(_text(result, "message") or "Росско вернул ошибку")
+        info = result.find(f"{_Q}Info")
+        documents = result.find(f"{_Q}Documents")
+        if info is None or documents is None:
+            raise SupplierError(BAD_RESPONSE)
+        summary = result.find(f"{_Q}Summary")
+        if summary is None:
+            summary = ElementTree.Element("Summary")
+        payments = []
+        for row in summary.findall(f"{_Q}List"):
+            contractor = row.find(f"{_Q}Contractor")
+            payments.append(
+                SettlementPayment(
+                    date=date.fromisoformat(_text(row, "date")[:10]),
+                    amount=_decimal(_text(row, "sumDebt")),
+                    contractor="" if contractor is None else _text(contractor, "name"),
+                    contractor_debt=(
+                        Decimal(0) if contractor is None else _decimal(_text(contractor, "debt"))
+                    ),
+                )
+            )
+        page_size = int(_text(documents, "limit"))
+        return Settlements(
+            balance=_decimal(_text(info, "balance")),
+            limit=_opt_decimal(info, "limit"),
+            kind=_text(info, "type"),
+            payment_delay=_opt_int(info, "paymentDelay"),
+            currency=_text(info, "currency"),
+            customers=[
+                SettlementCustomer(
+                    id=_text(c, "id"), name=_text(c, "name"), balance=_decimal(_text(c, "balance"))
+                )
+                for c in info.findall(f"{_Q}Customers")
+            ],
+            overdue_days=_opt_int(summary, "overdueDays"),
+            overdue_sum=_opt_decimal(summary, "overdueSum"),
+            payments=payments,
+            documents_total=int(_text(documents, "total")),
+            page_size=page_size,
+            # Rossko's offset counts documents, not pages (its docs say otherwise)
+            page=int(_text(documents, "offset") or "0") // max(page_size, 1),
+            documents=[_document(d) for d in documents.findall(f"{_Q}List")],
+        )
+    except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
+        raise SupplierError(BAD_RESPONSE) from exc
+
+
 class RosskoSupplier:
     code = "rossko"
     title = "Росско"
@@ -152,6 +265,36 @@ class RosskoSupplier:
         self._log(number, "ok", started)
         return result
 
+    async def settlements(
+        self,
+        page: int,
+        status: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> Settlements:
+        started = time.monotonic()
+        filters = ""
+        if status is not None:
+            filters += f"<r:status>{escape(status)}</r:status>"
+        if start is not None and end is not None:
+            filters += (
+                f"<r:startDate>{start.isoformat()}</r:startDate>"
+                f"<r:endDate>{end.isoformat()}</r:endDate>"
+            )
+        try:
+            body = _SETTLEMENTS_ENVELOPE.format(
+                key1=escape(self._key1),
+                key2=escape(self._key2),
+                offset=page * SETTLEMENTS_PAGE_SIZE,
+                filters=filters,
+            )
+            result = parse_settlements(await self._post(URL_SETTLEMENTS, "GetSettlements", body))
+        except SupplierError as exc:
+            self._log_settlements(page, exc.message, started)
+            raise
+        self._log_settlements(page, "ok", started)
+        return result
+
     def _log(self, number: str, outcome: str, started: float) -> None:
         _log.info(
             "supplier=%s number=%r outcome=%s duration_ms=%d",
@@ -161,11 +304,16 @@ class RosskoSupplier:
             (time.monotonic() - started) * 1000,
         )
 
+    def _log_settlements(self, page: int, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s method=settlements page=%d outcome=%s duration_ms=%d",
+            self.code,
+            page,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
     async def _search(self, number: str) -> SupplierResult:
-        if not self._key1 or not self._key2:
-            raise SupplierError("Росско не настроен")
-        if not self._limiter.try_acquire():
-            raise SupplierError("Лимит запросов к Росско, повторите через минуту")
         body = _ENVELOPE.format(
             key1=escape(self._key1),
             key2=escape(self._key2),
@@ -178,16 +326,23 @@ class RosskoSupplier:
                 else ""
             ),
         )
+        return parse_search(await self._post(URL, "GetSearch", body))
+
+    async def _post(self, url: str, method: str, body: str) -> bytes:
+        if not self._key1 or not self._key2:
+            raise SupplierError("Росско не настроен")
+        if not self._limiter.try_acquire():
+            raise SupplierError("Лимит запросов к Росско, повторите через минуту")
         headers = {
             "Content-Type": "text/xml; charset=utf-8",
-            "SOAPAction": f'"{NS}GetSearch"',
+            "SOAPAction": f'"{NS}{method}"',
         }
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-                response = await client.post(URL, content=body.encode(), headers=headers)
+                response = await client.post(url, content=body.encode(), headers=headers)
             response.raise_for_status()
         except httpx.TimeoutException:
             raise SupplierError(f"Росско не ответил за {TIMEOUT:g} с") from None
         except httpx.HTTPError:
             raise SupplierError("Росско недоступен, повторите позже") from None
-        return parse_search(response.content)
+        return response.content

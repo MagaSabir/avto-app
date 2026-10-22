@@ -10,6 +10,7 @@ from app.api import auth as auth_api
 from app.api import health
 from app.api import search as search_api
 from app.api import settings as settings_api
+from app.api import settlements as settlements_api
 from app.api import stock as stock_api
 from app.api.deps import current_user
 from app.core.config import get_settings
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_api.router, prefix="/api", dependencies=protected)
     app.include_router(stock_api.router, prefix="/api", dependencies=protected)
     app.include_router(search_api.router, prefix="/api", dependencies=protected)
+    app.include_router(settlements_api.router, prefix="/api", dependencies=protected)
     return app
 
 
