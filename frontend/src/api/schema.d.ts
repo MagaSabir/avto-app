@@ -330,6 +330,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/suppliers/{code}/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settlements */
+        get: operations["get_settlements_api_suppliers__code__settlements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -489,6 +506,106 @@ export interface components {
         SettingsPatch: {
             /** Default Markup */
             default_markup: number | string;
+        };
+        /** SettlementCustomerOut */
+        SettlementCustomerOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Balance */
+            balance: string;
+        };
+        /** SettlementDocumentOut */
+        SettlementDocumentOut: {
+            /**
+             * Date
+             * Format: date-time
+             */
+            date: string;
+            /** Name */
+            name: string;
+            /** Amount */
+            amount: string;
+            /** Balance */
+            balance: string;
+            /** Payer */
+            payer: string;
+            /** Status */
+            status: string;
+            /** Order Id */
+            order_id: number | null;
+            /** Days Remaining */
+            days_remaining: number | null;
+            /** Items */
+            items: components["schemas"]["SettlementItemOut"][];
+        };
+        /** SettlementItemOut */
+        SettlementItemOut: {
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** Price */
+            price: string;
+        };
+        /** SettlementPaymentOut */
+        SettlementPaymentOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount */
+            amount: string;
+            /** Contractor */
+            contractor: string;
+            /** Contractor Debt */
+            contractor_debt: string;
+        };
+        /** SettlementsData */
+        SettlementsData: {
+            /** Balance */
+            balance: string;
+            /** Limit */
+            limit: string | null;
+            /** Kind */
+            kind: string;
+            /** Payment Delay */
+            payment_delay: number | null;
+            /** Currency */
+            currency: string;
+            /** Customers */
+            customers: components["schemas"]["SettlementCustomerOut"][];
+            /** Overdue Days */
+            overdue_days: number | null;
+            /** Overdue Sum */
+            overdue_sum: string | null;
+            /** Payments */
+            payments: components["schemas"]["SettlementPaymentOut"][];
+            /** Documents Total */
+            documents_total: number;
+            /** Page Size */
+            page_size: number;
+            /** Page */
+            page: number;
+            /** Documents */
+            documents: components["schemas"]["SettlementDocumentOut"][];
+        };
+        /** SettlementsOut */
+        SettlementsOut: {
+            /** Code */
+            code: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Message */
+            message: string | null;
+            data: components["schemas"]["SettlementsData"] | null;
         };
         /** StatusCounts */
         StatusCounts: {
@@ -1509,6 +1626,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupplierSearchResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_settlements_api_suppliers__code__settlements_get: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementsOut"];
                 };
             };
             /** @description Not Found */

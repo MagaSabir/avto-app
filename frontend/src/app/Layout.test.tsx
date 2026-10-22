@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi } from "@/test/mockApi";
+import { settlements } from "@/test/settlementsFixtures";
 
 import { routes } from "./router";
 
@@ -27,7 +28,10 @@ afterEach(() => {
   HTMLDialogElement.prototype.close = realClose;
 });
 
-function setup(logoutResponse?: () => Response) {
+function setup(
+  logoutResponse?: () => Response,
+  balance: () => Response | object = () => settlements(),
+) {
   let loggedOut = false;
   const logout = { calls: 0 };
   mockApi({
@@ -45,10 +49,15 @@ function setup(logoutResponse?: () => Response) {
       return new Response(null, { status: 204 });
     },
     "GET /api/stock": () => [],
+    "GET /api/suppliers/rossko/settlements": balance,
   });
   const router = createMemoryRouter(routes, { initialEntries: ["/stock"] });
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
@@ -146,5 +155,47 @@ describe("Layout", () => {
       expect(screen.getByRole("button", { name: "Нет" })).toBeDisabled();
     });
     release();
+  });
+});
+
+describe("Layout balance", () => {
+  it("links an overpayment with a plus to the settlements page", async () => {
+    setup();
+    const link = await screen.findByRole("link", { name: /Баланс: \+67,54 ₽/ });
+    expect(link).toHaveAttribute("href", "/settlements");
+    expect(link.querySelector(".text-destructive")).toBeNull();
+  });
+
+  it("shows a debt with a minus in the error colour", async () => {
+    setup(undefined, () => settlements({ balance: "-1250.40" }));
+    const link = await screen.findByRole("link", {
+      name: /Баланс: −1\s250,40 ₽/,
+    });
+    expect(link.querySelector(".text-destructive")).not.toBeNull();
+  });
+
+  it("shows a dash with the reason when Rossko fails", async () => {
+    setup(undefined, () => ({
+      ...settlements(),
+      status: "error",
+      message: "Росско не ответил за 15 с",
+      data: null,
+    }));
+    const link = await screen.findByRole("link", { name: "Баланс: —" });
+    expect(link).toHaveAttribute("title", "Росско не ответил за 15 с");
+  });
+
+  it("shows a dash when the request fails", async () => {
+    setup(
+      undefined,
+      () =>
+        new Response(JSON.stringify({ message: "boom" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    expect(
+      await screen.findByRole("link", { name: "Баланс: —" }),
+    ).toBeInTheDocument();
   });
 });

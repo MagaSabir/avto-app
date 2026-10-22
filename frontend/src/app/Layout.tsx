@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 
 import { getLastSearch } from "@/features/search/lastSearch";
+import { BalanceLink } from "@/features/settlements/BalanceLink";
 import { cn } from "@/lib/utils";
 
 import { ServerStatus } from "./ServerStatus";
@@ -59,6 +60,7 @@ export function Layout() {
           </NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <BalanceLink />
           <span className="text-muted-foreground">{me?.login}</span>
           <Button
             className="h-auto px-3 py-1.5"
