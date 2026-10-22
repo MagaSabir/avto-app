@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal, Protocol
+from typing import Literal, Protocol, runtime_checkable
 
 OfferKind = Literal["normal", "sale", "defect", "air", "other"]
 
@@ -48,3 +48,60 @@ class Supplier(Protocol):
     title: str
 
     async def search(self, number: str) -> SupplierResult: ...
+
+
+@dataclass(frozen=True)
+class SettlementCustomer:
+    id: str
+    name: str
+    balance: Decimal
+
+
+@dataclass(frozen=True)
+class SettlementPayment:
+    date: date
+    amount: Decimal
+    contractor: str
+    contractor_debt: Decimal
+
+
+@dataclass(frozen=True)
+class SettlementItem:
+    name: str
+    count: int
+    price: Decimal
+
+
+@dataclass(frozen=True)
+class SettlementDocument:
+    date: datetime
+    name: str
+    amount: Decimal
+    balance: Decimal
+    payer: str
+    status: str
+    order_id: int | None
+    days_remaining: int | None
+    items: list[SettlementItem]
+
+
+@dataclass(frozen=True)
+class Settlements:
+    balance: Decimal
+    limit: Decimal | None
+    kind: str
+    payment_delay: int | None
+    currency: str
+    customers: list[SettlementCustomer]
+    overdue_days: int | None
+    overdue_sum: Decimal | None
+    payments: list[SettlementPayment]
+    documents_total: int
+    page_size: int
+    page: int
+    documents: list[SettlementDocument]
+
+
+@runtime_checkable
+class SettlementsSupplier(Supplier, Protocol):
+    async def settlements(self, page: int) -> Settlements: ...

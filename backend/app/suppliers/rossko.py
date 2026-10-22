@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
@@ -8,7 +8,17 @@ from xml.sax.saxutils import escape
 import httpx
 
 from app.domain.numbers import normalize_brand, normalize_number
-from app.suppliers.base import Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.base import (
+    Offer,
+    PartGroup,
+    SettlementCustomer,
+    SettlementDocument,
+    SettlementItem,
+    SettlementPayment,
+    Settlements,
+    SupplierError,
+    SupplierResult,
+)
 from app.suppliers.ratelimit import RateLimiter
 
 NS = "https://api.rossko.ru/"
@@ -120,6 +130,96 @@ def parse_search(xml: bytes) -> SupplierResult:
             for cross in top.findall(f"{_Q}crosses/{_Q}Part"):
                 _add(groups, seen, cross, requested=False, parent=parent)
         return SupplierResult(groups=list(groups.values()), message=message)
+    except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
+        raise SupplierError(BAD_RESPONSE) from exc
+
+
+def _opt_int(el: ElementTree.Element, tag: str) -> int | None:
+    value = _text(el, tag)
+    return int(value) if value else None
+
+
+def _opt_decimal(el: ElementTree.Element, tag: str) -> Decimal | None:
+    value = _text(el, tag)
+    return _decimal(value) if value else None
+
+
+def _decimal(value: str) -> Decimal:
+    result = Decimal(value)
+    if not result.is_finite():
+        raise ValueError("bad number")
+    return result
+
+
+def _document(el: ElementTree.Element) -> SettlementDocument:
+    return SettlementDocument(
+        date=datetime.fromisoformat(_text(el, "date")).astimezone(UTC),
+        name=_text(el, "name"),
+        amount=_decimal(_text(el, "credit")),
+        balance=_decimal(_text(el, "balance")),
+        payer=_text(el, "payer"),
+        status=_text(el, "status"),
+        order_id=_opt_int(el, "orderId"),
+        days_remaining=_opt_int(el, "daysRemaining"),
+        items=[
+            SettlementItem(
+                name=_text(item, "name"),
+                count=int(_text(item, "count")),
+                price=_decimal(_text(item, "price")),
+            )
+            for item in el.findall(f"{_Q}Items")
+        ],
+    )
+
+
+def parse_settlements(xml: bytes) -> Settlements:
+    try:
+        root = ElementTree.fromstring(xml)
+        result = root.find(f".//{_Q}SettlementsResult")
+        if result is None:
+            raise SupplierError(BAD_RESPONSE)
+        if _text(result, "success").lower() != "true":
+            raise SupplierError(_text(result, "message") or "Росско вернул ошибку")
+        info = result.find(f"{_Q}Info")
+        documents = result.find(f"{_Q}Documents")
+        if info is None or documents is None:
+            raise SupplierError(BAD_RESPONSE)
+        summary = result.find(f"{_Q}Summary")
+        if summary is None:
+            summary = ElementTree.Element("Summary")
+        payments = []
+        for row in summary.findall(f"{_Q}List"):
+            contractor = row.find(f"{_Q}Contractor")
+            payments.append(
+                SettlementPayment(
+                    date=date.fromisoformat(_text(row, "date")[:10]),
+                    amount=_decimal(_text(row, "sumDebt")),
+                    contractor="" if contractor is None else _text(contractor, "name"),
+                    contractor_debt=(
+                        Decimal(0) if contractor is None else _decimal(_text(contractor, "debt"))
+                    ),
+                )
+            )
+        return Settlements(
+            balance=_decimal(_text(info, "balance")),
+            limit=_opt_decimal(info, "limit"),
+            kind=_text(info, "type"),
+            payment_delay=_opt_int(info, "paymentDelay"),
+            currency=_text(info, "currency"),
+            customers=[
+                SettlementCustomer(
+                    id=_text(c, "id"), name=_text(c, "name"), balance=_decimal(_text(c, "balance"))
+                )
+                for c in info.findall(f"{_Q}Customers")
+            ],
+            overdue_days=_opt_int(summary, "overdueDays"),
+            overdue_sum=_opt_decimal(summary, "overdueSum"),
+            payments=payments,
+            documents_total=int(_text(documents, "total")),
+            page_size=int(_text(documents, "limit")),
+            page=int(_text(documents, "offset") or "0"),
+            documents=[_document(d) for d in documents.findall(f"{_Q}List")],
+        )
     except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
         raise SupplierError(BAD_RESPONSE) from exc
 
