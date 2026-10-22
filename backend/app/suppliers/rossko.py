@@ -12,6 +12,7 @@ from app.suppliers.base import (
     Offer,
     Order,
     OrderPart,
+    Orders,
     PartGroup,
     SettlementCustomer,
     SettlementDocument,
@@ -32,6 +33,9 @@ URL = "https://api.rossko.ru/service/v2.1/GetSearch"
 URL_SETTLEMENTS = "https://api.rossko.ru/service/v2.1/GetSettlements"
 # Rossko returns settlement documents 20 at a time
 SETTLEMENTS_PAGE_SIZE = 20
+URL_ORDERS = "https://api.rossko.ru/service/v2.1/GetOrders"
+# Orders per request; a full response may be cut off
+ORDERS_LIMIT = 500
 TIMEOUT = 15.0
 
 _Q = f"{{{NS}}}"
@@ -52,6 +56,14 @@ _SETTLEMENTS_ENVELOPE = (
     f' xmlns:r="{NS}"><soap:Body><r:GetSettlements>'
     "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>{filters}"
     "</r:GetSettlements></soap:Body></soap:Envelope>"
+)
+
+_ORDERS_ENVELOPE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    f' xmlns:r="{NS}"><soap:Body><r:GetOrders>'
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:limit>{limit}</r:limit>{filters}"
+    "</r:GetOrders></soap:Body></soap:Envelope>"
 )
 
 
@@ -352,6 +364,35 @@ class RosskoSupplier:
         self._log_settlements(page, "ok", started)
         return result
 
+    async def orders(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+        order_id: int | None = None,
+    ) -> Orders:
+        started = time.monotonic()
+        filters = ""
+        if order_id is not None:
+            filters = f"<r:order_ids><r:id>{int(order_id)}</r:id></r:order_ids>"
+        elif start is not None and end is not None:
+            filters = (
+                f"<r:start_date>{start.isoformat()}</r:start_date>"
+                f"<r:end_date>{end.isoformat()}</r:end_date>"
+            )
+        try:
+            body = _ORDERS_ENVELOPE.format(
+                key1=escape(self._key1),
+                key2=escape(self._key2),
+                limit=ORDERS_LIMIT,
+                filters=filters,
+            )
+            parsed = parse_orders(await self._post(URL_ORDERS, "GetOrders", body))
+        except SupplierError as exc:
+            self._log_orders(exc.message, started)
+            raise
+        self._log_orders("ok", started)
+        return Orders(orders=parsed, truncated=len(parsed) >= ORDERS_LIMIT)
+
     def _log(self, number: str, outcome: str, started: float) -> None:
         _log.info(
             "supplier=%s number=%r outcome=%s duration_ms=%d",
@@ -366,6 +407,14 @@ class RosskoSupplier:
             "supplier=%s method=settlements page=%d outcome=%s duration_ms=%d",
             self.code,
             page,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
+    def _log_orders(self, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s method=orders outcome=%s duration_ms=%d",
+            self.code,
             outcome,
             (time.monotonic() - started) * 1000,
         )
