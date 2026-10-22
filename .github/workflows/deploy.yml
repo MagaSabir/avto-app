@@ -1,14 +1,14 @@
-name: Deploy backend
+name: Deploy
 
 on:
   workflow_run:
-    workflows: ["CI backend"]
+    workflows: ["CI backend", "CI frontend"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-backend
+  group: deploy
   cancel-in-progress: false
 
 permissions: {}
@@ -36,7 +36,9 @@ jobs:
         # The server's forced command runs deploy.sh; no remote command is given.
         run: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=4 deploy@31.77.10.194
       - name: Health check
-        run: curl -fsS --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://api.rossmik.ru/api/health
+        run: |
+          curl -fsS --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://api.rossmik.ru/api/health
+          curl -fsS -o /dev/null --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://rossmik.ru/
       - name: Remove SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key
