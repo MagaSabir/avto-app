@@ -1,3 +1,4 @@
+import { UserRound } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
@@ -15,10 +16,10 @@ import { ThemeToggle } from "./ThemeToggle";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "cursor-pointer rounded-lg px-3 py-1.5 font-medium",
+    "-mb-px flex h-full cursor-pointer items-center border-b-2 px-1 font-medium",
     isActive
-      ? "bg-selected text-foreground"
-      : "text-muted-foreground hover:bg-selected",
+      ? "border-primary text-foreground"
+      : "border-transparent text-muted-foreground hover:text-foreground",
   );
 }
 
@@ -47,11 +48,11 @@ export function Layout() {
 
   return (
     <>
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-2">
-        <NavLink to={`/${search}`} aria-label="Поиск" end>
+      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-card px-4 sm:px-8">
+        <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
           <Logo className="h-7 w-auto" />
         </NavLink>
-        <nav className="flex gap-1">
+        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-14 sm:w-auto">
           <NavLink to={`/${search}`} end className={navClass}>
             Поиск
           </NavLink>
@@ -62,18 +63,21 @@ export function Layout() {
             Взаиморасчёты
           </NavLink>
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3 py-2">
+          <ThemeToggle />
           <BalanceLink />
-          <span className="text-muted-foreground">{me?.login}</span>
-          <Button
-            className="h-auto px-3 py-1.5"
+          <button
+            type="button"
+            aria-label={`${me?.login ?? ""} — выйти`}
+            title="Выйти"
             onClick={() => {
               setConfirming(true);
             }}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-selected hover:text-foreground"
           >
-            Выйти
-          </Button>
-          <ThemeToggle />
+            <UserRound size={16} aria-hidden="true" />
+            <span>{me?.login}</span>
+          </button>
         </div>
       </header>
       <Modal
