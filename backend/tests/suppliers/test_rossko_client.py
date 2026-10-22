@@ -140,7 +140,8 @@ async def test_settlements_sends_soap_request(caplog: pytest.LogCaptureFixture) 
     call = body.find(f".//{ns}GetSettlements")
     assert call is not None
     assert call.findtext(f"{ns}KEY1") == "SECRET1"
-    assert call.findtext(f"{ns}offset") == "2"
+    # Rossko counts offset in documents, not pages (checked on the live API)
+    assert call.findtext(f"{ns}offset") == "40"
     assert result.balance == Decimal("-1250.40")
     message = last_log(caplog)
     assert "method=settlements" in message

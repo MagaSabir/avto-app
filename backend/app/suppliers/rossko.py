@@ -28,6 +28,8 @@ BAD_RESPONSE = "Росско вернул непонятный ответ"
 
 URL = "https://api.rossko.ru/service/v2.1/GetSearch"
 URL_SETTLEMENTS = "https://api.rossko.ru/service/v2.1/GetSettlements"
+# Rossko returns settlement documents 20 at a time
+SETTLEMENTS_PAGE_SIZE = 20
 TIMEOUT = 15.0
 
 _Q = f"{{{NS}}}"
@@ -209,6 +211,7 @@ def parse_settlements(xml: bytes) -> Settlements:
                     ),
                 )
             )
+        page_size = int(_text(documents, "limit"))
         return Settlements(
             balance=_decimal(_text(info, "balance")),
             limit=_opt_decimal(info, "limit"),
@@ -225,8 +228,9 @@ def parse_settlements(xml: bytes) -> Settlements:
             overdue_sum=_opt_decimal(summary, "overdueSum"),
             payments=payments,
             documents_total=int(_text(documents, "total")),
-            page_size=int(_text(documents, "limit")),
-            page=int(_text(documents, "offset") or "0"),
+            page_size=page_size,
+            # Rossko's offset counts documents, not pages (its docs say otherwise)
+            page=int(_text(documents, "offset") or "0") // max(page_size, 1),
             documents=[_document(d) for d in documents.findall(f"{_Q}List")],
         )
     except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
@@ -265,7 +269,9 @@ class RosskoSupplier:
         started = time.monotonic()
         try:
             body = _SETTLEMENTS_ENVELOPE.format(
-                key1=escape(self._key1), key2=escape(self._key2), offset=page
+                key1=escape(self._key1),
+                key2=escape(self._key2),
+                offset=page * SETTLEMENTS_PAGE_SIZE,
             )
             result = parse_settlements(await self._post(URL_SETTLEMENTS, "GetSettlements", body))
         except SupplierError as exc:

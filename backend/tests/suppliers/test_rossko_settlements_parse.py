@@ -104,3 +104,8 @@ def test_broken_xml_raises() -> None:
     with pytest.raises(SupplierError) as exc:
         parse_settlements(b"<not xml")
     assert exc.value.message == BAD_RESPONSE
+
+
+def test_page_from_document_offset() -> None:
+    xml = OK.replace(b"<ns1:offset>0</ns1:offset>", b"<ns1:offset>40</ns1:offset>")
+    assert parse_settlements(xml).page == 2
