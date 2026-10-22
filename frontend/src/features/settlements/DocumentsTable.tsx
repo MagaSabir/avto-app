@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
+import { Link } from "react-router";
 
 import type { SettlementDocument } from "@/api/settlements";
 import { cn } from "@/lib/utils";
@@ -22,37 +23,50 @@ function Items({ doc }: { doc: SettlementDocument }) {
   const total = sums.reduce((a, b) => a + b, 0n);
   const count = doc.items.reduce((n, it) => n + it.count, 0);
   return (
-    <table aria-label="Товары" className="w-full border-collapse text-[13.5px]">
-      <thead>
-        <tr className="border-b text-left text-[12px] text-muted-foreground">
-          <th className="py-1.5 pr-4 font-medium">Наименование</th>
-          <th className="py-1.5 pr-4 text-right font-medium">Заказано</th>
-          <th className="py-1.5 text-right font-medium">Сумма, ₽</th>
-        </tr>
-      </thead>
-      <tbody>
-        {doc.items.map((it, i) => (
-          <tr key={i} className="h-9 border-b">
-            <td className="pr-4">{it.name}</td>
+    <>
+      <table
+        aria-label="Товары"
+        className="w-full border-collapse text-[13.5px]"
+      >
+        <thead>
+          <tr className="border-b text-left text-[12px] text-muted-foreground">
+            <th className="py-1.5 pr-4 font-medium">Наименование</th>
+            <th className="py-1.5 pr-4 text-right font-medium">Заказано</th>
+            <th className="py-1.5 text-right font-medium">Сумма, ₽</th>
+          </tr>
+        </thead>
+        <tbody>
+          {doc.items.map((it, i) => (
+            <tr key={i} className="h-9 border-b">
+              <td className="pr-4">{it.name}</td>
+              <td className="pr-4 text-right whitespace-nowrap tabular-nums">
+                {`${String(it.count)} шт.`}
+              </td>
+              <td className="text-right font-mono whitespace-nowrap">
+                {formatAmount(money(sums[i] ?? 0n))}
+              </td>
+            </tr>
+          ))}
+          <tr className="h-10 font-semibold">
+            <td className="pr-4 text-right">ИТОГО:</td>
             <td className="pr-4 text-right whitespace-nowrap tabular-nums">
-              {`${String(it.count)} шт.`}
+              {`${String(count)} шт.`}
             </td>
             <td className="text-right font-mono whitespace-nowrap">
-              {formatAmount(money(sums[i] ?? 0n))}
+              {formatAmount(money(total))}
             </td>
           </tr>
-        ))}
-        <tr className="h-10 font-semibold">
-          <td className="pr-4 text-right">ИТОГО:</td>
-          <td className="pr-4 text-right whitespace-nowrap tabular-nums">
-            {`${String(count)} шт.`}
-          </td>
-          <td className="text-right font-mono whitespace-nowrap">
-            {formatAmount(money(total))}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+      {doc.order_id !== null && (
+        <Link
+          to={`/orders?id=${String(doc.order_id)}`}
+          className="mt-1 inline-block text-[13px] text-primary hover:underline"
+        >
+          {`К заказу № ${String(doc.order_id)}`}
+        </Link>
+      )}
+    </>
   );
 }
 
