@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from "react-router";
 
 import { LoginPage } from "@/pages/LoginPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { SettlementsPage } from "@/pages/SettlementsPage";
 import { StockPage } from "@/pages/StockPage";
 
 import { Layout } from "./Layout";
@@ -17,6 +18,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: "/", element: <SearchPage /> },
           { path: "/stock", element: <StockPage /> },
+          { path: "/settlements", element: <SettlementsPage /> },
         ],
       },
     ],

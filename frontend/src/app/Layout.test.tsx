@@ -75,6 +75,10 @@ describe("Layout", () => {
       screen.getAllByRole("img", { name: "ROSSMIK" }).length,
     ).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Склад" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Взаиморасчёты" })).toHaveAttribute(
+      "href",
+      "/settlements",
+    );
     expect(screen.getByText("sabir")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Склад" })).toBeInTheDocument();
   });

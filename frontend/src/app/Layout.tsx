@@ -58,6 +58,9 @@ export function Layout() {
           <NavLink to="/stock" className={navClass}>
             Склад
           </NavLink>
+          <NavLink to="/settlements" className={navClass}>
+            Взаиморасчёты
+          </NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <BalanceLink />
