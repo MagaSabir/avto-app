@@ -1,6 +1,6 @@
 import { formatMoney } from "@/features/stock/format";
 
-const MONTHS = [
+export const MONTHS = [
   "янв",
   "фев",
   "мар",

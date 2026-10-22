@@ -10,6 +10,9 @@ import httpx
 from app.domain.numbers import normalize_brand, normalize_number
 from app.suppliers.base import (
     Offer,
+    Order,
+    OrderPart,
+    Orders,
     PartGroup,
     SettlementCustomer,
     SettlementDocument,
@@ -30,6 +33,9 @@ URL = "https://api.rossko.ru/service/v2.1/GetSearch"
 URL_SETTLEMENTS = "https://api.rossko.ru/service/v2.1/GetSettlements"
 # Rossko returns settlement documents 20 at a time
 SETTLEMENTS_PAGE_SIZE = 20
+URL_ORDERS = "https://api.rossko.ru/service/v2.1/GetOrders"
+# Orders per request; a full response may be cut off
+ORDERS_LIMIT = 500
 TIMEOUT = 15.0
 
 _Q = f"{{{NS}}}"
@@ -50,6 +56,14 @@ _SETTLEMENTS_ENVELOPE = (
     f' xmlns:r="{NS}"><soap:Body><r:GetSettlements>'
     "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>{filters}"
     "</r:GetSettlements></soap:Body></soap:Envelope>"
+)
+
+_ORDERS_ENVELOPE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    f' xmlns:r="{NS}"><soap:Body><r:GetOrders>'
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:limit>{limit}</r:limit>{filters}"
+    "</r:GetOrders></soap:Body></soap:Envelope>"
 )
 
 
@@ -237,6 +251,61 @@ def parse_settlements(xml: bytes) -> Settlements:
         raise SupplierError(BAD_RESPONSE) from exc
 
 
+def _opt_text(el: ElementTree.Element, tag: str) -> str | None:
+    return _text(el, tag) or None
+
+
+def _order_part(el: ElementTree.Element) -> OrderPart:
+    return OrderPart(
+        guid=_text(el, "guid"),
+        brand=_text(el, "brand"),
+        number=_text(el, "partnumber"),
+        name=_text(el, "name"),
+        price=_decimal(_text(el, "price")),
+        count=int(_text(el, "count")),
+        delivery_days=_opt_int(el, "delivery"),
+        comment=_opt_text(el, "comment"),
+        status_code=int(_text(el, "status")),
+    )
+
+
+def _order(el: ElementTree.Element) -> Order:
+    detail = el.find(f"{_Q}detail")
+    if detail is None:
+        detail = ElementTree.Element("detail")
+    delivery_date = _text(el, "delivery_date")
+    return Order(
+        id=int(_text(el, "id")),
+        created_at=datetime.strptime(_text(el, "created_date"), "%d.%m.%Y %H:%M:%S")
+        .replace(tzinfo=MOSCOW)
+        .astimezone(UTC),
+        delivery_date=(
+            datetime.strptime(delivery_date, "%d.%m.%Y").date() if delivery_date else None
+        ),
+        total=_decimal(_text(el, "total_price")),
+        stock_address=_text(el, "stock_address"),
+        delivery_type=_text(detail, "delivery_type"),
+        delivery_cost=_opt_decimal(detail, "delivery_cost"),
+        delivery_address=_opt_text(detail, "delivery_address"),
+        payment_type=_text(detail, "payment_type"),
+        comment=_opt_text(detail, "comment"),
+        parts=[_order_part(p) for p in el.findall(f"{_Q}parts/{_Q}part")],
+    )
+
+
+def parse_orders(xml: bytes) -> list[Order]:
+    try:
+        root = ElementTree.fromstring(xml)
+        result = root.find(f".//{_Q}OrdersResult")
+        if result is None:
+            raise SupplierError(BAD_RESPONSE)
+        if _text(result, "success").lower() != "true":
+            raise SupplierError(_text(result, "message") or "Росско вернул ошибку")
+        return [_order(o) for o in result.findall(f"{_Q}OrdersList/{_Q}Order")]
+    except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
+        raise SupplierError(BAD_RESPONSE) from exc
+
+
 class RosskoSupplier:
     code = "rossko"
     title = "Росско"
@@ -295,6 +364,35 @@ class RosskoSupplier:
         self._log_settlements(page, "ok", started)
         return result
 
+    async def orders(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+        order_id: int | None = None,
+    ) -> Orders:
+        started = time.monotonic()
+        filters = ""
+        if order_id is not None:
+            filters = f"<r:order_ids><r:id>{int(order_id)}</r:id></r:order_ids>"
+        elif start is not None and end is not None:
+            filters = (
+                f"<r:start_date>{start.isoformat()}</r:start_date>"
+                f"<r:end_date>{end.isoformat()}</r:end_date>"
+            )
+        try:
+            body = _ORDERS_ENVELOPE.format(
+                key1=escape(self._key1),
+                key2=escape(self._key2),
+                limit=ORDERS_LIMIT,
+                filters=filters,
+            )
+            parsed = parse_orders(await self._post(URL_ORDERS, "GetOrders", body))
+        except SupplierError as exc:
+            self._log_orders(exc.message, started)
+            raise
+        self._log_orders("ok", started)
+        return Orders(orders=parsed, truncated=len(parsed) >= ORDERS_LIMIT)
+
     def _log(self, number: str, outcome: str, started: float) -> None:
         _log.info(
             "supplier=%s number=%r outcome=%s duration_ms=%d",
@@ -309,6 +407,14 @@ class RosskoSupplier:
             "supplier=%s method=settlements page=%d outcome=%s duration_ms=%d",
             self.code,
             page,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
+    def _log_orders(self, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s method=orders outcome=%s duration_ms=%d",
+            self.code,
             outcome,
             (time.monotonic() - started) * 1000,
         )

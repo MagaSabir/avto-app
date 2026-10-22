@@ -111,3 +111,47 @@ class SettlementsSupplier(Supplier, Protocol):
         start: date | None = None,
         end: date | None = None,
     ) -> Settlements: ...
+
+
+@dataclass(frozen=True)
+class OrderPart:
+    guid: str
+    brand: str
+    number: str
+    name: str
+    price: Decimal
+    count: int
+    delivery_days: int | None
+    comment: str | None
+    status_code: int
+
+
+@dataclass(frozen=True)
+class Order:
+    id: int
+    created_at: datetime
+    delivery_date: date | None
+    total: Decimal
+    stock_address: str
+    delivery_type: str
+    delivery_cost: Decimal | None
+    delivery_address: str | None
+    payment_type: str
+    comment: str | None
+    parts: list[OrderPart]
+
+
+@dataclass(frozen=True)
+class Orders:
+    orders: list[Order]
+    truncated: bool
+
+
+@runtime_checkable
+class OrdersSupplier(Supplier, Protocol):
+    async def orders(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+        order_id: int | None = None,
+    ) -> Orders: ...

@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -99,6 +105,19 @@ describe("Layout", () => {
       "border-primary",
     );
     expect(screen.getByRole("heading", { name: "Склад" })).toBeInTheDocument();
+  });
+
+  it("puts «Заказы» between «Склад» and «Взаиморасчёты»", async () => {
+    setup();
+    await screen.findByText("sabir");
+    expect(screen.getByRole("link", { name: "Заказы" })).toHaveAttribute(
+      "href",
+      "/orders",
+    );
+    const names = within(screen.getByRole("navigation"))
+      .getAllByRole("link")
+      .map((l) => l.textContent);
+    expect(names).toEqual(["Поиск", "Склад", "Заказы", "Взаиморасчёты"]);
   });
 
   it("opens the user menu on hover and closes it on leave", async () => {

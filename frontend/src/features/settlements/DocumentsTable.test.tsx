@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import type { SettlementDocument } from "@/api/settlements";
@@ -32,6 +33,10 @@ const sale: SettlementDocument = {
   ],
 };
 
+function renderTable(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 function row(name: string): HTMLElement {
   return screen.getByText(name).closest("tr") as HTMLElement;
 }
@@ -44,7 +49,7 @@ function cells(r: HTMLElement): (string | null)[] {
 
 describe("DocumentsTable", () => {
   it("has the Rossko columns", () => {
-    render(<DocumentsTable documents={[payment]} paid={[null]} />);
+    renderTable(<DocumentsTable documents={[payment]} paid={[null]} />);
     expect(
       screen.getAllByRole("columnheader").map((h) => h.textContent),
     ).toEqual([
@@ -59,7 +64,7 @@ describe("DocumentsTable", () => {
   });
 
   it("puts a payment into «Оплачено» and a sale into «Отгружено»", () => {
-    render(
+    renderTable(
       <DocumentsTable documents={[payment, sale]} paid={["1200.00", null]} />,
     );
     const p = cells(row("Оплата картой ТЕСТ0001"));
@@ -69,7 +74,7 @@ describe("DocumentsTable", () => {
   });
 
   it("expands a sale by clicking the row and shows items with a total", () => {
-    render(<DocumentsTable documents={[sale]} paid={[null]} />);
+    renderTable(<DocumentsTable documents={[sale]} paid={[null]} />);
     expect(screen.queryByRole("table", { name: "Товары" })).toBeNull();
     fireEvent.click(row("Реализация товаров ТЕСТ0002"));
     const items = screen.getByRole("table", { name: "Товары" });
@@ -95,7 +100,7 @@ describe("DocumentsTable", () => {
   });
 
   it("has no expander for a document without items", () => {
-    render(<DocumentsTable documents={[payment]} paid={[null]} />);
+    renderTable(<DocumentsTable documents={[payment]} paid={[null]} />);
     expect(screen.queryByRole("button", { name: "Товары" })).toBeNull();
   });
 
@@ -105,7 +110,7 @@ describe("DocumentsTable", () => {
       name: "Возврат ТЕСТ0003",
       items: [{ name: "Фильтр", count: 2, price: "-5.50" }],
     };
-    render(<DocumentsTable documents={[ret]} paid={[null]} />);
+    renderTable(<DocumentsTable documents={[ret]} paid={[null]} />);
     fireEvent.click(row("Возврат ТЕСТ0003"));
     const items = screen.getByRole("table", { name: "Товары" });
     expect(
@@ -114,5 +119,23 @@ describe("DocumentsTable", () => {
     expect(
       cells(within(items).getByText("ИТОГО:").closest("tr") as HTMLElement),
     ).toEqual(["ИТОГО:", "2 шт.", "−11,00"]);
+  });
+
+  it("links an expanded document to its order", () => {
+    renderTable(<DocumentsTable documents={[sale]} paid={[null]} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Товары" })[0]);
+    const link = screen.getByRole("link", { name: "К заказу № 100000001" });
+    expect(link.getAttribute("href")).toBe("/orders?id=100000001");
+  });
+
+  it("has no order link without order_id", () => {
+    renderTable(
+      <DocumentsTable
+        documents={[{ ...sale, order_id: null }]}
+        paid={[null]}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Товары" })[0]);
+    expect(screen.queryByRole("link")).toBeNull();
   });
 });
