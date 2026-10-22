@@ -40,7 +40,7 @@ describe("OrderCard", () => {
       brand.compareDocumentPosition(screen.getByText("Клапан впускной")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText("HCZB-003").className).toContain("font-mono");
+    expect(screen.getByText("HCZB-003").closest(".font-mono")).not.toBeNull();
     expect(screen.getByText("Клапан впускной")).toBeInTheDocument();
     expect(screen.getByText("Позвонить")).toBeInTheDocument();
     expect(screen.getAllByText("1 дн.").length).toBeGreaterThan(0);
