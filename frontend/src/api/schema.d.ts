@@ -347,6 +347,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/suppliers/{code}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Orders */
+        get: operations["get_orders_api_suppliers__code__orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -430,6 +447,77 @@ export interface components {
         OperationResult: {
             item: components["schemas"]["StockItemOut"];
             move: components["schemas"]["StockMoveOut"];
+        };
+        /** OrderOut */
+        OrderOut: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Delivery Date */
+            delivery_date: string | null;
+            /** Total */
+            total: string;
+            /** Stock Address */
+            stock_address: string;
+            /** Delivery Type */
+            delivery_type: string;
+            /** Delivery Cost */
+            delivery_cost: string | null;
+            /** Delivery Address */
+            delivery_address: string | null;
+            /** Payment Type */
+            payment_type: string;
+            /** Comment */
+            comment: string | null;
+            /** Parts */
+            parts: components["schemas"]["OrderPartOut"][];
+        };
+        /** OrderPartOut */
+        OrderPartOut: {
+            /** Guid */
+            guid: string;
+            /** Brand */
+            brand: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Price */
+            price: string;
+            /** Count */
+            count: number;
+            /** Delivery Days */
+            delivery_days: number | null;
+            /** Comment */
+            comment: string | null;
+            /** Status Code */
+            status_code: number;
+        };
+        /** OrdersData */
+        OrdersData: {
+            /** Orders */
+            orders: components["schemas"]["OrderOut"][];
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** OrdersOut */
+        OrdersOut: {
+            /** Code */
+            code: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Message */
+            message: string | null;
+            data: components["schemas"]["OrdersData"] | null;
         };
         /** PartGroupOut */
         PartGroupOut: {
@@ -1671,6 +1759,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettlementsOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_orders_api_suppliers__code__orders_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+                order_id?: number | null;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrdersOut"];
                 };
             };
             /** @description Not Found */
