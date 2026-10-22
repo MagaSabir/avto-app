@@ -84,6 +84,10 @@ build_images() {
   STEP="сборка образов"
   log "Собираю образы api и фронта"
   dc build api caddy
+  # A recreated caddy container starts from the mounted Caddyfile; a broken one would take down both sites
+  STEP="проверка Caddyfile"
+  log "Проверяю Caddyfile"
+  docker run --rm -v "$APP_DIR/caddy:/etc/caddy:ro" avto_web:latest caddy validate --config /etc/caddy/Caddyfile </dev/null
 }
 
 backup_db() {
