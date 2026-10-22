@@ -62,7 +62,7 @@ async def test_me_after_login(anon_client: httpx.AsyncClient, db_session: AsyncS
     await _login(anon_client)
     response = await anon_client.get("/api/auth/me")
     assert response.status_code == 200
-    assert response.json() == {"login": "admin"}
+    assert response.json() == {"login": "admin", "first_name": "", "last_name": ""}
 
 
 async def test_me_without_cookie_401(anon_client: httpx.AsyncClient) -> None:
@@ -114,3 +114,52 @@ async def test_cors_allows_credentials_for_local_frontend(anon_client: httpx.Asy
     assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
     evil = await anon_client.get("/api/health", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in evil.headers
+
+
+async def test_update_names(anon_client: httpx.AsyncClient, db_session: AsyncSession) -> None:
+    await _make_user(db_session)
+    await _login(anon_client)
+    response = await anon_client.patch(
+        "/api/auth/me", json={"first_name": " Сабир ", "last_name": "Магомедов"}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"login": "admin", "first_name": "Сабир", "last_name": "Магомедов"}
+    again = await anon_client.get("/api/auth/me")
+    assert again.json()["first_name"] == "Сабир"
+
+
+async def test_update_names_can_clear(
+    anon_client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    await _make_user(db_session)
+    await _login(anon_client)
+    await anon_client.patch("/api/auth/me", json={"first_name": "A", "last_name": "B"})
+    response = await anon_client.patch("/api/auth/me", json={"first_name": "  ", "last_name": ""})
+    assert response.json() == {"login": "admin", "first_name": "", "last_name": ""}
+
+
+async def test_update_names_too_long_422(
+    anon_client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    await _make_user(db_session)
+    await _login(anon_client)
+    response = await anon_client.patch(
+        "/api/auth/me", json={"first_name": "я" * 101, "last_name": ""}
+    )
+    assert response.status_code == 422
+
+
+async def test_update_names_without_login_401(anon_client: httpx.AsyncClient) -> None:
+    response = await anon_client.patch("/api/auth/me", json={"first_name": "A", "last_name": "B"})
+    assert response.status_code == 401
+
+
+async def test_update_names_requires_json_415(
+    anon_client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    await _make_user(db_session)
+    await _login(anon_client)
+    response = await anon_client.patch(
+        "/api/auth/me", content="first_name=A", headers={"Content-Type": "text/plain"}
+    )
+    assert response.status_code == 415
