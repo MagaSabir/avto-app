@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 
 import { apiFetch } from "./client";
-import type { components } from "./schema";
+import type { components, paths } from "./schema";
 
 type Schemas = components["schemas"];
 export type SettlementsOut = Schemas["SettlementsOut"];
@@ -17,9 +17,28 @@ const BALANCE_STALE_MS = 5 * 60 * 1000;
 
 export const settlementsKey = ["settlements", SUPPLIER] as const;
 
-function fetchPage(page: number): Promise<SettlementsOut> {
+export type SettlementStatus = NonNullable<
+  NonNullable<
+    paths["/api/suppliers/{code}/settlements"]["get"]["parameters"]["query"]
+  >["status"]
+>;
+
+export type SettlementsFilters = {
+  status?: SettlementStatus;
+  start?: string;
+  end?: string;
+};
+
+function fetchPage(
+  page: number,
+  filters: SettlementsFilters = {},
+): Promise<SettlementsOut> {
+  const params = new URLSearchParams({ page: String(page) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
   return apiFetch<SettlementsOut>(
-    `/api/suppliers/${SUPPLIER}/settlements?page=${String(page)}`,
+    `/api/suppliers/${SUPPLIER}/settlements?${params.toString()}`,
   );
 }
 
@@ -31,10 +50,10 @@ export function useBalance(): UseQueryResult<SettlementsOut> {
   });
 }
 
-export function useSettlements() {
+export function useSettlements(filters: SettlementsFilters) {
   return useInfiniteQuery({
-    queryKey: [...settlementsKey, "pages"],
-    queryFn: ({ pageParam }) => fetchPage(pageParam),
+    queryKey: [...settlementsKey, "pages", filters],
+    queryFn: ({ pageParam }) => fetchPage(pageParam, filters),
     initialPageParam: 0,
     getNextPageParam: (last, pages, lastParam) => {
       if (last.data === null) return undefined;

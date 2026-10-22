@@ -1,79 +1,132 @@
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 
 import type { SettlementDocument } from "@/api/settlements";
-import { formatDateTime, formatMoney } from "@/features/stock/format";
+import { cn } from "@/lib/utils";
 
-import { formatSigned } from "./format";
+import { formatAmount, formatDocDate } from "./format";
 
 const HEADERS = [
   { label: "Дата" },
-  { label: "Документ" },
-  { label: "Сумма", right: true },
-  { label: "Баланс после", right: true },
-  { label: "Статус" },
-  { label: "№ заказа" },
+  { label: "Операция" },
+  { label: "Оплачено", right: true },
+  { label: "Отгружено", right: true },
+  { label: "Статус оплаты" },
+  { label: "Баланс, ₽", right: true },
+  { label: "" },
 ];
 
-function DocumentRow({ doc }: { doc: SettlementDocument }) {
+function cents(v: string): bigint {
+  const [i = "0", f = ""] = v.split(".");
+  return BigInt(i) * 100n + BigInt(f.padEnd(2, "0").slice(0, 2));
+}
+
+function fromCents(k: bigint): string {
+  return `${(k / 100n).toString()}.${(k % 100n).toString().padStart(2, "0")}`;
+}
+
+function Items({ doc }: { doc: SettlementDocument }) {
+  const sums = doc.items.map((it) => cents(it.price) * BigInt(it.count));
+  const total = sums.reduce((a, b) => a + b, 0n);
+  const count = doc.items.reduce((n, it) => n + it.count, 0);
+  return (
+    <table aria-label="Товары" className="w-full border-collapse text-[13.5px]">
+      <thead>
+        <tr className="border-b text-left text-[12px] text-muted-foreground">
+          <th className="py-1.5 pr-4 font-medium">Наименование</th>
+          <th className="py-1.5 pr-4 text-right font-medium">Заказано</th>
+          <th className="py-1.5 text-right font-medium">Сумма, ₽</th>
+        </tr>
+      </thead>
+      <tbody>
+        {doc.items.map((it, i) => (
+          <tr key={i} className="h-9 border-b">
+            <td className="pr-4">{it.name}</td>
+            <td className="pr-4 text-right whitespace-nowrap tabular-nums">
+              {`${String(it.count)} шт.`}
+            </td>
+            <td className="text-right font-mono whitespace-nowrap">
+              {formatAmount(fromCents(sums[i] ?? 0n))}
+            </td>
+          </tr>
+        ))}
+        <tr className="h-10 font-semibold">
+          <td className="pr-4 text-right">ИТОГО:</td>
+          <td className="pr-4 text-right whitespace-nowrap tabular-nums">
+            {`${String(count)} шт.`}
+          </td>
+          <td className="text-right font-mono whitespace-nowrap">
+            {formatAmount(fromCents(total))}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function DocumentRow({
+  doc,
+  paid,
+}: {
+  doc: SettlementDocument;
+  paid: string | null;
+}) {
   const [open, setOpen] = useState(false);
+  const expandable = doc.items.length > 0;
+  const toggle = () => {
+    setOpen(!open);
+  };
+  const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <>
-      <tr className="h-9 border-b hover:bg-muted">
-        <td className="px-2 whitespace-nowrap tabular-nums">
-          {formatDateTime(doc.date)}
-        </td>
-        <td className="px-2">
-          <div className="flex items-center gap-2">
-            <span>{doc.name}</span>
-            {doc.items.length > 0 && (
-              <button
-                type="button"
-                aria-expanded={open}
-                onClick={() => {
-                  setOpen(!open);
-                }}
-                className="cursor-pointer text-[12px] whitespace-nowrap text-primary"
-              >
-                {`Товары: ${String(doc.items.length)}`}
-              </button>
-            )}
-          </div>
+      <tr
+        onClick={expandable ? toggle : undefined}
+        className={cn(
+          "h-11 border-b",
+          expandable && "cursor-pointer",
+          open ? "bg-selected" : "hover:bg-muted",
+        )}
+      >
+        <td className="px-2 whitespace-nowrap">{formatDocDate(doc.date)}</td>
+        <td className="px-2">{doc.name}</td>
+        <td className="px-2 text-right font-mono whitespace-nowrap">
+          {paid === null ? "" : formatAmount(paid)}
         </td>
         <td className="px-2 text-right font-mono whitespace-nowrap">
-          {/^0*(\.0*)?$/.test(doc.amount) ? "" : `${formatMoney(doc.amount)} ₽`}
-        </td>
-        <td className="px-2 text-right font-mono whitespace-nowrap">
-          {formatSigned(doc.balance)}
+          {cents(doc.amount.replace("-", "")) === 0n
+            ? ""
+            : formatAmount(doc.amount)}
         </td>
         <td className="px-2 whitespace-nowrap">{doc.status}</td>
-        <td className="px-2 font-mono">{doc.order_id ?? ""}</td>
+        <td
+          className={cn(
+            "px-2 text-right font-mono whitespace-nowrap",
+            doc.balance.startsWith("-") && "text-destructive",
+          )}
+        >
+          {formatAmount(doc.balance)}
+        </td>
+        <td className="w-8 px-1">
+          {expandable && (
+            <button
+              type="button"
+              aria-label="Товары"
+              aria-expanded={open}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle();
+              }}
+              className="inline-flex cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground"
+            >
+              <Chevron size={16} aria-hidden="true" />
+            </button>
+          )}
+        </td>
       </tr>
       {open && (
-        <tr className="border-b bg-muted/40 text-[13px]">
-          <td />
-          <td colSpan={5} className="px-2 py-1.5">
-            <table aria-label="Товары" className="border-collapse">
-              <thead>
-                <tr className="text-left text-[12px] text-muted-foreground">
-                  <th className="pr-4 font-medium">Товар</th>
-                  <th className="pr-4 text-right font-medium">Кол-во</th>
-                  <th className="text-right font-medium">Цена</th>
-                </tr>
-              </thead>
-              <tbody>
-                {doc.items.map((item, i) => (
-                  <tr key={i} className="h-7">
-                    <td className="pr-4">{item.name}</td>
-                    <td className="pr-4 text-right tabular-nums">
-                      {item.count}
-                    </td>
-                    <td className="text-right font-mono whitespace-nowrap">
-                      {`${formatMoney(item.price)} ₽`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <tr className="border-b">
+          <td colSpan={HEADERS.length} className="bg-card px-6 py-2">
+            <Items doc={doc} />
           </td>
         </tr>
       )}
@@ -83,18 +136,20 @@ function DocumentRow({ doc }: { doc: SettlementDocument }) {
 
 export function DocumentsTable({
   documents,
+  paid,
 }: {
   documents: SettlementDocument[];
+  paid: (string | null)[];
 }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-[13.5px]">
         <thead>
           <tr className="border-b text-left text-[12px] text-muted-foreground">
-            {HEADERS.map(({ label, right }) => (
+            {HEADERS.map(({ label, right }, i) => (
               <th
-                key={label}
-                className={`px-2 py-1.5 font-medium ${right ? "text-right" : ""}`}
+                key={i}
+                className={cn("px-2 py-2 font-medium", right && "text-right")}
               >
                 {label}
               </th>
@@ -104,7 +159,7 @@ export function DocumentsTable({
         <tbody>
           {documents.map((doc, i) => (
             <Fragment key={`${doc.date}-${doc.name}-${String(i)}`}>
-              <DocumentRow doc={doc} />
+              <DocumentRow doc={doc} paid={paid[i] ?? null} />
             </Fragment>
           ))}
         </tbody>

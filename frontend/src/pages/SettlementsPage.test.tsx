@@ -21,115 +21,141 @@ function doc(n: number): SettlementDocument {
   };
 }
 
-function setup(pages: Record<string, () => object>) {
-  const calls: string[] = [];
+function setup(answer: (url: URL) => object) {
+  const urls: URL[] = [];
   mockApi({
     "GET /api/suppliers/rossko/settlements": (_init, url) => {
-      const page = url.searchParams.get("page") ?? "0";
-      calls.push(page);
-      const handler = pages[page] as (() => object) | undefined;
-      if (!handler) throw new Error(`unexpected page ${page}`);
-      return handler();
+      urls.push(url);
+      return answer(url);
     },
   });
   renderWithProviders(<SettlementsPage />, { route: "/settlements" });
-  return calls;
+  return urls;
 }
 
 describe("SettlementsPage", () => {
-  it("shows the account summary", async () => {
-    setup({
-      "0": () =>
-        settlements({
-          balance: "-1250.40",
-          kind: "Лимит кредит",
-          limit: "50000.00",
-          payment_delay: 14,
-        }),
-    });
+  it("shows the title, settlement kind, balance and the contractor tab", async () => {
+    setup(() =>
+      settlements({
+        balance: "-1250.40",
+        kind: "Лимит кредит",
+        customers: [{ id: "c1", name: "ЧАСТНОЕ ЛИЦО", balance: "-1250.40" }],
+      }),
+    );
     expect(
-      await screen.findByRole("heading", { name: "Взаиморасчёты" }),
+      screen.getByRole("heading", { name: "Взаиморасчёты" }),
     ).toBeInTheDocument();
     expect(await screen.findByText("Лимит кредит")).toBeInTheDocument();
-    expect(screen.getByText(/^−1\s250,40 ₽$/)).toBeInTheDocument();
-    expect(screen.getByText(/^50\s000,00 ₽$/)).toBeInTheDocument();
-    expect(screen.getByText("14 дн.")).toBeInTheDocument();
+    expect(screen.getAllByText(/^−1\s250,40 ₽$/).length).toBe(1);
+    const tab = screen.getByRole("tab");
+    expect(tab).toHaveTextContent("−1 250,40");
+    expect(tab).toHaveTextContent("ЧАСТНОЕ ЛИЦО");
   });
 
-  it("hides the overdue block without data and shows it with data", async () => {
-    setup({ "0": () => settlements() });
-    await screen.findByText("Оплата по факту");
-    expect(
-      screen.queryByText("Просрочка и график платежей"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows overdue sum and payment schedule", async () => {
-    setup({
-      "0": () =>
-        settlements({
-          overdue_days: 3,
-          overdue_sum: "500.00",
-          payments: [
-            {
-              date: "2026-10-25",
-              amount: "750.40",
-              contractor: "ИП Тестов",
-              contractor_debt: "750.40",
-            },
-          ],
-        }),
+  it("filters by status from the first page", async () => {
+    const urls = setup(() =>
+      settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
+    await screen.findByText("Документ 1");
+    fireEvent.change(screen.getByLabelText("Статус"), {
+      target: { value: "Оплачено" },
     });
-    expect(
-      await screen.findByText("Просрочка и график платежей"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("500,00 ₽ · 3 дн.")).toBeInTheDocument();
-    expect(screen.getByText("25.10.2026")).toBeInTheDocument();
-    expect(screen.getByText("750,40 ₽")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(urls.at(-1)?.searchParams.get("status")).toBe("Оплачено");
+    });
+    expect(urls.at(-1)?.searchParams.get("page")).toBe("0");
+  });
+
+  it("filters by period only when both dates are set, and resets", async () => {
+    const urls = setup(() =>
+      settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
+    await screen.findByText("Документ 1");
+    fireEvent.change(screen.getByLabelText("Период с"), {
+      target: { value: "2026-10-01" },
+    });
+    expect(urls.at(-1)?.searchParams.has("start")).toBe(false);
+    fireEvent.change(screen.getByLabelText("по"), {
+      target: { value: "2026-10-22" },
+    });
+    await waitFor(() => {
+      expect(urls.at(-1)?.searchParams.get("start")).toBe("2026-10-01");
+    });
+    expect(urls.at(-1)?.searchParams.get("end")).toBe("2026-10-22");
+    fireEvent.click(screen.getByRole("button", { name: "Сбросить период" }));
+    await waitFor(() => {
+      expect(urls.at(-1)?.searchParams.has("start")).toBe(false);
+    });
+  });
+
+  it("shows the overdue line only with data", async () => {
+    setup(() =>
+      settlements({
+        overdue_days: 3,
+        overdue_sum: "500.00",
+        payments: [
+          {
+            date: "2026-10-25",
+            amount: "750.40",
+            contractor: "ИП Тестов",
+            contractor_debt: "750.40",
+          },
+        ],
+      }),
+    );
+    expect(await screen.findByText(/^Просрочено:/)).toHaveTextContent(
+      "Просрочено: 500,00 ₽ · 3 дн.",
+    );
+    expect(screen.getByText(/График платежей/)).toHaveTextContent(
+      "25.10.2026 — 750,40 ₽",
+    );
+  });
+
+  it("hides the overdue line without data", async () => {
+    setup(() => settlements());
+    await screen.findByText("Оплата по факту");
+    expect(screen.queryByText(/^Просрочено:/)).not.toBeInTheDocument();
   });
 
   it("loads more documents until all are shown", async () => {
-    const calls = setup({
-      "0": () =>
-        settlements({ documents_total: 3, documents: [doc(1), doc(2)] }),
-      "1": () =>
-        settlements({ documents_total: 3, page: 1, documents: [doc(3)] }),
-    });
+    setup((url) =>
+      url.searchParams.get("page") === "1"
+        ? settlements({ documents_total: 3, page: 1, documents: [doc(3)] })
+        : settlements({ documents_total: 3, documents: [doc(1), doc(2)] }),
+    );
     expect(await screen.findByText("Документ 2")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Показать ещё" }));
     expect(await screen.findByText("Документ 3")).toBeInTheDocument();
-    expect(calls).toContain("1");
     expect(
       screen.queryByRole("button", { name: "Показать ещё" }),
     ).not.toBeInTheDocument();
   });
 
   it("refreshes from the first page", async () => {
-    const calls = setup({
-      "0": () => settlements({ documents_total: 1, documents: [doc(1)] }),
-    });
+    const urls = setup(() =>
+      settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
     await screen.findByText("Документ 1");
-    const before = calls.length;
+    const before = urls.length;
     fireEvent.click(screen.getByRole("button", { name: "Обновить" }));
     await waitFor(() => {
-      expect(calls.length).toBeGreaterThan(before);
+      expect(urls.length).toBeGreaterThan(before);
     });
-    expect(calls.every((p) => p === "0")).toBe(true);
+    expect(urls.every((u) => u.searchParams.get("page") === "0")).toBe(true);
   });
 
   it("shows the Rossko error with a retry button", async () => {
     let fail = true;
-    setup({
-      "0": () =>
-        fail
-          ? {
-              ...settlements(),
-              status: "error",
-              message: "Росско не ответил за 15 с",
-              data: null,
-            }
-          : settlements({ documents_total: 1, documents: [doc(1)] }),
-    });
+    setup(() =>
+      fail
+        ? {
+            ...settlements(),
+            status: "error",
+            message: "Росско не ответил за 15 с",
+            data: null,
+          }
+        : settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
     expect(
       await screen.findByText("Росско не ответил за 15 с"),
     ).toBeInTheDocument();

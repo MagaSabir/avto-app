@@ -1,101 +1,102 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
-import { settlementsKey, useSettlements } from "@/api/settlements";
-import type { SettlementsData } from "@/api/settlements";
+import {
+  settlementsKey,
+  useSettlements,
+  type SettlementsData,
+  type SettlementsFilters,
+} from "@/api/settlements";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { DocumentsTable } from "@/features/settlements/DocumentsTable";
-import { formatSigned } from "@/features/settlements/format";
+import { SettlementsFiltersPanel } from "@/features/settlements/SettlementsFilters";
+import { paidAmounts } from "@/features/settlements/derive";
+import { formatAmount, formatSigned } from "@/features/settlements/format";
 import { formatMoney } from "@/features/stock/format";
 import { cn } from "@/lib/utils";
-
-function Field({ label, children }: { label: string; children: string }) {
-  return (
-    <div>
-      <dt className="text-[12px] text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
 
 // "2026-10-25" -> "25.10.2026" without a time zone shift
 function formatDay(day: string): string {
   return day.split("-").reverse().join(".");
 }
 
-function Summary({ data }: { data: SettlementsData }) {
+function Header({ data }: { data: SettlementsData | undefined }) {
   return (
-    <>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div>
-          <dt className="text-[12px] text-muted-foreground">Баланс</dt>
-          <dd
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <h1 className="text-[24px] font-bold">Взаиморасчёты</h1>
+      {data && (
+        <div className="text-right">
+          <div className="text-[13px] text-muted-foreground">{data.kind}</div>
+          <div
             className={cn(
-              "font-mono text-[15px] font-semibold",
+              "font-mono text-[26px] leading-tight",
               data.balance.startsWith("-") && "text-destructive",
             )}
           >
             {formatSigned(data.balance)}
-          </dd>
+          </div>
         </div>
-        <Field label="Тип расчёта">{data.kind}</Field>
-        <Field label="Лимит">
-          {data.limit === null ? "—" : `${formatMoney(data.limit)} ₽`}
-        </Field>
-        <Field label="Отсрочка">
-          {data.payment_delay === null
-            ? "—"
-            : `${String(data.payment_delay)} дн.`}
-        </Field>
-      </dl>
-      {data.customers.length > 1 && (
-        <ul className="mt-3 text-[13px]">
-          {data.customers.map((c) => (
-            <li key={c.id}>
-              {c.name}:{" "}
-              <span className="font-mono">{formatSigned(c.balance)}</span>
-            </li>
-          ))}
-        </ul>
       )}
-    </>
+    </div>
+  );
+}
+
+function Customers({ data }: { data: SettlementsData }) {
+  return (
+    <div role="tablist" className="flex rounded-md bg-muted">
+      {data.customers.map((c, i) => (
+        <div
+          key={c.id}
+          role="tab"
+          aria-selected={i === 0}
+          className={cn(
+            "border-b-2 px-5 py-2",
+            i === 0 ? "border-primary bg-card" : "border-transparent",
+          )}
+        >
+          <div
+            className={cn(
+              "font-mono",
+              c.balance.startsWith("-") && "text-destructive",
+            )}
+          >
+            {`${c.balance.startsWith("-") ? "" : "+"}${formatAmount(c.balance)}`}
+          </div>
+          <div className="text-[12px] text-muted-foreground uppercase">
+            {c.name}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function Overdue({ data }: { data: SettlementsData }) {
   if (data.overdue_sum === null && data.payments.length === 0) return null;
   return (
-    <Card title="Просрочка и график платежей">
+    <div className="flex flex-col gap-1 text-[13.5px] text-destructive">
       {data.overdue_sum !== null && (
-        <p className="mb-2 text-destructive">
-          Просрочено:{" "}
-          <span className="font-mono">
-            {`${formatMoney(data.overdue_sum)} ₽${data.overdue_days === null ? "" : ` · ${String(data.overdue_days)} дн.`}`}
-          </span>
+        <p>
+          {`Просрочено: ${formatMoney(data.overdue_sum)} ₽${data.overdue_days === null ? "" : ` · ${String(data.overdue_days)} дн.`}`}
         </p>
       )}
       {data.payments.length > 0 && (
-        <table className="border-collapse text-[13.5px]">
-          <tbody>
-            {data.payments.map((p, i) => (
-              <tr key={i} className="h-8 border-b">
-                <td className="pr-4 tabular-nums">{formatDay(p.date)}</td>
-                <td className="pr-4 text-right font-mono">{`${formatMoney(p.amount)} ₽`}</td>
-                <td>{p.contractor}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <p>
+          {`График платежей: ${data.payments
+            .map((p) => `${formatDay(p.date)} — ${formatMoney(p.amount)} ₽`)
+            .join("; ")}`}
+        </p>
       )}
-    </Card>
+    </div>
   );
 }
 
 export function SettlementsPage() {
   const queryClient = useQueryClient();
-  const query = useSettlements();
+  const [filters, setFilters] = useState<SettlementsFilters>({});
+  const query = useSettlements(filters);
   const pages = query.data?.pages ?? [];
-  const first = pages.at(0);
+  const data = pages.at(0)?.data ?? undefined;
   const failed = pages.find((p) => p.status === "error");
   const documents = pages.flatMap((p) => p.data?.documents ?? []);
   const reload = () => {
@@ -103,51 +104,56 @@ export function SettlementsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <h1 className="sr-only">Взаиморасчёты</h1>
-      {query.isError && (
-        <p role="alert" className="text-destructive">
-          {query.error.message}
-        </p>
-      )}
-      {failed && (
-        <div role="alert" className="flex items-center gap-3">
-          <span className="text-destructive">{failed.message}</span>
-          <Button type="button" onClick={reload}>
-            Повторить
+    <div className="flex flex-col gap-4">
+      <Header data={data} />
+      {data && <Customers data={data} />}
+      {data && <Overdue data={data} />}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="flex flex-col gap-4">
+          <SettlementsFiltersPanel onChange={setFilters} />
+          <Button type="button" className="self-start" onClick={reload}>
+            Обновить
           </Button>
-        </div>
-      )}
-      {first?.data && (
-        <>
-          <Card
-            title="Росско"
-            actions={
+        </aside>
+        <section className="min-w-0">
+          {query.isError && (
+            <p role="alert" className="text-destructive">
+              {query.error.message}
+            </p>
+          )}
+          {failed && (
+            <div role="alert" className="flex items-center gap-3">
+              <span className="text-destructive">{failed.message}</span>
               <Button type="button" onClick={reload}>
-                Обновить
+                Повторить
               </Button>
-            }
-          >
-            <Summary data={first.data} />
-          </Card>
-          <Overdue data={first.data} />
-          <Card title={`Документы · ${String(first.data.documents_total)}`}>
-            <DocumentsTable documents={documents} />
-            {query.hasNextPage && (
-              <Button
-                type="button"
-                className="mt-3"
-                disabled={query.isFetchingNextPage}
-                onClick={() => {
-                  void query.fetchNextPage();
-                }}
-              >
-                Показать ещё
-              </Button>
-            )}
-          </Card>
-        </>
-      )}
+            </div>
+          )}
+          {data && documents.length === 0 && (
+            <p className="py-6 text-center text-muted-foreground">
+              Документов нет
+            </p>
+          )}
+          {documents.length > 0 && (
+            <DocumentsTable
+              documents={documents}
+              paid={paidAmounts(documents, filters.status !== undefined)}
+            />
+          )}
+          {query.hasNextPage && (
+            <Button
+              type="button"
+              className="mt-3"
+              disabled={query.isFetchingNextPage}
+              onClick={() => {
+                void query.fetchNextPage();
+              }}
+            >
+              Показать ещё
+            </Button>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
