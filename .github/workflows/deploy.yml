@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI backend", "CI frontend"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  # A push touching backend and frontend runs both CIs; deploy only once every CI for the commit has passed
+  gate:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      state: ${{ steps.ci.outputs.state }}
+    steps:
+      - name: Check all CI runs for this commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          state=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/actions/runs?head_sha=$SHA&event=push&per_page=100" | jq -r '
+            [.workflow_runs[] | select(.name == "CI backend" or .name == "CI frontend")]
+            | group_by(.name) | map(max_by(.run_number))
+            | if any(.status != "completed") then "wait"
+              elif all(.conclusion == "success") then "ok"
+              else "fail" end')
+          echo "CI state for $SHA: $state"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          # "wait": the other CI is still running and will trigger this workflow when it finishes
+          [ "$state" != fail ]
+
+  deploy:
+    needs: gate
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' || needs.gate.outputs.state == 'ok')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Prepare SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy
+        # The server's forced command runs deploy.sh; no remote command is given.
+        run: ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=4 deploy@31.77.10.194
+      - name: Health check
+        run: |
+          curl -fsS --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://api.rossmik.ru/api/health
+          curl -fsS -o /dev/null --max-time 10 --retry 5 --retry-delay 5 --retry-connrefused https://rossmik.ru/
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -44,7 +44,11 @@ services:
       start_period: 15s
 
   caddy:
-    image: caddy:2.11.7
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: https://api.rossmik.ru
+    image: avto_web:latest
     restart: unless-stopped
     logging: *default-logging
     ports:

@@ -5,7 +5,8 @@ set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/home/deploy/avto_app}"
 BACKUP_DIR="${BACKUP_DIR:-/home/deploy/backups}"
-HEALTH_URL="${HEALTH_URL:-https://api.rossmik.ru/api/health}"
+# Space-separated; every URL must answer 200
+HEALTH_URLS="${HEALTH_URLS:-https://api.rossmik.ru/api/health https://rossmik.ru/}"
 # The very first deploy (Let's Encrypt issuance) should be run with HEALTH_TIMEOUT=180
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-60}"
 LOCK_FILE="${LOCK_FILE:-${HOME}/deploy.lock}"
@@ -72,12 +73,21 @@ tag_previous() {
   else
     log "Первый выкат — предыдущей версии нет, откатываться некуда"
   fi
+  cid="$(dc ps -q caddy </dev/null)"
+  if [ -n "$cid" ]; then
+    docker tag "$(docker inspect -f '{{.Image}}' "$cid")" avto_web:previous
+    log "Работающий фронт сохранён как avto_web:previous"
+  fi
 }
 
-build_api() {
-  STEP="сборка образа api"
-  log "Собираю образ api"
-  dc build api
+build_images() {
+  STEP="сборка образов"
+  log "Собираю образы api и фронта"
+  dc build api caddy
+  # A recreated caddy container starts from the mounted Caddyfile; a broken one would take down both sites
+  STEP="проверка Caddyfile"
+  log "Проверяю Caddyfile"
+  docker run --rm -v "$APP_DIR/caddy:/etc/caddy:ro" avto_web:latest caddy validate --config /etc/caddy/Caddyfile </dev/null
 }
 
 backup_db() {
@@ -126,11 +136,15 @@ start_stack() {
 }
 
 wait_health() {
-  local deadline=$((SECONDS + HEALTH_TIMEOUT))
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) url pending
+  pending="$HEALTH_URLS"
   while [ "$SECONDS" -lt "$deadline" ]; do
-    if curl -fsS -o /dev/null --max-time 5 "$HEALTH_URL" 2>/dev/null; then
-      return 0
-    fi
+    local still=""
+    for url in $pending; do
+      curl -fsS -o /dev/null --max-time 5 "$url" 2>/dev/null || still="$still $url"
+    done
+    pending="$still"
+    [ -z "$pending" ] && return 0
     sleep 2
   done
   return 1
@@ -141,26 +155,29 @@ rollback() {
   echo "Выкат не удался: $1." >&2
   if docker image inspect avto_api:previous >/dev/null 2>&1; then
     docker tag avto_api:previous avto_api:latest
-    dc up -d api </dev/null
-    echo "Возвращена предыдущая версия; смотрите: docker compose -p avto_prod logs api" >&2
+    if docker image inspect avto_web:previous >/dev/null 2>&1; then
+      docker tag avto_web:previous avto_web:latest
+    fi
+    dc up -d api caddy </dev/null
+    echo "Возвращена предыдущая версия; смотрите: docker compose -p avto_prod logs api caddy" >&2
     if wait_health; then
       echo "Предыдущая версия работает." >&2
     else
       echo "Предыдущая версия тоже не отвечает — нужна ручная проверка." >&2
     fi
   else
-    echo "Предыдущей версии нет, откат невозможен; смотрите: docker compose -p avto_prod logs api" >&2
+    echo "Предыдущей версии нет, откат невозможен; смотрите: docker compose -p avto_prod logs api caddy" >&2
   fi
   exit 1
 }
 
 check_health() {
   STEP="проверка работоспособности"
-  log "Жду ответа $HEALTH_URL (до ${HEALTH_TIMEOUT} с)"
+  log "Жду ответа: $HEALTH_URLS (до ${HEALTH_TIMEOUT} с)"
   if wait_health; then
     return 0
   fi
-  rollback "$HEALTH_URL не ответил за ${HEALTH_TIMEOUT} с"
+  rollback "не ответили за ${HEALTH_TIMEOUT} с: $HEALTH_URLS"
 }
 
 main() {
@@ -174,7 +191,7 @@ main() {
   check_branch
   pull_code
   tag_previous
-  build_api
+  build_images
   backup_db
   run_migrations
   start_stack
