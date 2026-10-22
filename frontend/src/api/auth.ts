@@ -51,7 +51,8 @@ export function useLogout(): UseMutationResult<null, Error, void> {
 export function useUpdateMe(): UseMutationResult<Me, Error, MeIn> {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: ["auth", "me", "update"],
+    // Not under "auth": a 401 here means the session expired and must lead to login
+    mutationKey: ["profile", "update"],
     mutationFn: (body: MeIn) =>
       apiFetch<Me>("/api/auth/me", {
         method: "PATCH",

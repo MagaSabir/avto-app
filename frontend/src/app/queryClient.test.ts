@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ME_QUERY_KEY, useLogin, type Me } from "@/api/auth";
+import { ME_QUERY_KEY, useLogin, useUpdateMe, type Me } from "@/api/auth";
 import { apiFetch, UnauthorizedError } from "@/api/client";
 import { mockApi } from "@/test/mockApi";
 
@@ -77,6 +77,30 @@ describe("createQueryClient", () => {
     ).rejects.toBeInstanceOf(UnauthorizedError);
     await new Promise((r) => setTimeout(r, 20));
     expect(me).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("refetches me when saving the profile gets 401", async () => {
+    const me = vi.fn(() => ME);
+    mockApi({
+      "GET /api/auth/me": me,
+      "PATCH /api/auth/me": () => new Response("{}", { status: 401 }),
+    });
+    const client = createQueryClient();
+    const unsubscribe = observeMe(client);
+    await vi.waitFor(() => {
+      expect(me).toHaveBeenCalledTimes(1);
+    });
+    const { result } = renderHook(() => useUpdateMe(), {
+      wrapper: ({ children }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    await expect(
+      result.current.mutateAsync({ first_name: "a", last_name: "b" }),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    await vi.waitFor(() => {
+      expect(me).toHaveBeenCalledTimes(2);
+    });
     unsubscribe();
   });
 
