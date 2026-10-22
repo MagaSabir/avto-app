@@ -27,6 +27,7 @@ NOT_FOUND = "Ничего не найдено"
 BAD_RESPONSE = "Росско вернул непонятный ответ"
 
 URL = "https://api.rossko.ru/service/v2.1/GetSearch"
+URL_SETTLEMENTS = "https://api.rossko.ru/service/v2.1/GetSettlements"
 TIMEOUT = 15.0
 
 _Q = f"{{{NS}}}"
@@ -39,6 +40,14 @@ _ENVELOPE = (
     "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:text>{text}</r:text>"
     "<r:delivery_id>{delivery_id}</r:delivery_id>{address}"
     "</r:GetSearch></soap:Body></soap:Envelope>"
+)
+
+_SETTLEMENTS_ENVELOPE = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+    f' xmlns:r="{NS}"><soap:Body><r:GetSettlements>'
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>"
+    "</r:GetSettlements></soap:Body></soap:Envelope>"
 )
 
 
@@ -252,6 +261,19 @@ class RosskoSupplier:
         self._log(number, "ok", started)
         return result
 
+    async def settlements(self, page: int) -> Settlements:
+        started = time.monotonic()
+        try:
+            body = _SETTLEMENTS_ENVELOPE.format(
+                key1=escape(self._key1), key2=escape(self._key2), offset=page
+            )
+            result = parse_settlements(await self._post(URL_SETTLEMENTS, "GetSettlements", body))
+        except SupplierError as exc:
+            self._log_settlements(page, exc.message, started)
+            raise
+        self._log_settlements(page, "ok", started)
+        return result
+
     def _log(self, number: str, outcome: str, started: float) -> None:
         _log.info(
             "supplier=%s number=%r outcome=%s duration_ms=%d",
@@ -261,11 +283,16 @@ class RosskoSupplier:
             (time.monotonic() - started) * 1000,
         )
 
+    def _log_settlements(self, page: int, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s method=settlements page=%d outcome=%s duration_ms=%d",
+            self.code,
+            page,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
     async def _search(self, number: str) -> SupplierResult:
-        if not self._key1 or not self._key2:
-            raise SupplierError("Росско не настроен")
-        if not self._limiter.try_acquire():
-            raise SupplierError("Лимит запросов к Росско, повторите через минуту")
         body = _ENVELOPE.format(
             key1=escape(self._key1),
             key2=escape(self._key2),
@@ -278,16 +305,23 @@ class RosskoSupplier:
                 else ""
             ),
         )
+        return parse_search(await self._post(URL, "GetSearch", body))
+
+    async def _post(self, url: str, method: str, body: str) -> bytes:
+        if not self._key1 or not self._key2:
+            raise SupplierError("Росско не настроен")
+        if not self._limiter.try_acquire():
+            raise SupplierError("Лимит запросов к Росско, повторите через минуту")
         headers = {
             "Content-Type": "text/xml; charset=utf-8",
-            "SOAPAction": f'"{NS}GetSearch"',
+            "SOAPAction": f'"{NS}{method}"',
         }
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-                response = await client.post(URL, content=body.encode(), headers=headers)
+                response = await client.post(url, content=body.encode(), headers=headers)
             response.raise_for_status()
         except httpx.TimeoutException:
             raise SupplierError(f"Росско не ответил за {TIMEOUT:g} с") from None
         except httpx.HTTPError:
             raise SupplierError("Росско недоступен, повторите позже") from None
-        return parse_search(response.content)
+        return response.content
