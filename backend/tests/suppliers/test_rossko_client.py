@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from xml.etree import ElementTree
@@ -192,3 +193,25 @@ async def test_settlements_rate_limited_shares_search_limit(
         await supplier.settlements(0)
     assert exc.value.message == "Лимит запросов к Росско, повторите через минуту"
     assert route.called is False
+
+
+@respx.mock
+async def test_settlements_sends_filters() -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    await make().settlements(0, status="Оплачено", start=date(2026, 10, 1), end=date(2026, 10, 22))
+    ns = "{https://api.rossko.ru/}"
+    call = ElementTree.fromstring(route.calls[0].request.content).find(f".//{ns}GetSettlements")
+    assert call is not None
+    assert call.findtext(f"{ns}status") == "Оплачено"
+    assert call.findtext(f"{ns}startDate") == "2026-10-01"
+    assert call.findtext(f"{ns}endDate") == "2026-10-22"
+
+
+@respx.mock
+async def test_settlements_without_filters_sends_no_filter_tags() -> None:
+    route = respx.post(URL_SETTLEMENTS).respond(200, content=SETTLEMENTS.read_bytes())
+    await make().settlements(0)
+    body = route.calls[0].request.content
+    assert b"status" not in body
+    assert b"startDate" not in body
+    assert b"endDate" not in body

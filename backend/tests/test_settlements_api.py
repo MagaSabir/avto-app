@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -29,9 +30,17 @@ class FakeSupplier(SearchOnlySupplier):
     def __init__(self, result: Settlements | SupplierError) -> None:
         self.result = result
         self.pages: list[int] = []
+        self.filters: list[tuple[str | None, date | None, date | None]] = []
 
-    async def settlements(self, page: int) -> Settlements:
+    async def settlements(
+        self,
+        page: int,
+        status: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> Settlements:
         self.pages.append(page)
+        self.filters.append((status, start, end))
         if isinstance(self.result, SupplierError):
             raise self.result
         return self.result
@@ -117,3 +126,43 @@ async def test_negative_page_422(make_client: Any) -> None:
     c = make_client(FakeSupplier(SETTLEMENTS))
     r = await c.get("/api/suppliers/fake/settlements", params={"page": -1})
     assert r.status_code == 422
+
+
+async def test_filters_passed(make_client: Any) -> None:
+    supplier = FakeSupplier(SETTLEMENTS)
+    c = make_client(supplier)
+    r = await c.get(
+        "/api/suppliers/fake/settlements",
+        params={"status": "Оплачено", "start": "2026-10-01", "end": "2026-10-22"},
+    )
+    assert r.status_code == 200
+    assert supplier.filters == [("Оплачено", date(2026, 10, 1), date(2026, 10, 22))]
+
+
+async def test_no_filters_passed_as_none(make_client: Any) -> None:
+    supplier = FakeSupplier(SETTLEMENTS)
+    c = make_client(supplier)
+    await c.get("/api/suppliers/fake/settlements")
+    assert supplier.filters == [(None, None, None)]
+
+
+async def test_unknown_status_422(make_client: Any) -> None:
+    c = make_client(FakeSupplier(SETTLEMENTS))
+    r = await c.get("/api/suppliers/fake/settlements", params={"status": "Любой"})
+    assert r.status_code == 422
+
+
+async def test_only_start_422(make_client: Any) -> None:
+    c = make_client(FakeSupplier(SETTLEMENTS))
+    r = await c.get("/api/suppliers/fake/settlements", params={"start": "2026-10-01"})
+    assert r.status_code == 422
+    assert r.json() == {"message": "Укажите обе даты периода"}
+
+
+async def test_start_after_end_422(make_client: Any) -> None:
+    c = make_client(FakeSupplier(SETTLEMENTS))
+    r = await c.get(
+        "/api/suppliers/fake/settlements", params={"start": "2026-10-22", "end": "2026-10-01"}
+    )
+    assert r.status_code == 422
+    assert r.json() == {"message": "Начало периода позже конца"}

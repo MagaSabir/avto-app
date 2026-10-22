@@ -48,7 +48,7 @@ _SETTLEMENTS_ENVELOPE = (
     '<?xml version="1.0" encoding="UTF-8"?>'
     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
     f' xmlns:r="{NS}"><soap:Body><r:GetSettlements>'
-    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>"
+    "<r:KEY1>{key1}</r:KEY1><r:KEY2>{key2}</r:KEY2><r:offset>{offset}</r:offset>{filters}"
     "</r:GetSettlements></soap:Body></soap:Envelope>"
 )
 
@@ -265,13 +265,28 @@ class RosskoSupplier:
         self._log(number, "ok", started)
         return result
 
-    async def settlements(self, page: int) -> Settlements:
+    async def settlements(
+        self,
+        page: int,
+        status: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> Settlements:
         started = time.monotonic()
+        filters = ""
+        if status is not None:
+            filters += f"<r:status>{escape(status)}</r:status>"
+        if start is not None and end is not None:
+            filters += (
+                f"<r:startDate>{start.isoformat()}</r:startDate>"
+                f"<r:endDate>{end.isoformat()}</r:endDate>"
+            )
         try:
             body = _SETTLEMENTS_ENVELOPE.format(
                 key1=escape(self._key1),
                 key2=escape(self._key2),
                 offset=page * SETTLEMENTS_PAGE_SIZE,
+                filters=filters,
             )
             result = parse_settlements(await self._post(URL_SETTLEMENTS, "GetSettlements", body))
         except SupplierError as exc:

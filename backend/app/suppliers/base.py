@@ -104,4 +104,10 @@ class Settlements:
 
 @runtime_checkable
 class SettlementsSupplier(Supplier, Protocol):
-    async def settlements(self, page: int) -> Settlements: ...
+    async def settlements(
+        self,
+        page: int,
+        status: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> Settlements: ...

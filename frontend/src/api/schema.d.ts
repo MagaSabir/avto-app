@@ -1652,6 +1652,9 @@ export interface operations {
         parameters: {
             query?: {
                 page?: number;
+                status?: ("Проведено" | "Оплачено" | "Не оплачено" | "Просрочено" | "Обрабатывается") | null;
+                start?: string | null;
+                end?: string | null;
             };
             header?: never;
             path: {

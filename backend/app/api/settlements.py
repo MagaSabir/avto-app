@@ -1,4 +1,5 @@
-from typing import Annotated
+from datetime import date
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 
@@ -13,6 +14,8 @@ router = APIRouter(prefix="/suppliers")
 
 Suppliers = Annotated[dict[str, Supplier], Depends(get_suppliers)]
 
+SettlementStatus = Literal["Проведено", "Оплачено", "Не оплачено", "Просрочено", "Обрабатывается"]
+
 
 @router.get(
     "/{code}/settlements",
@@ -20,9 +23,14 @@ Suppliers = Annotated[dict[str, Supplier], Depends(get_suppliers)]
     responses={404: {"model": ErrorOut}, 422: {"model": ErrorOut}},
 )
 async def get_settlements(
-    code: str, suppliers: Suppliers, page: Annotated[int, Query(ge=0)] = 0
+    code: str,
+    suppliers: Suppliers,
+    page: Annotated[int, Query(ge=0)] = 0,
+    status: SettlementStatus | None = None,
+    start: date | None = None,
+    end: date | None = None,
 ) -> SettlementsOut:
     supplier = suppliers.get(code)
     if supplier is None:
         raise SupplierNotFound()
-    return await settlements_service.get_settlements(supplier, page)
+    return await settlements_service.get_settlements(supplier, page, status, start, end)
