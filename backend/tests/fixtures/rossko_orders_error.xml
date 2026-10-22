@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="https://api.rossko.ru/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><SOAP-ENV:Body><ns1:GetOrdersResponse><ns1:OrdersResult><ns1:success>false</ns1:success><ns1:message>Неверные ключи авторизации</ns1:message></ns1:OrdersResult></ns1:GetOrdersResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>

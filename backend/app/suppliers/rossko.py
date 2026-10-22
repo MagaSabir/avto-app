@@ -10,6 +10,8 @@ import httpx
 from app.domain.numbers import normalize_brand, normalize_number
 from app.suppliers.base import (
     Offer,
+    Order,
+    OrderPart,
     PartGroup,
     SettlementCustomer,
     SettlementDocument,
@@ -233,6 +235,61 @@ def parse_settlements(xml: bytes) -> Settlements:
             page=int(_text(documents, "offset") or "0") // max(page_size, 1),
             documents=[_document(d) for d in documents.findall(f"{_Q}List")],
         )
+    except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
+        raise SupplierError(BAD_RESPONSE) from exc
+
+
+def _opt_text(el: ElementTree.Element, tag: str) -> str | None:
+    return _text(el, tag) or None
+
+
+def _order_part(el: ElementTree.Element) -> OrderPart:
+    return OrderPart(
+        guid=_text(el, "guid"),
+        brand=_text(el, "brand"),
+        number=_text(el, "partnumber"),
+        name=_text(el, "name"),
+        price=_decimal(_text(el, "price")),
+        count=int(_text(el, "count")),
+        delivery_days=_opt_int(el, "delivery"),
+        comment=_opt_text(el, "comment"),
+        status_code=int(_text(el, "status")),
+    )
+
+
+def _order(el: ElementTree.Element) -> Order:
+    detail = el.find(f"{_Q}detail")
+    if detail is None:
+        detail = ElementTree.Element("detail")
+    delivery_date = _text(el, "delivery_date")
+    return Order(
+        id=int(_text(el, "id")),
+        created_at=datetime.strptime(_text(el, "created_date"), "%d.%m.%Y %H:%M:%S")
+        .replace(tzinfo=MOSCOW)
+        .astimezone(UTC),
+        delivery_date=(
+            datetime.strptime(delivery_date, "%d.%m.%Y").date() if delivery_date else None
+        ),
+        total=_decimal(_text(el, "total_price")),
+        stock_address=_text(el, "stock_address"),
+        delivery_type=_text(detail, "delivery_type"),
+        delivery_cost=_opt_decimal(detail, "delivery_cost"),
+        delivery_address=_opt_text(detail, "delivery_address"),
+        payment_type=_text(detail, "payment_type"),
+        comment=_opt_text(detail, "comment"),
+        parts=[_order_part(p) for p in el.findall(f"{_Q}parts/{_Q}part")],
+    )
+
+
+def parse_orders(xml: bytes) -> list[Order]:
+    try:
+        root = ElementTree.fromstring(xml)
+        result = root.find(f".//{_Q}OrdersResult")
+        if result is None:
+            raise SupplierError(BAD_RESPONSE)
+        if _text(result, "success").lower() != "true":
+            raise SupplierError(_text(result, "message") or "Росско вернул ошибку")
+        return [_order(o) for o in result.findall(f"{_Q}OrdersList/{_Q}Order")]
     except (ElementTree.ParseError, ValueError, InvalidOperation) as exc:
         raise SupplierError(BAD_RESPONSE) from exc
 
