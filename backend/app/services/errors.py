@@ -81,3 +81,24 @@ class InvertedPeriod(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Начало периода позже конца")
+
+
+class OrdersNotSupported(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Поставщик не поддерживает заказы")
+
+
+class OrdersQueryRequired(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Укажите период или номер заказа")
+
+
+class OrdersQueryConflict(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Укажите либо период, либо номер заказа")
