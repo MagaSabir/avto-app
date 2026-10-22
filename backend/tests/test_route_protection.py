@@ -24,3 +24,4 @@ async def test_all_routes_require_login(anon_client: httpx.AsyncClient) -> None:
     paths = {path for _, path in checked}
     assert "/api/stock/items" in paths
     assert "/api/search" in paths
+    assert "/api/suppliers/{code}/settlements" in paths

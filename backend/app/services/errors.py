@@ -60,3 +60,10 @@ class TooManyLoginAttempts(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Слишком много попыток входа, подождите несколько минут")
+
+
+class SettlementsNotSupported(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Поставщик не поддерживает взаиморасчёты")
