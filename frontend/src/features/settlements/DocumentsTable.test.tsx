@@ -98,4 +98,21 @@ describe("DocumentsTable", () => {
     render(<DocumentsTable documents={[payment]} paid={[null]} />);
     expect(screen.queryByRole("button", { name: "Товары" })).toBeNull();
   });
+
+  it("sums negative item prices of a return correctly", () => {
+    const ret: SettlementDocument = {
+      ...sale,
+      name: "Возврат ТЕСТ0003",
+      items: [{ name: "Фильтр", count: 2, price: "-5.50" }],
+    };
+    render(<DocumentsTable documents={[ret]} paid={[null]} />);
+    fireEvent.click(row("Возврат ТЕСТ0003"));
+    const items = screen.getByRole("table", { name: "Товары" });
+    expect(
+      cells(within(items).getByText("Фильтр").closest("tr") as HTMLElement),
+    ).toEqual(["Фильтр", "2 шт.", "−11,00"]);
+    expect(
+      cells(within(items).getByText("ИТОГО:").closest("tr") as HTMLElement),
+    ).toEqual(["ИТОГО:", "2 шт.", "−11,00"]);
+  });
 });

@@ -88,6 +88,48 @@ describe("SettlementsPage", () => {
     });
   });
 
+  it("ignores partial years and a reversed period while typing", async () => {
+    const urls = setup(() =>
+      settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
+    await screen.findByText("Документ 1");
+    fireEvent.change(screen.getByLabelText("Период с"), {
+      target: { value: "2026-10-01" },
+    });
+    for (const partial of ["0002-10-22", "0020-10-22", "0202-10-22"]) {
+      fireEvent.change(screen.getByLabelText("по"), {
+        target: { value: partial },
+      });
+    }
+    fireEvent.change(screen.getByLabelText("по"), {
+      target: { value: "2026-09-01" },
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(urls.some((u) => u.searchParams.has("start"))).toBe(false);
+  });
+
+  it("keeps the applied period while a date is being retyped", async () => {
+    const urls = setup(() =>
+      settlements({ documents_total: 1, documents: [doc(1)] }),
+    );
+    await screen.findByText("Документ 1");
+    fireEvent.change(screen.getByLabelText("Период с"), {
+      target: { value: "2026-10-01" },
+    });
+    fireEvent.change(screen.getByLabelText("по"), {
+      target: { value: "2026-10-22" },
+    });
+    await waitFor(() => {
+      expect(urls.at(-1)?.searchParams.get("end")).toBe("2026-10-22");
+    });
+    const before = urls.length;
+    fireEvent.change(screen.getByLabelText("по"), {
+      target: { value: "0002-10-22" },
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(urls.length).toBe(before);
+  });
+
   it("shows the overdue line only with data", async () => {
     setup(() =>
       settlements({

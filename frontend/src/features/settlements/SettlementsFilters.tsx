@@ -23,17 +23,32 @@ export function SettlementsFiltersPanel({
   const [status, setStatus] = useState<SettlementStatus | "">("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [period, setPeriod] = useState<{ start: string; end: string } | null>(
+    null,
+  );
 
-  // The period applies only when both dates are set.
   function apply(next: {
     status: SettlementStatus | "";
     start: string;
     end: string;
   }) {
-    const both = next.start !== "" && next.end !== "";
+    // Browsers report every typed year digit ("0002-…"): a period applies only
+    // when complete and in order; while it is being edited the last applied
+    // one stays, so no request goes out for half-typed dates.
+    let applied = period;
+    if (next.start === "" && next.end === "") {
+      applied = null;
+    } else if (
+      next.start >= "2000-01-01" &&
+      next.end >= "2000-01-01" &&
+      next.start <= next.end
+    ) {
+      applied = { start: next.start, end: next.end };
+    }
+    setPeriod(applied);
     onChange({
       ...(next.status ? { status: next.status } : {}),
-      ...(both ? { start: next.start, end: next.end } : {}),
+      ...(applied ?? {}),
     });
   }
 

@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import type { SettlementDocument } from "@/api/settlements";
 import { cn } from "@/lib/utils";
 
+import { kopecks, money } from "./derive";
 import { formatAmount, formatDocDate } from "./format";
 
 const HEADERS = [
@@ -16,17 +17,8 @@ const HEADERS = [
   { label: "" },
 ];
 
-function cents(v: string): bigint {
-  const [i = "0", f = ""] = v.split(".");
-  return BigInt(i) * 100n + BigInt(f.padEnd(2, "0").slice(0, 2));
-}
-
-function fromCents(k: bigint): string {
-  return `${(k / 100n).toString()}.${(k % 100n).toString().padStart(2, "0")}`;
-}
-
 function Items({ doc }: { doc: SettlementDocument }) {
-  const sums = doc.items.map((it) => cents(it.price) * BigInt(it.count));
+  const sums = doc.items.map((it) => kopecks(it.price) * BigInt(it.count));
   const total = sums.reduce((a, b) => a + b, 0n);
   const count = doc.items.reduce((n, it) => n + it.count, 0);
   return (
@@ -46,7 +38,7 @@ function Items({ doc }: { doc: SettlementDocument }) {
               {`${String(it.count)} шт.`}
             </td>
             <td className="text-right font-mono whitespace-nowrap">
-              {formatAmount(fromCents(sums[i] ?? 0n))}
+              {formatAmount(money(sums[i] ?? 0n))}
             </td>
           </tr>
         ))}
@@ -56,7 +48,7 @@ function Items({ doc }: { doc: SettlementDocument }) {
             {`${String(count)} шт.`}
           </td>
           <td className="text-right font-mono whitespace-nowrap">
-            {formatAmount(fromCents(total))}
+            {formatAmount(money(total))}
           </td>
         </tr>
       </tbody>
@@ -93,9 +85,7 @@ function DocumentRow({
           {paid === null ? "" : formatAmount(paid)}
         </td>
         <td className="px-2 text-right font-mono whitespace-nowrap">
-          {cents(doc.amount.replace("-", "")) === 0n
-            ? ""
-            : formatAmount(doc.amount)}
+          {kopecks(doc.amount) === 0n ? "" : formatAmount(doc.amount)}
         </td>
         <td className="px-2 whitespace-nowrap">{doc.status}</td>
         <td
