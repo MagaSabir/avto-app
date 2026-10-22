@@ -14,12 +14,43 @@ concurrency:
 permissions: {}
 
 jobs:
-  deploy:
+  # A push touching backend and frontend runs both CIs; deploy only once every CI for the commit has passed
+  gate:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event == 'push')
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      state: ${{ steps.ci.outputs.state }}
+    steps:
+      - name: Check all CI runs for this commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          state=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/actions/runs?head_sha=$SHA&event=push&per_page=100" | jq -r '
+            [.workflow_runs[] | select(.name == "CI backend" or .name == "CI frontend")]
+            | group_by(.name) | map(max_by(.run_number))
+            | if any(.status != "completed") then "wait"
+              elif all(.conclusion == "success") then "ok"
+              else "fail" end')
+          echo "CI state for $SHA: $state"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          # "wait": the other CI is still running and will trigger this workflow when it finishes
+          [ "$state" != fail ]
+
+  deploy:
+    needs: gate
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' || needs.gate.outputs.state == 'ok')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
