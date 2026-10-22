@@ -71,6 +71,7 @@ export function OrdersFilters({
         </legend>
         <div className="flex items-center gap-1.5">
           <Input
+            className="min-w-0 flex-1 px-2"
             type="date"
             aria-label="Период с"
             value={start}
@@ -81,6 +82,7 @@ export function OrdersFilters({
           />
           <span className="text-muted-foreground">—</span>
           <Input
+            className="min-w-0 flex-1 px-2"
             type="date"
             aria-label="по"
             value={end}

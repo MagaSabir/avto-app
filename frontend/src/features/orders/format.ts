@@ -8,11 +8,8 @@ export function formatDay(day: string): string {
   return `${String(Number(d))} ${MONTHS[Number(m) - 1] ?? ""} ${y}`;
 }
 
-export function deliveryLine(order: Order): string {
-  const head = order.delivery_address
-    ? `${order.delivery_type}: ${order.delivery_address}`
-    : order.delivery_type;
-  return order.delivery_date
-    ? `${head}, ${formatDay(order.delivery_date)}`
-    : head;
+// Value under the delivery-type column label: address, then date
+export function deliveryValue(order: Order): string {
+  const day = order.delivery_date ? formatDay(order.delivery_date) : "";
+  return [order.delivery_address, day].filter(Boolean).join(", ");
 }

@@ -1,8 +1,11 @@
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState } from "react";
+
 import type { Order, OrderPart } from "@/api/orders";
 import { kopecks, money } from "@/features/settlements/derive";
 import { formatAmount, formatDocDate } from "@/features/settlements/format";
 
-import { deliveryLine } from "./format";
+import { deliveryValue } from "./format";
 import { PartStatusBadge } from "./PartStatusBadge";
 
 const GRID = "lg:grid-cols-[minmax(0,1fr)_80px_200px_110px_110px]";
@@ -50,52 +53,99 @@ function PartRow({ part }: { part: OrderPart }) {
   );
 }
 
+function Column({
+  label,
+  title,
+  clamp,
+  children,
+}: {
+  label: string;
+  title?: string;
+  clamp?: boolean;
+  children: string;
+}) {
+  return (
+    <div className="min-w-[120px] max-w-[240px] flex-1 lg:min-w-0 text-[13.5px]">
+      <div className="text-[12px] font-semibold">{label}</div>
+      <div className={clamp ? "line-clamp-2" : undefined} title={title}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function OrderCard({ order }: { order: Order }) {
+  const [open, setOpen] = useState(true);
   const count = order.parts.reduce((n, p) => n + p.count, 0);
+  const toggle = () => {
+    setOpen((v) => !v);
+  };
+  const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <section className="overflow-hidden rounded-lg border bg-card">
-      <div className="flex items-start justify-between gap-4 bg-muted px-4 py-3">
-        <div className="min-w-0 space-y-0.5 text-[13.5px]">
-          <div className="font-mono text-[26px] leading-tight font-medium">
+      <div
+        onClick={toggle}
+        className="flex cursor-pointer flex-wrap items-start gap-x-6 gap-y-2 bg-muted px-4 py-3"
+      >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={open ? "Свернуть заказ" : "Развернуть заказ"}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle();
+            }}
+            className="inline-flex cursor-pointer rounded p-1 text-muted-foreground hover:bg-selected"
+          >
+            <Chevron size={18} aria-hidden="true" />
+          </button>
+          <div className="font-mono text-[20px] leading-tight font-medium sm:text-[26px]">
             {`№ ${String(order.id)}`}
           </div>
-          <div>{`Заказано: ${formatDocDate(order.created_at)}`}</div>
-          <div>{deliveryLine(order)}</div>
-          <div
-            className="truncate"
-            title={order.stock_address}
-          >{`Со склада: ${order.stock_address}`}</div>
-          <div
-            className="truncate"
-            title={order.payment_type}
-          >{`Оплата: ${order.payment_type}`}</div>
         </div>
-        <div className="font-mono text-[26px] leading-tight font-medium whitespace-nowrap">
+        <div className="order-last flex w-full flex-wrap gap-x-6 gap-y-2 lg:order-none lg:w-auto lg:flex-1 lg:flex-nowrap">
+          <Column label="Заказано:">{formatDocDate(order.created_at)}</Column>
+          <Column label={`${order.delivery_type}:`}>
+            {deliveryValue(order)}
+          </Column>
+          <Column label="Со склада:" title={order.stock_address} clamp>
+            {order.stock_address}
+          </Column>
+          <Column label="Оплата:" title={order.payment_type} clamp>
+            {order.payment_type}
+          </Column>
+        </div>
+        <div className="ml-auto font-mono text-[20px] sm:text-[26px] leading-tight font-medium whitespace-nowrap">
           {formatAmount(order.total)}
         </div>
       </div>
-      {order.comment && (
-        <div className="border-b px-4 py-2 text-[12.5px] text-muted-foreground">
-          {order.comment}
-        </div>
+      {open && (
+        <>
+          {order.comment && (
+            <div className="border-b px-4 py-2 text-[12.5px] text-muted-foreground">
+              {order.comment}
+            </div>
+          )}
+          <div
+            className={`hidden border-b px-4 py-2 text-left text-[12px] text-muted-foreground lg:grid lg:gap-x-4 ${GRID}`}
+          >
+            <div>Запчасть</div>
+            <div>Срок</div>
+            <div>Статус</div>
+            <div className="text-right">Цена × кол-во</div>
+            <div className="text-right">Сумма, ₽</div>
+          </div>
+          {order.parts.map((p) => (
+            <PartRow key={p.guid} part={p} />
+          ))}
+          <div className="flex items-center justify-end gap-4 px-4 py-2.5 text-[13.5px] font-semibold">
+            <span>ИТОГО:</span>
+            <span className="tabular-nums">{`${String(count)} шт.`}</span>
+            <span className="font-mono">{formatAmount(order.total)}</span>
+          </div>
+        </>
       )}
-      <div
-        className={`hidden border-b px-4 py-2 text-left text-[12px] text-muted-foreground lg:grid lg:gap-x-4 ${GRID}`}
-      >
-        <div>Запчасть</div>
-        <div>Срок</div>
-        <div>Статус</div>
-        <div className="text-right">Цена × кол-во</div>
-        <div className="text-right">Сумма, ₽</div>
-      </div>
-      {order.parts.map((p) => (
-        <PartRow key={p.guid} part={p} />
-      ))}
-      <div className="flex items-center justify-end gap-4 px-4 py-2.5 text-[13.5px] font-semibold">
-        <span>ИТОГО:</span>
-        <span className="tabular-nums">{`${String(count)} шт.`}</span>
-        <span className="font-mono">{formatAmount(order.total)}</span>
-      </div>
     </section>
   );
 }
