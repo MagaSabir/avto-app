@@ -64,6 +64,11 @@ function setup(
   return { router, logout };
 }
 
+async function openLogout() {
+  fireEvent.click(await screen.findByRole("button", { name: "sabir" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Выход" }));
+}
+
 describe("Layout", () => {
   it("renders logo, navigation, login and the stock page", async () => {
     setup();
@@ -96,11 +101,21 @@ describe("Layout", () => {
     expect(screen.getByRole("heading", { name: "Склад" })).toBeInTheDocument();
   });
 
+  it("opens the user menu on hover and closes it on leave", async () => {
+    setup();
+    const user = await screen.findByRole("button", { name: "sabir" });
+    expect(user).toHaveAttribute("aria-haspopup", "menu");
+    expect(screen.queryByRole("menuitem", { name: "Выход" })).toBeNull();
+    fireEvent.mouseEnter(user.parentElement as HTMLElement);
+    expect(user).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menuitem", { name: "Выход" })).toBeInTheDocument();
+    fireEvent.mouseLeave(user.parentElement as HTMLElement);
+    expect(screen.queryByRole("menuitem", { name: "Выход" })).toBeNull();
+  });
+
   it("asks for confirmation and sends no request on opening", async () => {
     const { logout } = setup();
-    fireEvent.click(
-      await screen.findByRole("button", { name: "sabir — выйти" }),
-    );
+    await openLogout();
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Выйти из учётной записи?");
     expect(screen.getByRole("button", { name: "Да" })).toBeEnabled();
@@ -115,9 +130,7 @@ describe("Layout", () => {
       () => fireEvent.click(screen.getByRole("button", { name: "Закрыть" })),
       () => fireEvent(screen.getByRole("dialog"), new Event("cancel")),
     ]) {
-      fireEvent.click(
-        await screen.findByRole("button", { name: "sabir — выйти" }),
-      );
+      await openLogout();
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       close();
       await waitFor(() => {
@@ -130,9 +143,7 @@ describe("Layout", () => {
 
   it("logs out once on «Да» and goes to /login", async () => {
     const { router, logout } = setup();
-    fireEvent.click(
-      await screen.findByRole("button", { name: "sabir — выйти" }),
-    );
+    await openLogout();
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/login");
@@ -148,9 +159,7 @@ describe("Layout", () => {
           headers: { "Content-Type": "application/json" },
         }),
     );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "sabir — выйти" }),
-    );
+    await openLogout();
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Сервер недоступен",
@@ -174,9 +183,7 @@ describe("Layout", () => {
         return inner(input, init);
       },
     );
-    fireEvent.click(
-      await screen.findByRole("button", { name: "sabir — выйти" }),
-    );
+    await openLogout();
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Нет" })).toBeDisabled();

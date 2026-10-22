@@ -1,4 +1,3 @@
-import { UserRound } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
@@ -13,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 import { ServerStatus } from "./ServerStatus";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
@@ -66,18 +66,12 @@ export function Layout() {
         <div className="ml-auto flex items-center gap-3 py-2">
           <ThemeToggle />
           <BalanceLink />
-          <button
-            type="button"
-            aria-label={`${me?.login ?? ""} — выйти`}
-            title="Выйти"
-            onClick={() => {
+          <UserMenu
+            login={me?.login ?? ""}
+            onLogout={() => {
               setConfirming(true);
             }}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-selected hover:text-foreground"
-          >
-            <UserRound size={16} aria-hidden="true" />
-            <span>{me?.login}</span>
-          </button>
+          />
         </div>
       </header>
       <Modal
