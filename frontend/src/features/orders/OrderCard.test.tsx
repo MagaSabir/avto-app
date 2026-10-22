@@ -34,7 +34,12 @@ describe("OrderCard", () => {
 
   it("shows a part row", () => {
     render(<OrderCard order={order()} />);
-    expect(screen.getByText("PARTS-MALL")).toBeInTheDocument();
+    const brand = screen.getByText("PARTS-MALL");
+    expect(brand.closest(".font-mono")).not.toBeNull();
+    expect(
+      brand.compareDocumentPosition(screen.getByText("Клапан впускной")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("HCZB-003").className).toContain("font-mono");
     expect(screen.getByText("Клапан впускной")).toBeInTheDocument();
     expect(screen.getByText("Позвонить")).toBeInTheDocument();

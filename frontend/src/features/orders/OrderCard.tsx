@@ -14,11 +14,11 @@ function PartRow({ part }: { part: OrderPart }) {
       className={`grid gap-1 border-b px-4 py-2.5 text-[13.5px] lg:items-center lg:gap-x-4 ${GRID}`}
     >
       <div className="min-w-0">
-        <div>{part.name}</div>
-        <div className="text-[12.5px]">
-          <span className="text-muted-foreground">{part.brand}</span>{" "}
-          <span className="font-mono font-medium">{part.number}</span>
+        <div className="font-mono text-[12.5px] font-medium">
+          <span data-testid="part-brand">{part.brand}</span>{" "}
+          <span>{part.number}</span>
         </div>
+        <div>{part.name}</div>
         {part.comment && (
           <div className="text-[12px] text-muted-foreground">
             {part.comment}
