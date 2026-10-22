@@ -11,6 +11,7 @@ import type { components } from "./schema";
 
 export type Me = components["schemas"]["MeOut"];
 export type LoginIn = components["schemas"]["LoginIn"];
+export type MeIn = components["schemas"]["MeIn"];
 
 export const ME_QUERY_KEY = ["auth", "me"] as const;
 
@@ -45,4 +46,24 @@ export function useLogout(): UseMutationResult<null, Error, void> {
       queryClient.clear();
     },
   });
+}
+
+export function useUpdateMe(): UseMutationResult<Me, Error, MeIn> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["auth", "me", "update"],
+    mutationFn: (body: MeIn) =>
+      apiFetch<Me>("/api/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (me) => {
+      queryClient.setQueryData(ME_QUERY_KEY, me);
+    },
+  });
+}
+
+// "Сабир Магомедов", or the login when no name is set
+export function displayName(me: Me): string {
+  return [me.first_name, me.last_name].filter(Boolean).join(" ") || me.login;
 }

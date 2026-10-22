@@ -9,7 +9,7 @@ import { mockApi } from "@/test/mockApi";
 
 import { createQueryClient } from "./queryClient";
 
-const ME: Me = { login: "sabir" };
+const ME: Me = { login: "sabir", first_name: "", last_name: "" };
 
 function observeMe(client: ReturnType<typeof createQueryClient>) {
   const observer = new QueryObserver(client, {
