@@ -31,27 +31,17 @@ afterEach(() => {
 function setup(
   logoutResponse?: () => Response,
   balance: () => Response | object = () => settlements(),
-  route = "/stock",
-  firstName = "",
 ) {
   let loggedOut = false;
   const logout = { calls: 0 };
-  const me = { login: "sabir", first_name: firstName, last_name: "" };
-  const patches: unknown[] = [];
   mockApi({
-    "PATCH /api/auth/me": (init) => {
-      const body = JSON.parse(init.body as string) as typeof me;
-      patches.push(body);
-      Object.assign(me, body);
-      return me;
-    },
     "GET /api/auth/me": () =>
       loggedOut
         ? new Response(JSON.stringify({ message: "no" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
           })
-        : me,
+        : { login: "sabir" },
     "POST /api/auth/logout": () => {
       logout.calls += 1;
       if (logoutResponse) return logoutResponse();
@@ -61,7 +51,7 @@ function setup(
     "GET /api/stock": () => [],
     "GET /api/suppliers/rossko/settlements": balance,
   });
-  const router = createMemoryRouter(routes, { initialEntries: [route] });
+  const router = createMemoryRouter(routes, { initialEntries: ["/stock"] });
   render(
     <QueryClientProvider
       client={
@@ -71,7 +61,7 @@ function setup(
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { router, logout, patches };
+  return { router, logout };
 }
 
 describe("Layout", () => {
@@ -89,12 +79,9 @@ describe("Layout", () => {
       "href",
       "/settlements",
     );
-    expect(screen.getByRole("link", { name: "sabir" })).toHaveAttribute(
-      "href",
-      "/profile",
-    );
+    expect(screen.getByText("sabir")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Выйти/ }),
+      screen.queryByRole("button", { name: "Выйти" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Склад" })).toHaveAttribute(
       "aria-current",
@@ -110,9 +97,9 @@ describe("Layout", () => {
   });
 
   it("asks for confirmation and sends no request on opening", async () => {
-    const { logout } = setup(undefined, undefined, "/profile");
+    const { logout } = setup();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Выйти из учётной записи" }),
+      await screen.findByRole("button", { name: "sabir — выйти" }),
     );
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Выйти из учётной записи?");
@@ -122,14 +109,14 @@ describe("Layout", () => {
   });
 
   it("closes on «Нет», cross and Esc without a request", async () => {
-    const { router, logout } = setup(undefined, undefined, "/profile");
+    const { router, logout } = setup();
     for (const close of [
       () => fireEvent.click(screen.getByRole("button", { name: "Нет" })),
       () => fireEvent.click(screen.getByRole("button", { name: "Закрыть" })),
       () => fireEvent(screen.getByRole("dialog"), new Event("cancel")),
     ]) {
       fireEvent.click(
-        await screen.findByRole("button", { name: "Выйти из учётной записи" }),
+        await screen.findByRole("button", { name: "sabir — выйти" }),
       );
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       close();
@@ -138,13 +125,13 @@ describe("Layout", () => {
       });
     }
     expect(logout.calls).toBe(0);
-    expect(router.state.location.pathname).toBe("/profile");
+    expect(router.state.location.pathname).toBe("/stock");
   });
 
   it("logs out once on «Да» and goes to /login", async () => {
-    const { router, logout } = setup(undefined, undefined, "/profile");
+    const { router, logout } = setup();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Выйти из учётной записи" }),
+      await screen.findByRole("button", { name: "sabir — выйти" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     await waitFor(() => {
@@ -160,11 +147,9 @@ describe("Layout", () => {
           status: 500,
           headers: { "Content-Type": "application/json" },
         }),
-      undefined,
-      "/profile",
     );
     fireEvent.click(
-      await screen.findByRole("button", { name: "Выйти из учётной записи" }),
+      await screen.findByRole("button", { name: "sabir — выйти" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -172,7 +157,7 @@ describe("Layout", () => {
     );
     expect(logout.calls).toBe(1);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/profile");
+    expect(router.state.location.pathname).toBe("/stock");
   });
 
   it("disables «Нет» while logout is pending", async () => {
@@ -180,7 +165,7 @@ describe("Layout", () => {
     const gate = new Promise<void>((r) => {
       release = r;
     });
-    setup(undefined, undefined, "/profile");
+    setup();
     const inner = fetch;
     vi.stubGlobal(
       "fetch",
@@ -190,7 +175,7 @@ describe("Layout", () => {
       },
     );
     fireEvent.click(
-      await screen.findByRole("button", { name: "Выйти из учётной записи" }),
+      await screen.findByRole("button", { name: "sabir — выйти" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Да" }));
     await waitFor(() => {
@@ -239,33 +224,5 @@ describe("Layout balance", () => {
     expect(
       await screen.findByRole("link", { name: "Баланс: —" }),
     ).toBeInTheDocument();
-  });
-});
-
-describe("Profile", () => {
-  it("fills the form, saves names and updates the header", async () => {
-    const { patches } = setup(undefined, undefined, "/profile");
-    expect(
-      await screen.findByRole("heading", { name: "Личная информация" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("sabir", { selector: "dd" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Имя"), {
-      target: { value: "Сабир" },
-    });
-    fireEvent.change(screen.getByLabelText("Фамилия"), {
-      target: { value: "Магомедов" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-    expect(await screen.findByText("✓ Сохранено")).toBeInTheDocument();
-    expect(patches).toEqual([{ first_name: "Сабир", last_name: "Магомедов" }]);
-    expect(
-      await screen.findByRole("link", { name: "Сабир Магомедов" }),
-    ).toHaveAttribute("href", "/profile");
-  });
-
-  it("starts with saved names in the form", async () => {
-    setup(undefined, undefined, "/profile", "Сабир");
-    expect(await screen.findByLabelText("Имя")).toHaveValue("Сабир");
-    expect(screen.getByRole("link", { name: "Сабир" })).toBeInTheDocument();
   });
 });

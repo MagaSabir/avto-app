@@ -69,8 +69,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update Me */
-        patch: operations["update_me_api_auth_me_patch"];
+        patch?: never;
         trace?: never;
     };
     "/api/settings": {
@@ -396,21 +395,10 @@ export interface components {
             /** Password */
             password: string;
         };
-        /** MeIn */
-        MeIn: {
-            /** First Name */
-            first_name: string;
-            /** Last Name */
-            last_name: string;
-        };
         /** MeOut */
         MeOut: {
             /** Login */
             login: string;
-            /** First Name */
-            first_name: string;
-            /** Last Name */
-            last_name: string;
         };
         /** OfferOut */
         OfferOut: {
@@ -959,48 +947,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    update_me_api_auth_me_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MeIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeOut"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

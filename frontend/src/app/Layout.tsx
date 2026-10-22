@@ -1,8 +1,11 @@
 import { UserRound } from "lucide-react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import { useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
-import { displayName, useMe } from "@/api/auth";
+import { useLogout, useMe } from "@/api/auth";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 
 import { getLastSearch } from "@/features/search/lastSearch";
 import { BalanceLink } from "@/features/settlements/BalanceLink";
@@ -25,7 +28,23 @@ export function Layout() {
   // remembered one (read on every navigation).
   const location = useLocation();
   const search = location.pathname === "/" ? location.search : getLastSearch();
+  const navigate = useNavigate();
   const { data: me } = useMe();
+  const logout = useLogout();
+  const [confirming, setConfirming] = useState(false);
+
+  function closeModal() {
+    setConfirming(false);
+    logout.reset();
+  }
+
+  function confirmLogout() {
+    logout.mutate(undefined, {
+      onSuccess: () => {
+        void navigate("/login", { replace: true });
+      },
+    });
+  }
 
   return (
     <>
@@ -47,15 +66,45 @@ export function Layout() {
         <div className="ml-auto flex items-center gap-3 py-2">
           <ThemeToggle />
           <BalanceLink />
-          <NavLink
-            to="/profile"
+          <button
+            type="button"
+            aria-label={`${me?.login ?? ""} — выйти`}
+            title="Выйти"
+            onClick={() => {
+              setConfirming(true);
+            }}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-selected hover:text-foreground"
           >
             <UserRound size={16} aria-hidden="true" />
-            <span>{me ? displayName(me) : ""}</span>
-          </NavLink>
+            <span>{me?.login}</span>
+          </button>
         </div>
       </header>
+      <Modal
+        open={confirming}
+        onClose={closeModal}
+        title="Выход"
+        className="max-w-[360px]"
+      >
+        <p className="px-4 py-3">Выйти из учётной записи?</p>
+        {logout.isError && (
+          <p role="alert" className="px-4 pb-2 text-destructive">
+            {logout.error.message}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 px-4 pb-3">
+          <Button
+            variant="primary"
+            disabled={logout.isPending}
+            onClick={confirmLogout}
+          >
+            Да
+          </Button>
+          <Button disabled={logout.isPending} onClick={closeModal}>
+            Нет
+          </Button>
+        </div>
+      </Modal>
       <ServerStatus />
       <main className="p-4">
         <Outlet />

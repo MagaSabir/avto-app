@@ -85,9 +85,3 @@ async def set_password(session: AsyncSession, login: str, password: str) -> bool
         await sessions_repo.delete_for_user(session, user.id)
     await session.commit()
     return created
-
-
-async def update_names(session: AsyncSession, user: User, first_name: str, last_name: str) -> User:
-    await users_repo.set_names(session, user, first_name, last_name)
-    await session.commit()
-    return user

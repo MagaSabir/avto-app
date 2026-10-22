@@ -13,10 +13,3 @@ async def add(session: AsyncSession, login: str, password_hash: str) -> User:
     session.add(user)
     await session.flush()
     return user
-
-
-async def set_names(session: AsyncSession, user: User, first_name: str, last_name: str) -> User:
-    user.first_name = first_name
-    user.last_name = last_name
-    await session.flush()
-    return user

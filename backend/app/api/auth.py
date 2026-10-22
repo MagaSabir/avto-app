@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SESSION_COOKIE, CurrentUser, clear_session_cookie, set_session_cookie
 from app.core.db import get_session
-from app.models.auth import User
-from app.schemas.auth import LoginIn, MeIn, MeOut
+from app.schemas.auth import LoginIn, MeOut
 from app.schemas.errors import ErrorOut
 from app.services import auth as auth_service
 
@@ -45,18 +44,4 @@ async def logout(
 
 @router.get("/me", response_model=MeOut, responses={401: {"model": ErrorOut}})
 async def me(user: CurrentUser) -> MeOut:
-    return _me(user)
-
-
-@router.patch(
-    "/me", response_model=MeOut, responses={401: {"model": ErrorOut}, 422: {"model": ErrorOut}}
-)
-async def update_me(
-    body: MeIn, user: CurrentUser, session: Annotated[AsyncSession, Depends(get_session)]
-) -> MeOut:
-    updated = await auth_service.update_names(session, user, body.first_name, body.last_name)
-    return _me(updated)
-
-
-def _me(user: User) -> MeOut:
-    return MeOut(login=user.login, first_name=user.first_name, last_name=user.last_name)
+    return MeOut(login=user.login)
