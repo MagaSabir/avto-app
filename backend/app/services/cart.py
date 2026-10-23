@@ -172,31 +172,31 @@ async def refresh(
         else:
             message = response.message
         for item_id in groups[key]:
-            item = current.get(item_id)
-            if item is None:
+            row = current.get(item_id)
+            if row is None:
                 continue
-            offer = None if isinstance(response, SupplierError) else _find_offer(response, item)
+            offer = None if isinstance(response, SupplierError) else _find_offer(response, row)
             if offer is None:
-                out[item.id] = CartRefreshItem(
-                    id=item.id,
+                out[row.id] = CartRefreshItem(
+                    id=row.id,
                     state="unknown" if isinstance(response, SupplierError) else "gone",
-                    price=item.price,
+                    price=row.price,
                     previous_price=None,
-                    available=item.available,
+                    available=row.available,
                 )
                 continue
-            previous = item.price if item.price != offer.purchase_price else None
-            item.price = offer.purchase_price
-            item.available = offer.qty
-            item.warehouse = offer.warehouse
-            item.delivery_days = offer.delivery_days
-            item.delivery_from = offer.delivery_from
-            item.delivery_to = offer.delivery_to
-            item.kind = offer.kind
-            item.kind_code = offer.kind_code
-            item.multiplicity = offer.multiplicity
-            out[item.id] = CartRefreshItem(
-                id=item.id,
+            previous = row.price if row.price != offer.purchase_price else None
+            row.price = offer.purchase_price
+            row.available = offer.qty
+            row.warehouse = offer.warehouse
+            row.delivery_days = offer.delivery_days
+            row.delivery_from = offer.delivery_from
+            row.delivery_to = offer.delivery_to
+            row.kind = offer.kind
+            row.kind_code = offer.kind_code
+            row.multiplicity = offer.multiplicity
+            out[row.id] = CartRefreshItem(
+                id=row.id,
                 state="ok",
                 price=offer.purchase_price,
                 previous_price=previous,
