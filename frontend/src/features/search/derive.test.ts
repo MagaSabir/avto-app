@@ -29,6 +29,7 @@ const at = (d: number, h = 9) => new Date(2026, 9, d, h, 0).toISOString();
 function offer(price: string, over: Partial<Offer> = {}): Offer {
   return {
     warehouse: "W",
+    stock_id: "s1",
     qty: 1,
     multiplicity: 1,
     delivery_days: null,

@@ -32,6 +32,7 @@ export function stockItem(
 export function offer(over: Partial<Offer> = {}): Offer {
   return {
     warehouse: "Новосибирск",
+    stock_id: "s1",
     qty: 20,
     multiplicity: 1,
     delivery_days: null,

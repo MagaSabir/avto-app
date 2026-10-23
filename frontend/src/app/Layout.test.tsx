@@ -55,6 +55,7 @@ function setup(
       return new Response(null, { status: 204 });
     },
     "GET /api/stock": () => [],
+    "GET /api/cart": () => ({ items: [], total: "0.00" }),
     "GET /api/suppliers/rossko/settlements": balance,
   });
   const router = createMemoryRouter(routes, { initialEntries: ["/stock"] });
