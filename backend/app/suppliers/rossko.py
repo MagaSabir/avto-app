@@ -7,7 +7,8 @@ from xml.sax.saxutils import escape
 
 import httpx
 
-from app.domain.numbers import normalize_brand, normalize_number
+from app.domain.brands import canonical_brand, part_key
+from app.domain.numbers import normalize_number
 from app.suppliers.base import (
     Offer,
     Order,
@@ -106,7 +107,7 @@ def _add(
 ) -> None:
     brand = _text(el, "brand")
     number = _text(el, "partnumber")
-    key = (normalize_brand(brand), normalize_number(number))
+    key = (canonical_brand(brand), normalize_number(number))
     group = groups.get(key)
     if group is None:
         group = PartGroup(
@@ -116,7 +117,7 @@ def _add(
             name=_text(el, "name"),
             is_requested=requested,
             offers=[],
-            key=f"{key[0]}|{key[1]}",
+            key=part_key(brand, key[1]),
             analog_of=[],
         )
         groups[key] = group
@@ -151,8 +152,7 @@ def parse_search(xml: bytes) -> SupplierResult:
         for top in tops:
             _add(groups, seen, top, requested=True)
         for top in tops:
-            brand = normalize_brand(_text(top, "brand"))
-            parent = f"{brand}|{normalize_number(_text(top, 'partnumber'))}"
+            parent = part_key(_text(top, "brand"), normalize_number(_text(top, "partnumber")))
             for cross in top.findall(f"{_Q}crosses/{_Q}Part"):
                 _add(groups, seen, cross, requested=False, parent=parent)
         return SupplierResult(groups=list(groups.values()), message=message)
