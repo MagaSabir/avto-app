@@ -1,3 +1,4 @@
+import asyncio
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,9 +7,15 @@ from app.domain.cart import cap_qty, valid_qty
 from app.domain.numbers import normalize_brand, normalize_number
 from app.models.cart import CartItem
 from app.repositories import cart as cart_repository
-from app.schemas.cart import CartItemIn, CartItemOut, CartOut
+from app.schemas.cart import (
+    CartItemIn,
+    CartItemOut,
+    CartOut,
+    CartRefreshItem,
+    CartRefreshOut,
+)
 from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier
-from app.suppliers.base import Supplier
+from app.suppliers.base import Offer, Supplier, SupplierError, SupplierResult
 
 
 def to_out(item: CartItem) -> CartItemOut:
@@ -108,3 +115,88 @@ async def remove_item(session: AsyncSession, user_id: int, item_id: int) -> None
 async def clear(session: AsyncSession, user_id: int) -> None:
     await cart_repository.delete_all(session, user_id)
     await session.commit()
+
+
+_REFRESH_CONCURRENCY = 3
+
+
+def _find_offer(result: SupplierResult, item: CartItem) -> Offer | None:
+    for group in result.groups:
+        if normalize_brand(group.brand) == item.brand and group.number_norm == item.number_norm:
+            for offer in group.offers:
+                if offer.stock_id == item.stock_id:
+                    return offer
+    return None
+
+
+async def refresh(
+    session: AsyncSession, user_id: int, suppliers: dict[str, Supplier]
+) -> CartRefreshOut:
+    items = await cart_repository.list_items(session, user_id)
+    groups: dict[tuple[str, str], list[CartItem]] = {}
+    for item in items:
+        groups.setdefault((item.supplier, item.number_norm), []).append(item)
+
+    semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)
+
+    async def query(supplier_code: str, number: str) -> SupplierResult | SupplierError:
+        supplier = suppliers.get(supplier_code)
+        if supplier is None:
+            return SupplierError("Поставщик не подключён")
+        async with semaphore:
+            try:
+                return await supplier.search(number)
+            except SupplierError as e:
+                return e
+
+    keys = list(groups)
+    responses = await asyncio.gather(*(query(k[0], groups[k][0].number_raw) for k in keys))
+
+    out: dict[int, CartRefreshItem] = {}
+    error: str | None = None
+    message: str | None = None
+    for key, response in zip(keys, responses, strict=True):
+        if isinstance(response, SupplierError):
+            error = error or response.message
+            for item in groups[key]:
+                out[item.id] = CartRefreshItem(
+                    id=item.id,
+                    state="unknown",
+                    price=item.price,
+                    previous_price=None,
+                    available=item.available,
+                )
+            continue
+        message = response.message
+        for item in groups[key]:
+            offer = _find_offer(response, item)
+            if offer is None:
+                out[item.id] = CartRefreshItem(
+                    id=item.id,
+                    state="gone",
+                    price=item.price,
+                    previous_price=None,
+                    available=item.available,
+                )
+                continue
+            previous = item.price if item.price != offer.purchase_price else None
+            item.price = offer.purchase_price
+            item.available = offer.qty
+            item.warehouse = offer.warehouse
+            item.delivery_days = offer.delivery_days
+            item.delivery_from = offer.delivery_from
+            item.delivery_to = offer.delivery_to
+            item.kind = offer.kind
+            item.kind_code = offer.kind_code
+            item.multiplicity = offer.multiplicity
+            out[item.id] = CartRefreshItem(
+                id=item.id,
+                state="ok",
+                price=offer.purchase_price,
+                previous_price=previous,
+                available=offer.qty,
+            )
+    await session.commit()
+    if error is not None:
+        return CartRefreshOut(status="error", message=error, items=[out[i.id] for i in items])
+    return CartRefreshOut(status="ok", message=message, items=[out[i.id] for i in items])

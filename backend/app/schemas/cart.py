@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import AwareDatetime, BaseModel, Field
 
 from app.schemas.types import Money
@@ -50,3 +52,17 @@ class CartOut(BaseModel):
 
 class CartQtyIn(BaseModel):
     qty: int
+
+
+class CartRefreshItem(BaseModel):
+    id: int
+    state: Literal["ok", "gone", "unknown"]
+    price: Money
+    previous_price: Money | None
+    available: int
+
+
+class CartRefreshOut(BaseModel):
+    status: Literal["ok", "error"]
+    message: str | None
+    items: list[CartRefreshItem]

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
 from app.core.db import get_session
-from app.schemas.cart import CartItemIn, CartItemOut, CartOut, CartQtyIn
+from app.schemas.cart import CartItemIn, CartItemOut, CartOut, CartQtyIn, CartRefreshOut
 from app.schemas.errors import ErrorOut
 from app.services import cart as cart_service
 from app.suppliers import get_suppliers
@@ -22,6 +22,11 @@ _ERRORS: dict[int | str, dict[str, Any]] = {404: {"model": ErrorOut}, 422: {"mod
 @router.get("", response_model=CartOut)
 async def get_cart(session: Session, user: CurrentUser) -> CartOut:
     return await cart_service.get_cart(session, user.id)
+
+
+@router.post("/refresh", response_model=CartRefreshOut)
+async def refresh(session: Session, user: CurrentUser, suppliers: Suppliers) -> CartRefreshOut:
+    return await cart_service.refresh(session, user.id, suppliers)
 
 
 @router.post(
