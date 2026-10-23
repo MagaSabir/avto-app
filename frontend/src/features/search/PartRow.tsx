@@ -126,7 +126,7 @@ export function PartRow({ supplier, group, stockQty, now, onToStock }: Props) {
               onToStock={onToStock}
             />
             {rest.length > 0 && (
-              <div className="col-span-3 md:col-span-2 md:col-start-4 md:text-right">
+              <div className="col-span-3 row-start-2 flex h-8 items-center justify-self-end md:col-span-2 md:col-start-4 md:row-auto md:block md:h-auto md:justify-self-auto md:text-right">
                 <button
                   type="button"
                   aria-expanded={open}

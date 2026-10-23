@@ -241,7 +241,7 @@ export function ReceiptForm({
       <div
         className={
           layout === "column"
-            ? "grid grid-cols-1 items-end gap-2.5"
+            ? "grid grid-cols-2 items-end gap-2.5"
             : "grid grid-cols-2 items-end gap-2.5 min-[520px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
         }
       >
@@ -270,10 +270,7 @@ export function ReceiptForm({
             ))}
           </datalist>
         </Field>
-        <Field
-          label="Название"
-          className={layout === "column" ? undefined : "col-span-2"}
-        >
+        <Field label="Название" className="col-span-2">
           <Input
             value={name}
             onChange={(e) => {
@@ -347,6 +344,7 @@ export function ReceiptForm({
           type="submit"
           variant="primary"
           disabled={!valid || receipt.isPending}
+          className={layout === "column" ? "col-span-2" : undefined}
         >
           Принять
         </Button>
