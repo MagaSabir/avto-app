@@ -15,7 +15,7 @@ from app.schemas.cart import (
     CartRefreshItem,
     CartRefreshOut,
 )
-from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier
+from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier, VariantNotChosen
 from app.suppliers.base import (
     CartCheckSupplier,
     CartLine,
@@ -46,6 +46,7 @@ def to_out(item: CartItem) -> CartItemOut:
         kind_code=item.kind_code,
         price=item.price,
         sum=item.price * item.qty,
+        order_code=item.order_code,
     )
 
 
@@ -59,6 +60,8 @@ async def add_item(
 ) -> CartItemOut:
     if data.supplier not in suppliers:
         raise UnknownSupplier()
+    if data.kind == "variants":
+        raise VariantNotChosen()
     if not valid_qty(data.qty, data.multiplicity, data.available):
         raise InvalidCartQty(data.multiplicity, data.available)
     number_norm = normalize_number(data.number)
@@ -92,6 +95,7 @@ async def add_item(
     item.kind = data.kind
     item.kind_code = data.kind_code
     item.price = data.price
+    item.order_code = data.order_code
     await session.commit()
     await session.refresh(item)
     return to_out(item)
@@ -139,8 +143,9 @@ async def refresh(
     for item in items:
         key = (item.supplier, item.number_norm)
         groups.setdefault(key, []).append(item.id)
-        # cart rows have no order_code yet
-        lines.setdefault(key, []).append(CartLine(item.stock_id, item.brand, item.number_raw, None))
+        lines.setdefault(key, []).append(
+            CartLine(item.stock_id, item.brand, item.number_raw, item.order_code)
+        )
     await session.commit()
 
     semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)

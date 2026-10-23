@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
+import respx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user
@@ -14,7 +15,9 @@ from app.models.auth import User
 from app.repositories import users as users_repository
 from app.suppliers import get_suppliers
 from app.suppliers.base import CartLine, Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier
 from app.suppliers.rossko import check_lines
+from tests.suppliers.test_mikado_client import FIXTURES
 from tests.test_cart_api import _body
 
 
@@ -231,3 +234,41 @@ async def test_refresh_survives_cart_cleared_meanwhile(env: Env) -> None:
     body = await _refresh(env)
     assert body["items"] == []
     assert (await env.client.get("/api/cart")).json()["items"] == []
+
+
+@respx.mock
+async def test_refresh_mikado_line_updates_price(env: Env) -> None:
+    env.supplier_map["mikado"] = MikadoSupplier("C", "P")  # type: ignore[assignment]
+    respx.post(URL.format(method="CodeBrandStockInfo")).respond(
+        200, content=(FIXTURES / "mikado_cbsi.xml").read_bytes()
+    )
+    await _add(
+        env,
+        supplier="mikado",
+        stock_id="xmn-w68/3|95",
+        brand="MANN",
+        order_code="xmn-w68/3",
+        price="500.00",
+    )
+    body = await _refresh(env)
+    item = body["items"][0]
+    assert item["state"] == "ok"
+    assert item["previous_price"] == "500.00"
+    assert item["price"] == "574.75"
+
+
+@respx.mock
+async def test_refresh_mikado_error_keeps_line_unknown(env: Env) -> None:
+    env.supplier_map["mikado"] = MikadoSupplier("C", "P", daily=DailyLimit(0))  # type: ignore[assignment]
+    await _add(
+        env,
+        supplier="mikado",
+        stock_id="xmn-w68/3#13",
+        brand="MANN",
+        order_code="xmn-w68/3",
+        kind="order",
+    )
+    body = await _refresh(env)
+    assert body["status"] == "error"
+    assert body["message"] == "Лимит запросов к Микадо на сегодня исчерпан"
+    assert body["items"][0]["state"] == "unknown"

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import time
@@ -12,6 +13,7 @@ import httpx
 from app.domain.brands import canonical_brand, part_key
 from app.domain.numbers import normalize_number
 from app.suppliers.base import (
+    CartLine,
     Offer,
     OfferKind,
     PartGroup,
@@ -336,6 +338,34 @@ class MikadoSupplier:
             return parse_info(_fixture("info_oem"), order_code)
         body = await self._call("Code_Info", order_code, {"ZakazCode": order_code}, limited=True)
         return parse_info(body, order_code)
+
+    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+        """Re-check cart lines: warehouse lines via stock info, the rest via Code_Info."""
+        by_pair: dict[tuple[str, str], list[CartLine]] = {}
+        by_code: dict[str, list[CartLine]] = {}
+        for line in lines:
+            if "|" in line.stock_id:
+                key = (normalize_number(line.number), line.brand)
+                by_pair.setdefault(key, []).append(line)
+            else:
+                code = line.order_code or line.stock_id.split("#")[0]
+                by_code.setdefault(code, []).append(line)
+        pairs = list(by_pair.values())
+        codes = list(by_code.items())
+        stock_offers = await asyncio.gather(
+            *(self._stock_info(g[0].number, g[0].brand) for g in pairs)
+        )
+        infos = await asyncio.gather(*(self.variants(code) for code, _ in codes))
+        found: dict[str, Offer | None] = {}
+        for group, offers in zip(pairs, stock_offers, strict=True):
+            by_id = {o.stock_id: o for o in offers}
+            for line in group:
+                found[line.stock_id] = by_id.get(line.stock_id)
+        for (_, group), info in zip(codes, infos, strict=True):
+            by_id = {o.stock_id: o for o in info.offers}
+            for line in group:
+                found[line.stock_id] = by_id.get(line.stock_id)
+        return found
 
     async def _stock_info(self, number: str, brand: str) -> list[Offer]:
         """CodeBrandStockInfo: Mikado warehouses only, not counted in the daily limit."""

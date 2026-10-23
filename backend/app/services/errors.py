@@ -125,6 +125,13 @@ class InvalidCartQty(DomainError):
         super().__init__(f"Количество должно быть кратно {multiplicity} и не больше {available}")
 
 
+class VariantNotChosen(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Выберите вариант поставки")
+
+
 class UnknownSupplier(DomainError):
     status_code = 422
 
