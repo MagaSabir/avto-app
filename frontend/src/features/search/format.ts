@@ -6,7 +6,10 @@ const hhmm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const dayStart = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-export function formatDelivery(offer: Offer, now: Date): string {
+export function formatDelivery(
+  offer: Pick<Offer, "delivery_from" | "delivery_to" | "delivery_days">,
+  now: Date,
+): string {
   if (offer.delivery_from !== null) {
     const from = new Date(offer.delivery_from);
     const diff = Math.round((dayStart(from) - dayStart(now)) / 86_400_000);
@@ -24,7 +27,7 @@ export function formatDelivery(offer: Offer, now: Date): string {
   return "не указан";
 }
 
-export function kindLabel(offer: Offer): string {
+export function kindLabel(offer: { kind: string; kind_code: string }): string {
   switch (offer.kind) {
     case "normal":
       return "обычное";
@@ -34,7 +37,7 @@ export function kindLabel(offer: Offer): string {
       return "некондиция";
     case "air":
       return "авиатовар";
-    case "other":
+    default:
       return `тип ${offer.kind_code}`;
   }
 }
@@ -53,7 +56,7 @@ export function plural(
 }
 
 // Rossko hides third-party stock behind "Партнерский склад".
-export function warehouseLabel(offer: Offer): string {
+export function warehouseLabel(offer: Pick<Offer, "warehouse">): string {
   return offer.warehouse === PARTNER_WAREHOUSE
     ? "склад партнёра"
     : offer.warehouse;
