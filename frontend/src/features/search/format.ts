@@ -27,7 +27,7 @@ export function formatDelivery(
   return "не указан";
 }
 
-export function kindLabel(offer: { kind: string; kind_code: string }): string {
+export function kindLabel(offer: Pick<Offer, "kind" | "kind_code">): string {
   switch (offer.kind) {
     case "normal":
       return "обычное";
@@ -37,7 +37,7 @@ export function kindLabel(offer: { kind: string; kind_code: string }): string {
       return "некондиция";
     case "air":
       return "авиатовар";
-    default:
+    case "other":
       return `тип ${offer.kind_code}`;
   }
 }

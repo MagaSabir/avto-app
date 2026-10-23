@@ -511,8 +511,11 @@ export interface components {
             delivery_from: string | null;
             /** Delivery To */
             delivery_to: string | null;
-            /** Kind */
-            kind: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "normal" | "sale" | "defect" | "air" | "other";
             /** Kind Code */
             kind_code: string;
             /** Price */

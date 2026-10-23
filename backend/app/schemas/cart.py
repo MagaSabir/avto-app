@@ -39,7 +39,7 @@ class CartItemOut(BaseModel):
     delivery_days: int | None
     delivery_from: AwareDatetime | None
     delivery_to: AwareDatetime | None
-    kind: str
+    kind: OfferKind
     kind_code: str
     price: Money
     sum: Money

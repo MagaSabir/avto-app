@@ -1,5 +1,6 @@
 import asyncio
 from decimal import Decimal
+from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +16,7 @@ from app.schemas.cart import (
     CartRefreshOut,
 )
 from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier
-from app.suppliers.base import Offer, Supplier, SupplierError, SupplierResult
+from app.suppliers.base import Offer, OfferKind, Supplier, SupplierError, SupplierResult
 
 
 def to_out(item: CartItem) -> CartItemOut:
@@ -34,7 +35,7 @@ def to_out(item: CartItem) -> CartItemOut:
         delivery_days=item.delivery_days,
         delivery_from=item.delivery_from,
         delivery_to=item.delivery_to,
-        kind=item.kind,
+        kind=cast(OfferKind, item.kind),  # column holds only Offer.kind values
         kind_code=item.kind_code,
         price=item.price,
         sum=item.price * item.qty,

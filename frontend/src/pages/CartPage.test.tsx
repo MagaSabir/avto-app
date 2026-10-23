@@ -70,16 +70,33 @@ type Setup = {
     message: string | null;
     items: CartRefreshItem[];
   };
+  // Cart returned by GET /api/cart once refresh has run (server-side price update).
+  itemsAfter?: CartItem[];
+  // Holds the refresh response until released.
+  gate?: Promise<void>;
+  failDelete?: boolean;
 };
 
-function setup({ items = [item(1)], total = "412.00", refresh }: Setup = {}) {
+function setup({
+  items = [item(1)],
+  total = "412.00",
+  refresh,
+  itemsAfter,
+  gate,
+  failDelete,
+}: Setup = {}) {
   const calls: string[] = [];
   const bodies: Record<string, unknown> = {};
   let cart = items;
+  let refreshed = false;
   mockApi({
-    "GET /api/cart": () => ({ items: cart, total }),
+    "GET /api/cart": () => ({
+      items: refreshed && itemsAfter ? itemsAfter : cart,
+      total,
+    }),
     "POST /api/cart/refresh": () => {
       calls.push("refresh");
+      refreshed = true;
       return refresh ?? { status: "ok", message: null, items: [] };
     },
     "PATCH /api/cart/items/1": (init) => {
@@ -89,31 +106,74 @@ function setup({ items = [item(1)], total = "412.00", refresh }: Setup = {}) {
     },
     "DELETE /api/cart/items/1": () => {
       calls.push("DELETE item");
+      if (failDelete) {
+        return new Response(JSON.stringify({ detail: "Строка не найдена" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       cart = [];
       return new Response(null, { status: 204 });
     },
     "DELETE /api/cart": () => {
       calls.push("DELETE cart");
+      if (failDelete) {
+        return new Response(JSON.stringify({ detail: "Не удалось очистить" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       cart = [];
       return new Response(null, { status: 204 });
     },
   });
+  if (gate) {
+    const inner = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (url.includes("/api/cart/refresh")) await gate;
+        return inner(input, init);
+      },
+    );
+  }
   renderWithProviders(<CartPage />, { route: "/cart" });
   return { calls, bodies };
 }
 
 describe("CartPage", () => {
   it("shows saved items then refreshed price", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     setup({
+      gate,
+      itemsAfter: [item(1, { price: "450.00", sum: "450.00" })],
       refresh: {
         status: "ok",
         message: null,
         items: [ref(1, { price: "450.00", previous_price: "412.00" })],
       },
     });
-    await screen.findByText("N1");
-    expect(screen.getByText("412").tagName).toBe("S");
-    expect(await screen.findByText("450 ₽")).toBeInTheDocument();
+    // price and sum cells
+    expect(await screen.findAllByText("412 ₽")).toHaveLength(2);
+    expect(screen.getByText("проверяем цены…")).toBeInTheDocument();
+    release();
+    expect(
+      await screen.findByText("450 ₽", { selector: "span" }),
+    ).toBeInTheDocument();
+    // Still struck through after the cart refetch brought the new price.
+    await waitFor(() => {
+      expect(screen.getByText("412").tagName).toBe("S");
+    });
+    expect(screen.queryByText("проверяем цены…")).not.toBeInTheDocument();
   });
 
   it("refreshes once per mount", async () => {
@@ -167,6 +227,24 @@ describe("CartPage", () => {
     });
   });
 
+  it("saves qty on blur", async () => {
+    const { bodies } = setup();
+    const field = await screen.findByLabelText("Количество N1");
+    fireEvent.change(field, { target: { value: "4" } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(bodies.patch).toEqual({ qty: 4 });
+    });
+  });
+
+  it("shows remove error", async () => {
+    setup({ failDelete: true });
+    await screen.findByText("N1");
+    fireEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    expect(await screen.findByText("Строка не найдена")).toBeInTheDocument();
+    expect(screen.getByText("N1")).toBeInTheDocument();
+  });
+
   it("does not save invalid qty", async () => {
     const { calls } = setup({ items: [item(1, { multiplicity: 2 })] });
     const field = await screen.findByLabelText("Количество N1");
@@ -198,6 +276,17 @@ describe("CartPage", () => {
     await waitFor(() => {
       expect(calls).toContain("DELETE cart");
     });
+  });
+
+  it("shows clear error inside the dialog", async () => {
+    setup({ failDelete: true });
+    await screen.findByText("N1");
+    fireEvent.click(screen.getByRole("button", { name: "Очистить корзину" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Очистить" }));
+    expect(
+      await within(dialog).findByText("Не удалось очистить"),
+    ).toBeInTheDocument();
   });
 
   it("empty cart", async () => {

@@ -20,14 +20,14 @@ const COLS =
   "md:grid-cols-[6rem_9rem_minmax(0,1fr)_12rem_8rem_5.5rem_7rem_2.5rem] md:gap-x-3";
 
 const HEADERS = [
-  "Бренд",
-  "Номер",
-  "Название",
-  "Склад и срок",
-  "Цена",
-  "Кол-во",
-  "Сумма",
-  "",
+  { key: "brand", label: "Бренд" },
+  { key: "number", label: "Номер" },
+  { key: "name", label: "Название" },
+  { key: "where", label: "Склад и срок" },
+  { key: "price", label: "Цена", right: true },
+  { key: "qty", label: "Кол-во", right: true },
+  { key: "sum", label: "Сумма", right: true },
+  { key: "remove", label: "" },
 ];
 
 function Price({
@@ -118,17 +118,24 @@ function Row({
           {formatPrice(item.sum)} ₽
         </div>
       </div>
-      <button
-        type="button"
-        aria-label="Удалить"
-        disabled={remove.isPending}
-        onClick={() => {
-          remove.mutate(item.id);
-        }}
-        className="flex size-9 cursor-pointer items-center justify-center self-end rounded-lg text-muted-foreground hover:bg-selected hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none md:self-start"
-      >
-        <Trash2 className="size-4" aria-hidden="true" />
-      </button>
+      <div className="flex flex-col items-end md:items-start">
+        <button
+          type="button"
+          aria-label="Удалить"
+          disabled={remove.isPending}
+          onClick={() => {
+            remove.mutate(item.id);
+          }}
+          className="flex size-9 cursor-pointer items-center justify-center self-end rounded-lg text-muted-foreground hover:bg-selected hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none md:self-start"
+        >
+          <Trash2 className="size-4" aria-hidden="true" />
+        </button>
+        {remove.isError && (
+          <p role="alert" className="text-[12px] text-destructive">
+            {remove.error.message}
+          </p>
+        )}
+      </div>
     </li>
   );
 }
@@ -151,12 +158,9 @@ export function CartTable({
           COLS,
         )}
       >
-        {HEADERS.map((h, i) => (
-          <span
-            key={h || String(i)}
-            className={i >= 4 && i <= 6 ? "text-right" : ""}
-          >
-            {h}
+        {HEADERS.map((h) => (
+          <span key={h.key} className={h.right ? "text-right" : ""}>
+            {h.label}
           </span>
         ))}
       </div>

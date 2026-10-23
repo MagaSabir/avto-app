@@ -106,6 +106,11 @@ export function CartPage() {
         title="Очистить корзину?"
         className="max-w-sm"
       >
+        {clear.isError && (
+          <p role="alert" className="px-4 pt-4 text-destructive">
+            {clear.error.message}
+          </p>
+        )}
         <div className="flex justify-end gap-2 p-4">
           <Button
             onClick={() => {
