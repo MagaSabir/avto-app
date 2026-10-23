@@ -176,3 +176,9 @@ def test_parse_rejects_non_finite_or_non_positive_price(price: str) -> None:
     st = stock("1").replace("<ns1:price>100.5</ns1:price>", f"<ns1:price>{price}</ns1:price>")
     with pytest.raises(SupplierError):
         parse_search(wrap(part("B", "1", st)))
+
+
+def test_offer_has_stock_id() -> None:
+    result = parse_search(load("333114"))
+    group = next(g for g in result.groups if g.key == "KYB|333114")
+    assert "HST1498810258" in {o.stock_id for o in group.offers}

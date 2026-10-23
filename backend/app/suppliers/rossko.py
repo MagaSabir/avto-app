@@ -85,6 +85,7 @@ def _offer(stock: ElementTree.Element) -> Offer:
         raise ValueError("bad price")
     return Offer(
         warehouse=_text(stock, "description"),
+        stock_id=_text(stock, "id"),
         qty=int(_text(stock, "count")),
         multiplicity=int(_text(stock, "multiplicity") or "1"),
         delivery_days=int(delivery) if delivery else None,

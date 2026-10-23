@@ -27,6 +27,7 @@ class SupplierInfo(BaseModel):
 
 class OfferOut(BaseModel):
     warehouse: str
+    stock_id: str
     qty: int
     multiplicity: int
     delivery_days: int | None
