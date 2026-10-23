@@ -40,6 +40,7 @@ export function offer(over: Partial<Offer> = {}): Offer {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    qty_plus: false,
     purchase_price: "2449.85",
     price: "2940.00",
     ...over,

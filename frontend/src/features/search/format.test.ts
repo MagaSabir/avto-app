@@ -14,6 +14,7 @@ function offer(over: Partial<Offer> = {}): Offer {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    qty_plus: false,
     purchase_price: "100.00",
     price: "110.00",
     ...over,
@@ -68,6 +69,8 @@ describe("kindLabel", () => {
     expect(kindLabel(offer({ kind: "sale" }))).toBe("распродажа");
     expect(kindLabel(offer({ kind: "defect" }))).toBe("некондиция");
     expect(kindLabel(offer({ kind: "air" }))).toBe("авиатовар");
+    expect(kindLabel(offer({ kind: "order" }))).toBe("под заказ");
+    expect(kindLabel(offer({ kind: "variants" }))).toBe("варианты поставки");
     expect(kindLabel(offer({ kind: "other", kind_code: "7" }))).toBe("тип 7");
   });
 });

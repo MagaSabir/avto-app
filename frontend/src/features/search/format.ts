@@ -37,6 +37,10 @@ export function kindLabel(offer: Pick<Offer, "kind" | "kind_code">): string {
       return "некондиция";
     case "air":
       return "авиатовар";
+    case "order":
+      return "под заказ";
+    case "variants":
+      return "варианты поставки";
     case "other":
       return `тип ${offer.kind_code}`;
   }

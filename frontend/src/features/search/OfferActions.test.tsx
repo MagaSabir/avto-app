@@ -25,6 +25,7 @@ function cartItem(over: Partial<CartItem> = {}): CartItem {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    order_code: null,
     price: "2449.85",
     sum: "9799.40",
     ...over,

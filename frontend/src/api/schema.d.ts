@@ -347,6 +347,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/search/suppliers/{code}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Supplier Variants */
+        get: operations["supplier_variants_api_search_suppliers__code__variants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/suppliers/{code}/settlements": {
         parameters: {
             query?: never;
@@ -490,13 +507,15 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "normal" | "sale" | "defect" | "air" | "other";
+            kind: "normal" | "sale" | "defect" | "air" | "other" | "order" | "variants";
             /** Kind Code */
             kind_code: string;
             /** Price */
             price: number | string;
             /** Qty */
             qty: number;
+            /** Order Code */
+            order_code?: string | null;
         };
         /** CartItemOut */
         CartItemOut: {
@@ -532,13 +551,15 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "normal" | "sale" | "defect" | "air" | "other";
+            kind: "normal" | "sale" | "defect" | "air" | "other" | "order" | "variants";
             /** Kind Code */
             kind_code: string;
             /** Price */
             price: string;
             /** Sum */
             sum: string;
+            /** Order Code */
+            order_code: string | null;
         };
         /** CartOut */
         CartOut: {
@@ -642,13 +663,24 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "normal" | "sale" | "defect" | "air" | "other";
+            kind: "normal" | "sale" | "defect" | "air" | "other" | "order" | "variants";
             /** Kind Code */
             kind_code: string;
             /** Purchase Price */
             purchase_price: string;
             /** Price */
             price: string;
+            /**
+             * Qty Plus
+             * @default false
+             */
+            qty_plus: boolean;
+            /** Delivery Days Max */
+            delivery_days_max?: number | null;
+            /** Rating */
+            rating?: number | null;
+            /** Order Code */
+            order_code?: string | null;
         };
         /** OperationResult */
         OperationResult: {
@@ -1096,6 +1128,24 @@ export interface components {
             groups: components["schemas"]["PartGroupOut"][];
             /** Stock Matches */
             stock_matches: components["schemas"]["StockSearchItem"][];
+        };
+        /** SupplierVariantsOut */
+        SupplierVariantsOut: {
+            /** Code */
+            code: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /** Message */
+            message: string | null;
+            /** Markup */
+            markup: string;
+            /** Offers */
+            offers: components["schemas"]["OfferOut"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -1936,6 +1986,7 @@ export interface operations {
         parameters: {
             query: {
                 q: string;
+                with_orders?: boolean;
             };
             header?: never;
             path: {
@@ -1952,6 +2003,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupplierSearchResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    supplier_variants_api_search_suppliers__code__variants_get: {
+        parameters: {
+            query: {
+                order_code: string;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplierVariantsOut"];
                 };
             };
             /** @description Not Found */

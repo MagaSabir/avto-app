@@ -22,7 +22,7 @@ const opts = {
 };
 
 function Harness(props: { partKey?: string; picking?: boolean }) {
-  const queries = useSupplierSearches(["rossko"], "333114");
+  const queries = useSupplierSearches(["rossko"], "333114", {});
   const ok = queries.flatMap((q) => (q.data?.status === "ok" ? [q.data] : []));
   return (
     <SuppliersBlock

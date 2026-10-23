@@ -64,13 +64,16 @@ export function useSuppliers(): UseQueryResult<SupplierInfo[]> {
 export function useSupplierSearches(
   codes: string[],
   q: string,
+  withOrders: Record<string, boolean>,
 ): UseQueryResult<SupplierSearchResult>[] {
   return useQueries({
     queries: codes.map((code) => ({
-      queryKey: ["search", "supplier", code, q],
+      queryKey: ["search", "supplier", code, q, withOrders[code] ?? false],
       queryFn: () =>
         apiFetch<SupplierSearchResult>(
-          `/api/search/suppliers/${encodeURIComponent(code)}?${qs(q)}`,
+          `/api/search/suppliers/${encodeURIComponent(code)}?${qs(q)}${
+            withOrders[code] ? "&with_orders=true" : ""
+          }`,
         ),
       enabled: q !== "",
       retry: false,

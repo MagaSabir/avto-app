@@ -48,7 +48,7 @@ export function SearchPage() {
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
   const codes = suppliers.data?.map((s) => s.code) ?? [];
-  const searches = useSupplierSearches(codes, q);
+  const searches = useSupplierSearches(codes, q, {});
 
   const onSearch = (next: string) => {
     if (next === q) {

@@ -45,6 +45,7 @@ function item(id: number, over: Partial<CartItem> = {}): CartItem {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    order_code: null,
     price: "412.00",
     sum: "412.00",
     ...over,

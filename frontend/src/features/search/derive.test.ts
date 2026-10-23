@@ -18,6 +18,7 @@ import {
   requestedParts,
   selectPart,
   type PartChoice,
+  mergeGroups,
   stockSummary,
   visibleStock,
 } from "./derive";
@@ -37,6 +38,7 @@ function offer(price: string, over: Partial<Offer> = {}): Offer {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    qty_plus: false,
     purchase_price: price,
     // Price with markup is not used on screen; a constant proves it.
     price: "1.00",
@@ -502,5 +504,93 @@ describe("selectPart", () => {
   it("keeps a part without offers and its analogs", () => {
     const [a] = selectPart(twoParts(), MGA);
     expect(a.groups.map((g) => g.key)).toEqual([MGA, "LUZAR|LP01"]);
+  });
+});
+
+describe("two suppliers by canonical key", () => {
+  const KEY = "MANN|W683";
+  const rossko = fx.supplierResult({
+    code: "rossko",
+    title: "Росско",
+    groups: [
+      fx.partGroup({
+        brand: "Mann",
+        number: "W 68/3",
+        number_norm: "W683",
+        name: "",
+        key: KEY,
+        analog_of: [],
+        offers: [fx.offer({ purchase_price: "800.00", delivery_days: 3 })],
+      }),
+      fx.partGroup({
+        brand: "BOSCH",
+        number_norm: "F026",
+        key: "BOSCH|F026",
+        is_requested: false,
+        analog_of: [KEY],
+        offers: [],
+      }),
+    ],
+  });
+  const mikado = fx.supplierResult({
+    code: "mikado",
+    title: "Микадо",
+    groups: [
+      fx.partGroup({
+        brand: "MANN-FILTER",
+        number: "W683",
+        number_norm: "W683",
+        name: "Фильтр масляный",
+        key: KEY,
+        analog_of: [],
+        offers: [
+          fx.offer({ purchase_price: "700.00", delivery_days: 2 }),
+          fx.offer({
+            kind: "variants",
+            purchase_price: "0.00",
+            delivery_days: 0,
+            order_code: "X1",
+          }),
+        ],
+      }),
+      fx.partGroup({
+        brand: "BOSCH",
+        number_norm: "F026",
+        key: "BOSCH|F026",
+        is_requested: false,
+        analog_of: [KEY, "OTHER|1"],
+        offers: [],
+      }),
+    ],
+  });
+
+  it("merges parts of two suppliers by key", () => {
+    const merged = mergeGroups([rossko, mikado]);
+    expect(merged).toHaveLength(2);
+    const g = merged[0];
+    expect(g.key).toBe(KEY);
+    expect(g.brand).toBe("Mann");
+    expect(g.number).toBe("W 68/3");
+    expect(g.name).toBe("Фильтр масляный");
+    expect(g.is_requested).toBe(true);
+    expect(g.suppliers.map((s) => s.code)).toEqual(["rossko", "mikado"]);
+    expect(g.suppliers[1].title).toBe("Микадо");
+    expect(g.suppliers[1].offers).toHaveLength(2);
+    expect(merged[1].analog_of).toEqual([KEY, "OTHER|1"]);
+  });
+
+  it("requestedParts takes the minimum over both suppliers", () => {
+    const [p] = requestedParts([rossko, mikado], now);
+    expect(p.minPrice).toBe("700.00");
+    expect(p.offers).toBe(2);
+    expect(p.fastest?.purchase_price).toBe("700.00");
+  });
+
+  it("summary picks the cheapest across suppliers, never variants", () => {
+    const pick = cheapest([rossko, mikado], false);
+    expect(pick?.supplier).toBe("mikado");
+    expect(pick?.offer.purchase_price).toBe("700.00");
+    expect(fastest([rossko, mikado], false, now)?.supplier).toBe("mikado");
+    expect(bestPriceFor([rossko, mikado], "W683")).toBe("700.00");
   });
 });

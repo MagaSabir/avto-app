@@ -8,6 +8,10 @@ import type {
 export type SortMode = "price" | "time";
 export type Pick = { group: PartGroup; offer: Offer; supplier: string };
 
+// A «variants» row opens a list of delivery options: it has no per-item
+// price or term of its own, so summaries and minimums skip it.
+const isPriced = (o: Offer) => o.kind !== "variants";
+
 const DAY_MS = 86_400_000;
 
 // Money strings are compared as integer kopecks, never as floats.
@@ -86,7 +90,9 @@ function picks(results: SupplierSearchResult[], showAnalogs: boolean): Pick[] {
     r.groups
       .filter((g) => showAnalogs || g.is_requested)
       .flatMap((g) =>
-        g.offers.map((offer) => ({ group: g, offer, supplier: r.code })),
+        g.offers
+          .filter(isPriced)
+          .map((offer) => ({ group: g, offer, supplier: r.code })),
       ),
   );
 }
@@ -122,7 +128,7 @@ export function bestPriceFor(
   for (const r of results)
     for (const g of r.groups)
       if (g.number_norm === numberNorm)
-        for (const o of g.offers)
+        for (const o of g.offers.filter(isPriced))
           if (min === null || cents(o.purchase_price) < cents(min))
             min = o.purchase_price;
   return min;
@@ -205,8 +211,9 @@ export function requestedParts(
           analogs: 0,
         };
         if (p.name === "") p.name = g.name;
-        p.offers += g.offers.length;
-        for (const o of g.offers) {
+        const priced = g.offers.filter(isPriced);
+        p.offers += priced.length;
+        for (const o of priced) {
           if (
             p.minPrice === null ||
             cents(o.purchase_price) < cents(p.minPrice)
@@ -226,6 +233,46 @@ export function requestedParts(
     ...p,
     analogs: analogs.get(p.key)?.size ?? 0,
   }));
+}
+
+export type SupplierOffers = { code: string; title: string; offers: Offer[] };
+export type MergedGroup = {
+  key: string;
+  brand: string;
+  number: string;
+  number_norm: string;
+  name: string;
+  is_requested: boolean;
+  analog_of: string[];
+  suppliers: SupplierOffers[];
+};
+
+// One group per part key; each supplier's offers stay under its own code.
+export function mergeGroups(results: SupplierSearchResult[]): MergedGroup[] {
+  const merged = new Map<string, MergedGroup>();
+  for (const r of results)
+    for (const g of r.groups) {
+      const m = merged.get(g.key) ?? {
+        key: g.key,
+        brand: "",
+        number: "",
+        number_norm: "",
+        name: "",
+        is_requested: false,
+        analog_of: [],
+        suppliers: [],
+      };
+      if (m.brand === "") m.brand = g.brand;
+      if (m.number === "") m.number = g.number;
+      if (m.number_norm === "") m.number_norm = g.number_norm;
+      if (m.name === "") m.name = g.name;
+      m.is_requested ||= g.is_requested;
+      for (const k of g.analog_of)
+        if (!m.analog_of.includes(k)) m.analog_of.push(k);
+      m.suppliers.push({ code: r.code, title: r.title, offers: g.offers });
+      merged.set(g.key, m);
+    }
+  return [...merged.values()];
 }
 
 // Narrows each answer to one requested part, its analogs and their stock.
