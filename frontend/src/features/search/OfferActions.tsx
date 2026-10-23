@@ -5,6 +5,7 @@ import { useAddToCart, useCart } from "@/api/cart";
 import type { Offer, PartGroup } from "@/api/search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normBrand } from "@/lib/brand";
 import { useFlash } from "@/features/stock/useFlash";
 
 type Props = {
@@ -13,9 +14,6 @@ type Props = {
   offer: Offer;
   onToStock: (group: PartGroup, offer: Offer) => void;
 };
-
-const normBrand = (brand: string) =>
-  brand.trim().replace(/\s+/g, " ").toUpperCase();
 
 export function OfferActions({ supplier, group, offer, onToStock }: Props) {
   const [value, setValue] = useState(String(offer.multiplicity));

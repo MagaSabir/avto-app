@@ -17,6 +17,7 @@ import {
 import { useSettings } from "@/api/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normBrand } from "@/lib/brand";
 
 import { cents, errorText, Field } from "./formBits";
 import { formatMoney, formatPrice, trimPercent } from "./format";
@@ -32,10 +33,6 @@ import { useFlash } from "./useFlash";
 import { usePriceFields } from "./usePriceFields";
 
 const DEBOUNCE_MS = 300;
-
-function normBrand(v: string): string {
-  return v.trim().replace(/\s+/g, " ").toUpperCase();
-}
 
 export type ReceiptPrefill = {
   number: string;
