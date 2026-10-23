@@ -134,16 +134,22 @@ async def refresh(
     session: AsyncSession, user_id: int, suppliers: dict[str, Supplier]
 ) -> CartRefreshOut:
     items = await cart_repository.list_items(session, user_id)
-    groups: dict[tuple[str, str], list[CartItem]] = {}
+    # plain snapshot: the transaction ends before the slow supplier calls
+    ids = [item.id for item in items]
+    groups: dict[tuple[str, str], list[int]] = {}
+    raw_numbers: dict[tuple[str, str], str] = {}
     for item in items:
-        groups.setdefault((item.supplier, item.number_norm), []).append(item)
+        key = (item.supplier, item.number_norm)
+        groups.setdefault(key, []).append(item.id)
+        raw_numbers.setdefault(key, item.number_raw)
+    await session.commit()
 
     semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)
 
     async def query(supplier_code: str, number: str) -> SupplierResult | SupplierError:
         supplier = suppliers.get(supplier_code)
         if supplier is None:
-            return SupplierError("Поставщик не подключён")
+            return SupplierError(UnknownSupplier().message)
         async with semaphore:
             try:
                 return await supplier.search(number)
@@ -151,30 +157,29 @@ async def refresh(
                 return e
 
     keys = list(groups)
-    responses = await asyncio.gather(*(query(k[0], groups[k][0].number_raw) for k in keys))
+    responses = await asyncio.gather(*(query(k[0], raw_numbers[k]) for k in keys))
 
+    # rows may have been removed meanwhile: lock and update only those still present
+    current = {
+        item.id: item for item in await cart_repository.list_for_update(session, user_id, ids)
+    }
     out: dict[int, CartRefreshItem] = {}
     error: str | None = None
     message: str | None = None
     for key, response in zip(keys, responses, strict=True):
         if isinstance(response, SupplierError):
             error = error or response.message
-            for item in groups[key]:
-                out[item.id] = CartRefreshItem(
-                    id=item.id,
-                    state="unknown",
-                    price=item.price,
-                    previous_price=None,
-                    available=item.available,
-                )
-            continue
-        message = response.message
-        for item in groups[key]:
-            offer = _find_offer(response, item)
+        else:
+            message = response.message
+        for item_id in groups[key]:
+            item = current.get(item_id)
+            if item is None:
+                continue
+            offer = None if isinstance(response, SupplierError) else _find_offer(response, item)
             if offer is None:
                 out[item.id] = CartRefreshItem(
                     id=item.id,
-                    state="gone",
+                    state="unknown" if isinstance(response, SupplierError) else "gone",
                     price=item.price,
                     previous_price=None,
                     available=item.available,
@@ -198,6 +203,8 @@ async def refresh(
                 available=offer.qty,
             )
     await session.commit()
-    if error is not None:
-        return CartRefreshOut(status="error", message=error, items=[out[i.id] for i in items])
-    return CartRefreshOut(status="ok", message=message, items=[out[i.id] for i in items])
+    return CartRefreshOut(
+        status="error" if error is not None else "ok",
+        message=error if error is not None else message,
+        items=[out[i] for i in ids if i in out],
+    )

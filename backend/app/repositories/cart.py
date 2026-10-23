@@ -14,6 +14,17 @@ async def list_items(session: AsyncSession, user_id: int) -> list[CartItem]:
     return list(result.scalars())
 
 
+async def list_for_update(session: AsyncSession, user_id: int, ids: list[int]) -> list[CartItem]:
+    result = await session.execute(
+        select(CartItem)
+        .where(CartItem.user_id == user_id, CartItem.id.in_(ids))
+        .order_by(CartItem.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return list(result.scalars())
+
+
 async def get_for_update(session: AsyncSession, user_id: int, item_id: int) -> CartItem | None:
     result = await session.execute(
         select(CartItem)

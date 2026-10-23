@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -54,9 +54,12 @@ class FakeSupplier:
     title = "Росско"
     responses: dict[str, SupplierResult | SupplierError] = field(default_factory=dict)
     calls: list[str] = field(default_factory=list)
+    on_search: Callable[[str], Awaitable[None]] | None = None
 
     async def search(self, number: str) -> SupplierResult:
         self.calls.append(number)
+        if self.on_search is not None:
+            await self.on_search(number)
         response = self.responses[number]
         if isinstance(response, SupplierError):
             raise response
@@ -70,6 +73,7 @@ class Env:
     user_a: User
     user_b: User
     holder: dict[str, User]
+    supplier_map: dict[str, FakeSupplier]
 
 
 @pytest.fixture
@@ -78,6 +82,7 @@ async def env(db_session: AsyncSession) -> AsyncIterator[Env]:
     user_b = await users_repository.add(db_session, "b", "x")
     holder = {"user": user_a}
     supplier = FakeSupplier()
+    supplier_map = {"rossko": supplier}
     app = create_app()
 
     async def override_get_session() -> AsyncIterator[AsyncSession]:
@@ -85,14 +90,14 @@ async def env(db_session: AsyncSession) -> AsyncIterator[Env]:
 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[current_user] = lambda: holder["user"]
-    app.dependency_overrides[get_suppliers] = lambda: {"rossko": supplier}
+    app.dependency_overrides[get_suppliers] = lambda: supplier_map
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport,
         base_url="http://test",
         headers={"Content-Type": "application/json"},
     ) as c:
-        yield Env(c, supplier, user_a, user_b, holder)
+        yield Env(c, supplier, user_a, user_b, holder, supplier_map)
 
 
 async def _add(env: Env, **over: Any) -> dict[str, Any]:
@@ -181,3 +186,44 @@ async def test_refresh_only_own_items(env: Env) -> None:
     cart = (await env.client.get("/api/cart")).json()
     assert cart["items"][0]["id"] == a["id"]
     assert cart["items"][0]["price"] == "412.00"
+
+
+async def test_refresh_unknown_supplier_message(env: Env) -> None:
+    await _add(env)
+    env.supplier_map.clear()
+    body = await _refresh(env)
+    assert body["status"] == "error"
+    assert body["message"] == "Неизвестный поставщик"
+    assert body["items"][0]["state"] == "unknown"
+
+
+async def test_refresh_survives_row_deleted_meanwhile(env: Env) -> None:
+    x = await _add(env, number="X1", stock_id="S1")
+    y = await _add(env, number="Y1", stock_id="S2")
+    env.supplier.responses["X1"] = _result(_offer(stock_id="S1", price="500.00"), number="X1")
+    env.supplier.responses["Y1"] = _result(_offer(stock_id="S2", price="600.00"), number="Y1")
+
+    async def on_search(number: str) -> None:
+        if number == "X1":
+            assert (await env.client.delete(f"/api/cart/items/{x['id']}")).status_code == 204
+
+    env.supplier.on_search = on_search
+    body = await _refresh(env)
+    assert [i["id"] for i in body["items"]] == [y["id"]]
+    assert body["items"][0]["price"] == "600.00"
+    cart = (await env.client.get("/api/cart")).json()
+    assert [i["id"] for i in cart["items"]] == [y["id"]]
+    assert cart["items"][0]["price"] == "600.00"
+
+
+async def test_refresh_survives_cart_cleared_meanwhile(env: Env) -> None:
+    await _add(env)
+    env.supplier.responses["W 68/3"] = _result(_offer(price="500.00"))
+
+    async def on_search(number: str) -> None:
+        assert (await env.client.delete("/api/cart")).status_code == 204
+
+    env.supplier.on_search = on_search
+    body = await _refresh(env)
+    assert body["items"] == []
+    assert (await env.client.get("/api/cart")).json()["items"] == []
