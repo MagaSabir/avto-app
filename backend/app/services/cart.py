@@ -4,7 +4,7 @@ from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.cart import cap_qty, valid_qty
+from app.domain.cart import cap_qty, offer_available, valid_qty
 from app.domain.numbers import normalize_brand, normalize_number
 from app.models.cart import CartItem
 from app.repositories import cart as cart_repository
@@ -62,8 +62,9 @@ async def add_item(
         raise UnknownSupplier()
     if data.kind == "variants":
         raise VariantNotChosen()
-    if not valid_qty(data.qty, data.multiplicity, data.available):
-        raise InvalidCartQty(data.multiplicity, data.available)
+    available = offer_available(data.kind, data.available)
+    if not valid_qty(data.qty, data.multiplicity, available):
+        raise InvalidCartQty(data.multiplicity, available)
     number_norm = normalize_number(data.number)
     brand = normalize_brand(data.brand)
     item = await cart_repository.find_for_update(
@@ -80,15 +81,15 @@ async def add_item(
         )
         session.add(item)
     else:
-        qty = cap_qty(item.qty + data.qty, data.multiplicity, data.available)
+        qty = cap_qty(item.qty + data.qty, data.multiplicity, available)
         if qty == 0:
-            raise InvalidCartQty(data.multiplicity, data.available)
+            raise InvalidCartQty(data.multiplicity, available)
     item.number_raw = data.number.strip()
     item.name = data.name
     item.warehouse = data.warehouse
     item.multiplicity = data.multiplicity
     item.qty = qty
-    item.available = data.available
+    item.available = available
     item.delivery_days = data.delivery_days
     item.delivery_from = data.delivery_from
     item.delivery_to = data.delivery_to
@@ -192,7 +193,8 @@ async def refresh(
                 continue
             previous = row.price if row.price != offer.purchase_price else None
             row.price = offer.purchase_price
-            row.available = offer.qty
+            available = offer_available(offer.kind, offer.qty)
+            row.available = available
             row.warehouse = offer.warehouse
             row.delivery_days = offer.delivery_days
             row.delivery_from = offer.delivery_from
@@ -205,7 +207,7 @@ async def refresh(
                 state="ok",
                 price=offer.purchase_price,
                 previous_price=previous,
-                available=offer.qty,
+                available=available,
             )
     await session.commit()
     return CartRefreshOut(

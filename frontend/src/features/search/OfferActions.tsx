@@ -18,7 +18,7 @@ type Props = {
 };
 
 // Order offers have no stock of their own: any quantity up to this.
-const ORDER_MAX = 999;
+const ORDER_MAX = 999; // mirrors ORDER_MAX in backend/app/domain/cart.py
 
 export function OfferActions(props: Props) {
   // A «variants» row has no price or term of its own: its delivery options

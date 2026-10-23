@@ -272,3 +272,24 @@ async def test_refresh_mikado_error_keeps_line_unknown(env: Env) -> None:
     assert body["status"] == "error"
     assert body["message"] == "Лимит запросов к Микадо на сегодня исчерпан"
     assert body["items"][0]["state"] == "unknown"
+
+
+async def test_refresh_keeps_order_max_for_under_order_line(env: Env) -> None:
+    await _add(env, kind="order", available=0, qty=3)
+    order_offer = Offer(
+        warehouse="Под заказ",
+        stock_id="HST1",
+        qty=0,
+        multiplicity=1,
+        delivery_days=7,
+        delivery_from=None,
+        delivery_to=None,
+        kind="order",
+        kind_code="",
+        purchase_price=Decimal("450.00"),
+    )
+    env.supplier.responses["W 68/3"] = _result(order_offer)
+    item = (await _refresh(env))["items"][0]
+    assert item["state"] == "ok"
+    assert item["available"] == 999
+    assert (await env.client.get("/api/cart")).json()["items"][0]["available"] == 999
