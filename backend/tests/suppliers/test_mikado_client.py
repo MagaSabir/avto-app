@@ -8,6 +8,7 @@ import httpx
 import pytest
 import respx
 
+from app.suppliers import mikado
 from app.suppliers.base import CartLine, SupplierError, SupplierVariants
 from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier, parse_info
 from app.suppliers.ratelimit import RateLimiter
@@ -261,3 +262,12 @@ async def test_check_offers_plain_line_ambiguous_variants_stay_unmatched() -> No
         respx.post(INFO).respond(200, content=fixture("info_oem"))
         found = await supplier.check_offers([line])
     assert found[line] is None
+
+
+async def test_fake_mode_without_fixtures_raises_supplier_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mikado, "FIXTURES", tmp_path)
+    with pytest.raises(SupplierError) as exc:
+        await MikadoSupplier("", "", fake=True).search("W683")
+    assert exc.value.message == "Микадо: фикстуры недоступны"

@@ -18,7 +18,7 @@ def by_key(groups: list[PartGroup]) -> dict[str, PartGroup]:
 
 
 def test_stock_requested_group_and_warehouse_offers() -> None:
-    groups = by_key(parse_search(load("search_stock"), "W683").groups)
+    groups = by_key(parse_search(load("search_stock")).groups)
     mann = groups["MANN|W683"]
     assert mann.is_requested
     assert mann.analog_of == []
@@ -35,7 +35,7 @@ def test_stock_requested_group_and_warehouse_offers() -> None:
 
 
 def test_brand_from_producer_brand() -> None:
-    groups = by_key(parse_search(load("search_stock"), "W683").groups)
+    groups = by_key(parse_search(load("search_stock")).groups)
     toyota = groups["TOYOTA|90915YZZM3"]
     assert not toyota.is_requested
     assert toyota.analog_of == ["MANN|W683"]
@@ -44,14 +44,14 @@ def test_brand_from_producer_brand() -> None:
 
 
 def test_ten_means_ten_plus() -> None:
-    groups = by_key(parse_search(load("search_stock"), "W683").groups)
+    groups = by_key(parse_search(load("search_stock")).groups)
     nordfil = groups["NORDFIL|ON1155"].offers
     assert (nordfil[0].qty, nordfil[0].qty_plus) == (10, True)
     assert (nordfil[1].qty, nordfil[1].qty_plus) == (4, False)
 
 
 def test_orders_kinds() -> None:
-    groups = by_key(parse_search(load("search_orders"), "W683").groups)
+    groups = by_key(parse_search(load("search_orders")).groups)
     mann = groups["MANN|W683"]
     assert mann.is_requested
     normal = [o for o in mann.offers if o.kind == "normal"]
@@ -66,7 +66,7 @@ def test_orders_kinds() -> None:
 
 
 def test_question_mark_rows_are_variants() -> None:
-    groups = by_key(parse_search(load("search_orders"), "W683").groups)
+    groups = by_key(parse_search(load("search_orders")).groups)
     oem = groups["MAN|W683"]
     assert oem.is_requested
     (offer,) = oem.offers
@@ -143,7 +143,7 @@ def test_bad_price_row_skipped_and_not_defined_ignored() -> None:
     xml = wrap(
         row("0", "1") + row("abc", "1") + row("5", "1", "NotDefined") + row("5", "20+", min_qty="4")
     )
-    (group,) = parse_search(xml, "A1").groups
+    (group,) = parse_search(xml).groups
     (offer,) = group.offers
     assert (offer.qty, offer.qty_plus, offer.multiplicity) == (20, True, 4)
     assert offer.stock_id == "x-1|1"
@@ -151,11 +151,11 @@ def test_bad_price_row_skipped_and_not_defined_ignored() -> None:
 
 def test_not_xml_raises() -> None:
     with pytest.raises(SupplierError):
-        parse_search(b"<html>", "A1")
+        parse_search(b"<html>")
 
 
 def test_analogs_link_to_requested_brand() -> None:
-    groups = by_key(parse_search(load("search_orders"), "W683").groups)
+    groups = by_key(parse_search(load("search_orders")).groups)
     for key in ("TOYOTA|90915YZZM3", "CHERY|3721012010", "DODA|1110020070"):
         assert groups[key].analog_of == ["MANN|W683"]
     assert groups["MAN|W683"].analog_of == []

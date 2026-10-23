@@ -136,7 +136,7 @@ def _search_offers(row: ElementTree.Element) -> list[Offer]:
     ]
 
 
-def parse_search(xml: bytes, number: str) -> SupplierResult:
+def parse_search(xml: bytes) -> SupplierResult:
     try:
         root = ElementTree.fromstring(xml)
         if root.tag != f"{_Q}Code_List":
@@ -300,7 +300,10 @@ class DailyLimit:
 
 
 def _fixture(name: str) -> bytes:
-    return (FIXTURES / f"mikado_{name}.xml").read_bytes()
+    try:
+        return (FIXTURES / f"mikado_{name}.xml").read_bytes()
+    except OSError as exc:
+        raise SupplierError("Микадо: фикстуры недоступны") from exc
 
 
 class MikadoSupplier:
@@ -324,14 +327,12 @@ class MikadoSupplier:
 
     async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         if self._fake:
-            return parse_search(
-                _fixture("search_orders" if with_orders else "search_stock"), number
-            )
+            return parse_search(_fixture("search_orders" if with_orders else "search_stock"))
         data = {
             "Search_Code": number,
             "FromStockOnly": "FromStockAndByOrder" if with_orders else "FromStockOnly",
         }
-        return parse_search(await self._call("Code_Search", number, data, limited=True), number)
+        return parse_search(await self._call("Code_Search", number, data, limited=True))
 
     async def variants(self, order_code: str) -> SupplierVariants:
         if self._fake:
