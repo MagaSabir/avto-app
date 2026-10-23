@@ -129,6 +129,8 @@ export function SearchPage() {
               opts={{ ...filters, now }}
               results={results}
               stockNumbers={stockNumbers}
+              // Placeholder until the receipt dialog is wired.
+              onToStock={() => undefined}
               picker={
                 picking ? (
                   <PartPicker

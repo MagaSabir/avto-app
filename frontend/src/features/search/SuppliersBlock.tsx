@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import type {
+  Offer,
   PartGroup,
   SupplierInfo,
   SupplierSearchResult,
@@ -27,6 +28,7 @@ type Props = {
   picker?: ReactNode;
   // Link back to the part list, when there are several parts.
   backTo?: string;
+  onToStock: (group: PartGroup, offer: Offer) => void;
 };
 
 type State =
@@ -67,17 +69,24 @@ const HEADERS: { label: string; right?: boolean }[] = [
   { label: "Можно забрать" },
   { label: "Остаток", right: true },
   { label: "Цена", right: true },
+  { label: "Действия", right: true },
 ];
 
-function PartList({
-  groups,
-  stockNumbers,
-  now,
-}: {
+type ListProps = {
+  supplier: string;
   groups: PartGroup[];
   stockNumbers: Map<string, number>;
   now: Date;
-}) {
+  onToStock: (group: PartGroup, offer: Offer) => void;
+};
+
+function PartList({
+  supplier,
+  groups,
+  stockNumbers,
+  now,
+  onToStock,
+}: ListProps) {
   return (
     <div className="text-[13.5px]">
       <div
@@ -97,6 +106,8 @@ function PartList({
         {groups.map((g) => (
           <PartRow
             key={g.key}
+            supplier={supplier}
+            onToStock={onToStock}
             group={g}
             stockQty={stockNumbers.get(g.number_norm)}
             now={now}
@@ -108,11 +119,7 @@ function PartList({
 }
 
 // The chosen part first, then its analogs under their own heading.
-function Parts(props: {
-  groups: PartGroup[];
-  stockNumbers: Map<string, number>;
-  now: Date;
-}) {
+function Parts(props: ListProps) {
   const requested = props.groups.filter((g) => g.is_requested);
   const analogs = props.groups.filter((g) => !g.is_requested);
   return (
@@ -136,6 +143,7 @@ export function SuppliersBlock({
   stockNumbers,
   picker,
   backTo,
+  onToStock,
 }: Props) {
   const entries = suppliers.map((s, i) => {
     const query = queries.at(i);
@@ -223,6 +231,8 @@ export function SuppliersBlock({
                   </p>
                 ) : (
                   <Parts
+                    supplier={supplier.code}
+                    onToStock={onToStock}
                     groups={groups}
                     stockNumbers={stockNumbers}
                     now={opts.now}

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
+import { mockApi, renderWithProviders } from "@/test/mockApi";
 import { offer, partGroup } from "@/test/searchFixtures";
 
 import { PartRow } from "./PartRow";
@@ -31,9 +32,17 @@ const group = partGroup({
 });
 
 function renderRow(props: Partial<Parameters<typeof PartRow>[0]> = {}) {
-  return render(
+  mockApi({ "GET /api/cart": () => ({ items: [], total: "0.00" }) });
+  return renderWithProviders(
     <ul>
-      <PartRow group={group} stockQty={undefined} now={now} {...props} />
+      <PartRow
+        supplier="rossko"
+        group={group}
+        stockQty={undefined}
+        now={now}
+        onToStock={vi.fn()}
+        {...props}
+      />
     </ul>,
   );
 }
@@ -87,7 +96,9 @@ describe("PartRow", () => {
     });
     expect(screen.getByText("аналог")).toBeInTheDocument();
     expect(screen.getByText("у вас 3 шт")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Другие склады/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("notes multiplicity and an unusual offer type", () => {
@@ -98,6 +109,17 @@ describe("PartRow", () => {
     });
     expect(screen.getByText("по 4 шт")).toBeInTheDocument();
     expect(screen.getByText("распродажа")).toBeInTheDocument();
+  });
+
+  it("offers cart actions for the best offer and each other warehouse", () => {
+    renderRow();
+    expect(screen.getAllByRole("button", { name: "В корзину" })).toHaveLength(
+      1,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Другие склады: 2" }));
+    expect(screen.getAllByRole("button", { name: "В корзину" })).toHaveLength(
+      3,
+    );
   });
 
   it("says when a part is not in stock", () => {
