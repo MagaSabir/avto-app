@@ -130,3 +130,17 @@ class UnknownSupplier(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Неизвестный поставщик")
+
+
+class VariantsNotSupported(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Поставщик не поддерживает варианты поставки")
+
+
+class EmptyOrderCode(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Укажите код заказа")

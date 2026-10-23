@@ -1,4 +1,5 @@
 from collections.abc import Collection
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,11 +13,12 @@ from app.schemas.search import (
     StockSearchResult,
     SupplierInfo,
     SupplierSearchResult,
+    SupplierVariantsOut,
 )
 from app.schemas.stock import StockItemOut
 from app.services import settings as settings_service
-from app.services.errors import EmptyNumber, TooManyNumbers
-from app.suppliers.base import Supplier, SupplierError
+from app.services.errors import EmptyNumber, EmptyOrderCode, TooManyNumbers, VariantsNotSupported
+from app.suppliers.base import Offer, Supplier, SupplierError, VariantsSupplier
 
 
 async def _stock_items(session: AsyncSession, numbers: Collection[str]) -> list[StockSearchItem]:
@@ -56,6 +58,13 @@ def list_suppliers(suppliers: dict[str, Supplier]) -> list[SupplierInfo]:
     return [SupplierInfo(code=s.code, title=s.title) for s in suppliers.values()]
 
 
+def _offer_out(o: Offer, markup: Decimal) -> OfferOut:
+    return OfferOut(
+        **{f: getattr(o, f) for f in OfferOut.model_fields if f != "price"},
+        price=sale_price(o.purchase_price, markup),
+    )
+
+
 async def search_supplier(
     session: AsyncSession, supplier: Supplier, q: str, with_orders: bool = False
 ) -> SupplierSearchResult:
@@ -84,13 +93,7 @@ async def search_supplier(
             is_requested=g.is_requested,
             key=g.key,
             analog_of=g.analog_of,
-            offers=[
-                OfferOut(
-                    **{f: getattr(o, f) for f in OfferOut.model_fields if f != "price"},
-                    price=sale_price(o.purchase_price, markup),
-                )
-                for o in g.offers
-            ],
+            offers=[_offer_out(o, markup) for o in g.offers],
         )
         for g in result.groups
     ]
@@ -103,4 +106,34 @@ async def search_supplier(
         markup=markup,
         groups=groups,
         stock_matches=await _stock_items(session, analogs) if analogs else [],
+    )
+
+
+async def supplier_variants(
+    session: AsyncSession, supplier: Supplier, order_code: str
+) -> SupplierVariantsOut:
+    if not isinstance(supplier, VariantsSupplier):
+        raise VariantsNotSupported()
+    code = order_code.strip()
+    if not code:
+        raise EmptyOrderCode()
+    markup = (await settings_service.get_settings(session)).default_markup
+    try:
+        result = await supplier.variants(code)
+    except SupplierError as exc:
+        return SupplierVariantsOut(
+            code=supplier.code,
+            title=supplier.title,
+            status="error",
+            message=exc.message,
+            markup=markup,
+            offers=[],
+        )
+    return SupplierVariantsOut(
+        code=supplier.code,
+        title=supplier.title,
+        status="ok",
+        message=result.message,
+        markup=markup,
+        offers=[_offer_out(o, markup) for o in result.offers],
     )

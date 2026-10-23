@@ -62,3 +62,12 @@ class SupplierSearchResult(BaseModel):
     markup: Percent
     groups: list[PartGroupOut]
     stock_matches: list[StockSearchItem]
+
+
+class SupplierVariantsOut(BaseModel):
+    code: str
+    title: str
+    status: Literal["ok", "error"]
+    message: str | None
+    markup: Percent
+    offers: list[OfferOut]
