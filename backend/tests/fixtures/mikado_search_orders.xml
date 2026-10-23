@@ -1,0 +1,241 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Code_List xmlns="http://mikado-parts.ru/service">
+  <Code_Search>W683</Code_Search>
+  <List>
+    <Code_List_Row>
+      <ZakazCode>xmn-w68/3</ZakazCode>
+      <Supplier>Mann+Hummel</Supplier>
+      <ProducerBrand>MANN-FILTER</ProducerBrand>
+      <ProducerCode>w68/3</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Германия</Country>
+      <Name>Фильтр масляный Toyota, Peugeot.</Name>
+      <OnStocks>
+        <StockLine>
+          <StokName>Грозный</StokName>
+          <StokID>95</StokID>
+          <StockQTY>1</StockQTY>
+          <DeliveryDelay>0</DeliveryDelay>
+        </StockLine>
+        <StockLine>
+          <StokName>Махачкала</StokName>
+          <StokID>5</StokID>
+          <StockQTY>1</StockQTY>
+          <DeliveryDelay>0</DeliveryDelay>
+        </StockLine>
+        <StockLine>
+          <StokName>Краснодар</StokName>
+          <StokID>23</StokID>
+          <StockQTY>1</StockQTY>
+          <DeliveryDelay>1</DeliveryDelay>
+        </StockLine>
+        <StockLine>
+          <StokName>Нальчик</StokName>
+          <StokID>7</StokID>
+          <StockQTY>1</StockQTY>
+          <DeliveryDelay>1</DeliveryDelay>
+        </StockLine>
+      </OnStocks>
+      <PriceRUR>574.75</PriceRUR>
+      <CodeType>Aftermarket</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>4</PrefixLength>
+      <Certificate>
+        <TypeCertificate>NoFouned</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>v1004-w683</ZakazCode>
+      <Supplier>Склад №1004 [MANN-FILTER]</Supplier>
+      <ProducerBrand>MANN-FILTER</ProducerBrand>
+      <ProducerCode>w683</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Евросоюз</Country>
+      <Name>Фильтр масляный GEELY EMGRAND.</Name>
+      <OnStocks />
+      <PriceRUR>557.28</PriceRUR>
+      <Srock>3 дн.</Srock>
+      <CodeType>Aftermarket</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>6</PrefixLength>
+      <Certificate>
+        <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+        <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+        <TypeCertificateString>Сертификат</TypeCertificateString>
+        <TypeCertificate>Certificate</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+  <Code_List_Row>
+      <ZakazCode>v1047-w683</ZakazCode>
+      <Supplier>Склад №1047 [MANN-FILTER]</Supplier>
+      <ProducerBrand>MANN-FILTER</ProducerBrand>
+      <ProducerCode>w683</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Евросоюз</Country>
+      <Name>Фильтр масляный MANN-FILTER W683.</Name>
+      <OnStocks />
+      <PriceRUR>557.28</PriceRUR>
+      <Srock>6 дн.</Srock>
+      <CodeType>Aftermarket</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>6</PrefixLength>
+      <Certificate>
+        <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+        <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+        <TypeCertificateString>Сертификат</TypeCertificateString>
+        <TypeCertificate>Certificate</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>v1072-w683</ZakazCode>
+      <Supplier>Склад №1072 [MANN-FILTER]</Supplier>
+      <ProducerBrand>MANN-FILTER</ProducerBrand>
+      <ProducerCode>w683</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Евросоюз</Country>
+      <Name>Фильтр масляный TOYOTA Avensis,Camry,Corolla MANN.</Name>
+      <OnStocks />
+      <PriceRUR>557.28</PriceRUR>
+      <Srock>4 дн.</Srock>
+      <CodeType>Aftermarket</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>6</PrefixLength>
+      <Certificate>
+        <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+        <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+        <TypeCertificateString>Сертификат</TypeCertificateString>
+        <TypeCertificate>Certificate</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>gto90915yzzm3</ZakazCode>
+      <Supplier>TOYOTA</Supplier>
+      <ProducerBrand>TOYOTA</ProducerBrand>
+      <ProducerCode>90915yzzm3</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Япония</Country>
+      <Name>Фильтр масляный .</Name>
+      <OnStocks>
+        <StockLine>
+          <StokName>С.-Петербург</StokName>
+          <StokID>1</StokID>
+          <StockQTY>5</StockQTY>
+          <DeliveryDelay>3</DeliveryDelay>
+        </StockLine>
+      </OnStocks>
+      <PriceRUR>504</PriceRUR>
+      <CodeType>AnalogOEM</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>0</PrefixLength>
+      <Certificate>
+        <Nomer>ЕАЭС RU С-JP.НВ07.В.00796/23</Nomer>
+        <Url>https://pub.fsa.gov.ru/rss/certificate/view/3221477/product</Url>
+        <TypeCertificateString>Сертификат</TypeCertificateString>
+        <TypeCertificate>Certificate</TypeCertificate>
+      </Certificate>
+      <TnVed>8421230000</TnVed>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>gcy3721012010</ZakazCode>
+      <Supplier>CHERY</Supplier>
+      <ProducerBrand>CHERY</ProducerBrand>
+      <ProducerCode>3721012010</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Китай</Country>
+      <Name>Фильтр масленный.</Name>
+      <OnStocks />
+      <PriceRUR>142.08</PriceRUR>
+      <Srock>?</Srock>
+      <CodeType>AnalogOEM</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>0</PrefixLength>
+      <Certificate>
+        <TypeCertificate>NoFouned</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>xdd-1110020070</ZakazCode>
+      <Supplier>DODA</Supplier>
+      <ProducerBrand>DODA</ProducerBrand>
+      <ProducerCode>1110020070</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Китай</Country>
+      <Name>Фильтр масляный.</Name>
+      <OnStocks />
+      <PriceRUR>70.45</PriceRUR>
+      <Srock>?</Srock>
+      <CodeType>Analog</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>4</PrefixLength>
+      <Certificate>
+        <TypeCertificate>NoFouned</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>gmnw683</ZakazCode>
+      <Supplier>MAN</Supplier>
+      <ProducerBrand>MAN</ProducerBrand>
+      <ProducerCode>w683</ProducerCode>
+      <Brand>MAN</Brand>
+      <Country>Германия</Country>
+      <Name>Фильтр масляный MANN W683 для CITROEN DAIHATSU DODGE PEUGEOT TOYOTA LEXUS.</Name>
+      <OnStocks />
+      <PriceRUR>627.84</PriceRUR>
+      <Srock>?</Srock>
+      <CodeType>OEM</CodeType>
+      <Source>
+        <SourceProducer>MAN</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>0</PrefixLength>
+      <Certificate>
+        <TypeCertificate>NoFouned</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+    <Code_List_Row>
+      <ZakazCode>v1004-w683</ZakazCode>
+      <Supplier>Склад №1004 [MANN-FILTER]</Supplier>
+      <ProducerBrand>MANN-FILTER</ProducerBrand>
+      <ProducerCode>w683</ProducerCode>
+      <Brand>MANN-FILTER</Brand>
+      <Country>Евросоюз</Country>
+      <Name>Фильтр масляный GEELY EMGRAND.</Name>
+      <OnStocks />
+      <PriceRUR>557.28</PriceRUR>
+      <Srock>3 дн.</Srock>
+      <CodeType>Aftermarket</CodeType>
+      <Source>
+        <SourceProducer>MANN-FILTER</SourceProducer>
+        <SourceCode>W683</SourceCode>
+      </Source>
+      <PrefixLength>6</PrefixLength>
+      <Certificate>
+        <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+        <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+        <TypeCertificateString>Сертификат</TypeCertificateString>
+        <TypeCertificate>Certificate</TypeCertificate>
+      </Certificate>
+    </Code_List_Row>
+  </List>
+</Code_List>

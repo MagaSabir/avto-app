@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<CodeBrandResult xmlns="http://mikado-parts.ru/service">
+  <Code_Search>W68/3</Code_Search>
+  <Brand_Search>MANN</Brand_Search>
+  <Message>Ошибка авторизации;
+</Message>
+  <List />
+  <Certificate>
+    <TypeCertificate>NoFouned</TypeCertificate>
+  </Certificate>
+</CodeBrandResult>

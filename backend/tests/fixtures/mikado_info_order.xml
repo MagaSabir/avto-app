@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Code_Info_Block xmlns="http://mikado-parts.ru/service">
+  <Code>v1004-w683</Code>
+  <Brand>MANN-FILTER</Brand>
+  <Name>Фильтр масляный GEELY EMGRAND</Name>
+  <Supplier>Склад №1004</Supplier>
+  <Country>Евросоюз</Country>
+  <CodeType>Aftermarket</CodeType>
+  <Message>Внимание! Отправка заказа в 08-00 МСК с понедельника по  пятницу. Для клиентов Краснодарского края и г. Краснодар отгрузка на второй рабочий день.</Message>
+  <Certificate>
+    <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+    <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+    <TypeCertificateString>Сертификат</TypeCertificateString>
+    <TypeCertificate>Certificate</TypeCertificate>
+  </Certificate>
+  <Prices>
+    <Code_PriceInfo>
+      <PriceRUR>557.28</PriceRUR>
+      <OnStocks />
+      <Srock>3</Srock>
+      <Comment />
+      <Rating>66</Rating>
+    </Code_PriceInfo>
+  </Prices>
+</Code_Info_Block>
