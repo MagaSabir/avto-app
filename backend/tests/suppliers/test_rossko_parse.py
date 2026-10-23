@@ -171,6 +171,16 @@ def test_analog_of_two_parents() -> None:
     assert groups["BOSCH|F1"].analog_of == ["MANN|W683"]
 
 
+def test_cross_with_brand_suffix_joins_requested_group() -> None:
+    xml = wrap(
+        part("MGA", "W683", crosses=part("MANN-FILTER", "W 68/3", stock("S1")))
+        + part("MANN", "W683", stock("S2"))
+    )
+    groups = {g.key: g for g in parse_search(xml).groups}
+    assert "MANN|W683" in groups
+    assert {o.stock_id for o in groups["MANN|W683"].offers} == {"S1", "S2"}
+
+
 @pytest.mark.parametrize("price", ["NaN", "Infinity", "-Infinity", "0", "-5"])
 def test_parse_rejects_non_finite_or_non_positive_price(price: str) -> None:
     st = stock("1").replace("<ns1:price>100.5</ns1:price>", f"<ns1:price>{price}</ns1:price>")

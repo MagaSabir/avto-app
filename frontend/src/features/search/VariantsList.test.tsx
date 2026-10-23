@@ -77,6 +77,7 @@ describe("VariantsList", () => {
     });
     expect(posts[0]).toMatchObject({
       supplier: "mikado",
+      brand: partGroup().brand,
       stock_id: "gto90915yzzm3#1",
       kind: "order",
       order_code: "gto90915yzzm3",
