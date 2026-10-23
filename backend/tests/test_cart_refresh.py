@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -16,7 +17,7 @@ from app.repositories import users as users_repository
 from app.suppliers import get_suppliers
 from app.suppliers.base import CartLine, Offer, PartGroup, SupplierError, SupplierResult
 from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier
-from app.suppliers.rossko import check_lines
+from app.suppliers.rossko import check_lines, parse_search
 from tests.suppliers.test_mikado_client import FIXTURES
 from tests.test_cart_api import _body
 
@@ -293,3 +294,21 @@ async def test_refresh_keeps_order_max_for_under_order_line(env: Env) -> None:
     assert item["state"] == "ok"
     assert item["available"] == 999
     assert (await env.client.get("/api/cart")).json()["items"][0]["available"] == 999
+
+
+async def test_refresh_same_number_other_brands_same_warehouse_id(env: Env) -> None:
+    parsed = parse_search((FIXTURES.parent / "fixtures" / "rossko_search_w683.xml").read_bytes())
+    mann = next(g for g in parsed.groups if g.key == "MANN|W683")
+    mga = next(g for g in parsed.groups if g.key == "MGA|W683")
+    shared = "HST1525131288"
+    mann_offer = next(o for o in mann.offers if o.stock_id == shared)
+    mga_offer = dataclasses.replace(mann_offer, purchase_price=Decimal("111.00"))
+    mga_group = dataclasses.replace(mga, offers=[*mga.offers, mga_offer])
+    mann_group = dataclasses.replace(mann, offers=[mann_offer])
+    env.supplier.responses["W683"] = SupplierResult(groups=[mga_group, mann_group], message=None)
+    a = await _add(env, brand="MGA", number="W683", stock_id=shared)
+    b = await _add(env, brand="MANN", number="W683", stock_id=shared)
+    body = await _refresh(env)
+    by_id = {i["id"]: i for i in body["items"]}
+    assert by_id[a["id"]]["price"] == "111.00"
+    assert by_id[b["id"]]["price"] == str(mann_offer.purchase_price.quantize(Decimal("0.01")))

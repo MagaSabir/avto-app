@@ -141,19 +141,20 @@ async def refresh(
     ids = [item.id for item in items]
     groups: dict[tuple[str, str], list[int]] = {}
     lines: dict[tuple[str, str], list[CartLine]] = {}
+    line_of: dict[int, CartLine] = {}
     for item in items:
         key = (item.supplier, item.number_norm)
         groups.setdefault(key, []).append(item.id)
-        lines.setdefault(key, []).append(
-            CartLine(item.stock_id, item.brand, item.number_raw, item.order_code)
-        )
+        line = CartLine(item.stock_id, item.brand, item.number_raw, item.order_code)
+        line_of[item.id] = line
+        lines.setdefault(key, []).append(line)
     await session.commit()
 
     semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)
 
     async def query(
         supplier_code: str, group: list[CartLine]
-    ) -> dict[str, Offer | None] | SupplierError:
+    ) -> dict[CartLine, Offer | None] | SupplierError:
         supplier = suppliers.get(supplier_code)
         if supplier is None:
             return SupplierError(UnknownSupplier().message)
@@ -181,7 +182,7 @@ async def refresh(
             row = current.get(item_id)
             if row is None:
                 continue
-            offer = None if isinstance(response, SupplierError) else response.get(row.stock_id)
+            offer = None if isinstance(response, SupplierError) else response.get(line_of[row.id])
             if offer is None:
                 out[row.id] = CartRefreshItem(
                     id=row.id,

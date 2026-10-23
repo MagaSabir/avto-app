@@ -310,9 +310,6 @@ def parse_orders(xml: bytes) -> list[Order]:
         raise SupplierError(BAD_RESPONSE) from exc
 
 
-_CHECK_CONCURRENCY = 3
-
-
 def _find_offer(result: SupplierResult, line: CartLine) -> Offer | None:
     brand = canonical_brand(line.brand)
     number_norm = normalize_number(line.number)
@@ -326,24 +323,14 @@ def _find_offer(result: SupplierResult, line: CartLine) -> Offer | None:
 
 async def check_lines(
     search: Callable[[str], Awaitable[SupplierResult]], lines: list[CartLine]
-) -> dict[str, Offer | None]:
-    """One search per unique number (at most 3 at once); match offers by stock id."""
+) -> dict[CartLine, Offer | None]:
+    """One search per unique number; match each line by brand, number and stock id."""
     by_number: dict[str, list[CartLine]] = {}
     for line in lines:
         by_number.setdefault(normalize_number(line.number), []).append(line)
-    semaphore = asyncio.Semaphore(_CHECK_CONCURRENCY)
-
-    async def run(group: list[CartLine]) -> SupplierResult:
-        async with semaphore:
-            return await search(group[0].number)
-
     groups = list(by_number.values())
-    results = await asyncio.gather(*(run(g) for g in groups))
-    return {
-        line.stock_id: _find_offer(r, line)
-        for g, r in zip(groups, results, strict=True)
-        for line in g
-    }
+    results = await asyncio.gather(*(search(g[0].number) for g in groups))
+    return {line: _find_offer(r, line) for g, r in zip(groups, results, strict=True) for line in g}
 
 
 class RosskoSupplier:
@@ -374,7 +361,7 @@ class RosskoSupplier:
         self._log(number, "ok", started)
         return result
 
-    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+    async def check_offers(self, lines: list[CartLine]) -> dict[CartLine, Offer | None]:
         return await check_lines(self.search, lines)
 
     async def settlements(

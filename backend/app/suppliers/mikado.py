@@ -339,7 +339,7 @@ class MikadoSupplier:
         body = await self._call("Code_Info", order_code, {"ZakazCode": order_code}, limited=True)
         return parse_info(body, order_code)
 
-    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+    async def check_offers(self, lines: list[CartLine]) -> dict[CartLine, Offer | None]:
         """Re-check cart lines: warehouse lines via stock info, the rest via Code_Info."""
         by_pair: dict[tuple[str, str], list[CartLine]] = {}
         by_code: dict[str, list[CartLine]] = {}
@@ -356,15 +356,15 @@ class MikadoSupplier:
             *(self._stock_info(g[0].number, g[0].brand) for g in pairs)
         )
         infos = await asyncio.gather(*(self.variants(code) for code, _ in codes))
-        found: dict[str, Offer | None] = {}
+        found: dict[CartLine, Offer | None] = {}
         for group, offers in zip(pairs, stock_offers, strict=True):
             by_id = {o.stock_id: o for o in offers}
             for line in group:
-                found[line.stock_id] = by_id.get(line.stock_id)
+                found[line] = by_id.get(line.stock_id)
         for (_, group), info in zip(codes, infos, strict=True):
             by_id = {o.stock_id: o for o in info.offers}
             for line in group:
-                found[line.stock_id] = by_id.get(line.stock_id)
+                found[line] = by_id.get(line.stock_id)
         return found
 
     async def _stock_info(self, number: str, brand: str) -> list[Offer]:

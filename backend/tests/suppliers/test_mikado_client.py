@@ -184,46 +184,41 @@ def _line(stock_id: str, number: str = "W 68/3", brand: str = "MANN", order_code
 async def test_check_offers_warehouse_uses_stock_info_without_daily_limit() -> None:
     route = respx.post(STOCK).respond(200, content=fixture("cbsi"))
     supplier = make(daily=DailyLimit(0))
-    found = await supplier.check_offers(
-        [
-            _line("xmn-w68/3|95", order_code="xmn-w68/3"),
-            _line("xmn-w68/3|5", order_code="xmn-w68/3"),
-            _line("xmn-w68/3|9999", order_code="xmn-w68/3"),
-        ]
-    )
+    l95 = _line("xmn-w68/3|95", order_code="xmn-w68/3")
+    l5 = _line("xmn-w68/3|5", order_code="xmn-w68/3")
+    l9999 = _line("xmn-w68/3|9999", order_code="xmn-w68/3")
+    found = await supplier.check_offers([l95, l5, l9999])
     assert route.call_count == 1
     assert form(route)["Code"] == ["W 68/3"]
     assert form(route)["Brand"] == ["MANN"]
-    assert found["xmn-w68/3|95"] is not None
-    assert found["xmn-w68/3|95"].purchase_price == Decimal("574.75")
-    assert found["xmn-w68/3|5"] is not None
-    assert found["xmn-w68/3|9999"] is None
+    assert found[l95] is not None
+    assert found[l95].purchase_price == Decimal("574.75")
+    assert found[l5] is not None
+    assert found[l9999] is None
 
 
 @respx.mock
 async def test_check_offers_under_order_uses_code_info() -> None:
     route = respx.post(INFO).respond(200, content=fixture("info_oem"))
-    found = await make().check_offers(
-        [
-            _line("gto90915yzzm3#96", order_code="gto90915yzzm3"),
-            _line("gto90915yzzm3#13", order_code="gto90915yzzm3"),
-            _line("gto90915yzzm3#777", order_code="gto90915yzzm3"),
-        ]
-    )
+    l96 = _line("gto90915yzzm3#96", order_code="gto90915yzzm3")
+    l13 = _line("gto90915yzzm3#13", order_code="gto90915yzzm3")
+    l777 = _line("gto90915yzzm3#777", order_code="gto90915yzzm3")
+    found = await make().check_offers([l96, l13, l777])
     assert route.call_count == 1
     assert form(route)["ZakazCode"] == ["gto90915yzzm3"]
-    assert found["gto90915yzzm3#96"] is not None
-    assert found["gto90915yzzm3#96"].purchase_price == Decimal("583.2")
-    assert found["gto90915yzzm3#13"] is not None
-    assert found["gto90915yzzm3#777"] is None
+    assert found[l96] is not None
+    assert found[l96].purchase_price == Decimal("583.2")
+    assert found[l13] is not None
+    assert found[l777] is None
 
 
 @respx.mock
 async def test_check_offers_plain_order_code() -> None:
     respx.post(INFO).respond(200, content=fixture("info_order"))
-    found = await make().check_offers([_line("v1004-w683", "V1004-W683", "MANN", "v1004-w683")])
-    assert found["v1004-w683"] is not None
-    assert found["v1004-w683"].purchase_price == Decimal("557.28")
+    line = _line("v1004-w683", "V1004-W683", "MANN", "v1004-w683")
+    found = await make().check_offers([line])
+    assert found[line] is not None
+    assert found[line].purchase_price == Decimal("557.28")
 
 
 @respx.mock
@@ -239,8 +234,7 @@ async def test_check_offers_daily_limit_exhausted() -> None:
 @respx.mock
 async def test_check_offers_fake_mode_makes_no_http() -> None:
     routes = [respx.post(u) for u in (INFO, STOCK)]
-    found = await MikadoSupplier("", "", fake=True).check_offers(
-        [_line("xmn-w68/3|95", order_code="xmn-w68/3")]
-    )
-    assert found["xmn-w68/3|95"] is not None
+    line = _line("xmn-w68/3|95", order_code="xmn-w68/3")
+    found = await MikadoSupplier("", "", fake=True).check_offers([line])
+    assert found[line] is not None
     assert not any(r.called for r in routes)

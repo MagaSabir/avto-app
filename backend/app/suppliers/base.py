@@ -76,7 +76,7 @@ class CartLine:
 
 @runtime_checkable
 class CartCheckSupplier(Supplier, Protocol):
-    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]: ...
+    async def check_offers(self, lines: list[CartLine]) -> dict[CartLine, Offer | None]: ...
 
 
 @dataclass(frozen=True)
