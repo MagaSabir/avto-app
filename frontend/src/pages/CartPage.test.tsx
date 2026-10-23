@@ -166,9 +166,8 @@ describe("CartPage", () => {
     expect(await screen.findAllByText("412 ₽")).toHaveLength(2);
     expect(screen.getByText("проверяем цены…")).toBeInTheDocument();
     release();
-    expect(
-      await screen.findByText("450 ₽", { selector: "span" }),
-    ).toBeInTheDocument();
+    // price span + sum cell (from the refetched cart)
+    expect(await screen.findAllByText("450 ₽")).toHaveLength(2);
     // Still struck through after the cart refetch brought the new price.
     await waitFor(() => {
       expect(screen.getByText("412").tagName).toBe("S");
@@ -192,7 +191,9 @@ describe("CartPage", () => {
         items: [ref(1, { state: "gone", available: 0 })],
       },
     });
-    expect(await screen.findByText("нет в наличии")).toBeInTheDocument();
+    expect(await screen.findByText("нет в наличии")).toHaveClass(
+      "text-status-out",
+    );
   });
 
   it("warns when qty exceeds available", async () => {
@@ -303,6 +304,13 @@ describe("CartPage", () => {
       total: "1274.00",
     });
     expect(await screen.findByText(/2 позиции · 1\s274 ₽/)).toBeInTheDocument();
+  });
+
+  it("breaks brand only after a slash", async () => {
+    setup({ items: [item(1, { brand: "CITROEN/PEUGEOT" })] });
+    const brand = await screen.findByText(/CITROEN\//);
+    expect(brand.querySelectorAll("wbr")).toHaveLength(1);
+    expect(brand).toHaveTextContent("CITROEN/PEUGEOT");
   });
 
   it("links number to search", async () => {

@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import { Fragment } from "react";
 import { Link } from "react-router";
 
 import {
@@ -30,19 +31,32 @@ const HEADERS = [
   { key: "remove", label: "" },
 ];
 
+// Wraps only after "/" (CITROEN/ PEUGEOT), never inside a word.
+function Brand({ name }: { name: string }) {
+  const parts = name.split("/");
+  return parts.map((part, i) => (
+    <Fragment key={`${part}|${String(i)}`}>
+      {i > 0 && <wbr />}
+      {i < parts.length - 1 ? `${part}/` : part}
+    </Fragment>
+  ));
+}
+
 function Price({
   item,
   info,
+  className,
 }: {
   item: CartItem;
   info: CartRefreshItem | undefined;
+  className?: string;
 }) {
   const changed =
     info?.state === "ok" &&
     info.previous_price !== null &&
     info.previous_price !== info.price;
   return (
-    <div className="text-right tabular-nums">
+    <div className={cn("text-right tabular-nums", className)}>
       {changed && info.previous_price !== null && (
         <s className="mr-1.5 text-[12px] text-muted-foreground">
           {formatPrice(info.previous_price)}
@@ -80,19 +94,21 @@ function Row({
         COLS,
       )}
     >
-      <span className="font-semibold [overflow-wrap:anywhere]">
-        {item.brand}
-      </span>
-      <Link
-        to={`/?q=${encodeURIComponent(item.number)}`}
-        className="font-mono font-semibold text-primary [overflow-wrap:anywhere] hover:underline"
-      >
-        {item.number}
-      </Link>
-      <div className="min-w-0 [overflow-wrap:anywhere]">
+      <div className="flex items-baseline gap-x-2 md:contents">
+        <span className="font-semibold md:order-1">
+          <Brand name={item.brand} />
+        </span>
+        <Link
+          to={`/?q=${encodeURIComponent(item.number)}`}
+          className="font-mono font-semibold text-primary [overflow-wrap:anywhere] hover:underline md:order-2"
+        >
+          {item.number}
+        </Link>
+      </div>
+      <div className="min-w-0 [overflow-wrap:anywhere] md:order-3">
         {item.name}
         {gone && (
-          <div className="text-[12px] font-medium text-status-none">
+          <div className="text-[12px] font-medium text-status-out">
             нет в наличии
           </div>
         )}
@@ -102,7 +118,7 @@ function Row({
           </div>
         )}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 md:order-4">
         <div className="whitespace-nowrap">{formatDelivery(item, now)}</div>
         <div
           title={where}
@@ -111,30 +127,38 @@ function Row({
           {where}
         </div>
       </div>
-      <Price item={item} info={info} />
-      <div className="flex items-center justify-between gap-3 md:contents">
-        <CartQtyField key={item.qty} item={item} />
-        <div className="text-right font-semibold whitespace-nowrap tabular-nums">
+      <div className="flex items-start gap-x-2 md:contents">
+        <div className="md:order-6">
+          <CartQtyField key={item.qty} item={item} />
+        </div>
+        <span aria-hidden="true" className="pt-2 md:hidden">
+          ×
+        </span>
+        <Price item={item} info={info} className="pt-1 md:order-5 md:pt-0" />
+        <span aria-hidden="true" className="pt-2 md:hidden">
+          =
+        </span>
+        <div className="pt-1 text-right font-semibold whitespace-nowrap tabular-nums md:order-7 md:pt-0">
           {formatPrice(item.sum)} ₽
         </div>
-      </div>
-      <div className="flex flex-col items-end md:items-start">
-        <button
-          type="button"
-          aria-label="Удалить"
-          disabled={remove.isPending}
-          onClick={() => {
-            remove.mutate(item.id);
-          }}
-          className="flex size-9 cursor-pointer items-center justify-center self-end rounded-lg text-muted-foreground hover:bg-selected hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none md:self-start"
-        >
-          <Trash2 className="size-4" aria-hidden="true" />
-        </button>
-        {remove.isError && (
-          <p role="alert" className="text-[12px] text-destructive">
-            {remove.error.message}
-          </p>
-        )}
+        <div className="ml-auto flex flex-col items-end md:order-8 md:ml-0 md:items-start">
+          <button
+            type="button"
+            aria-label="Удалить"
+            disabled={remove.isPending}
+            onClick={() => {
+              remove.mutate(item.id);
+            }}
+            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-selected hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+          </button>
+          {remove.isError && (
+            <p role="alert" className="text-[12px] text-destructive">
+              {remove.error.message}
+            </p>
+          )}
+        </div>
       </div>
     </li>
   );
