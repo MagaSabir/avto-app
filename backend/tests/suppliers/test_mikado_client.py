@@ -8,8 +8,8 @@ import httpx
 import pytest
 import respx
 
-from app.suppliers.base import CartLine, SupplierError
-from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier
+from app.suppliers.base import CartLine, SupplierError, SupplierVariants
+from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier, parse_info
 from app.suppliers.ratelimit import RateLimiter
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -238,3 +238,26 @@ async def test_check_offers_fake_mode_makes_no_http() -> None:
     found = await MikadoSupplier("", "", fake=True).check_offers([line])
     assert found[line] is not None
     assert not any(r.called for r in routes)
+
+
+async def test_check_offers_plain_line_matches_single_variant() -> None:
+    supplier = make()
+    variants = parse_info(fixture("info_oem"), "gto90915yzzm3")
+    single = variants.offers[0]
+
+    async def fake_variants(order_code: str) -> SupplierVariants:
+        return SupplierVariants(offers=[single], message=None)
+
+    supplier.variants = fake_variants
+    line = _line("gto90915yzzm3", order_code="gto90915yzzm3")
+    found = await supplier.check_offers([line])
+    assert found[line] == single
+
+
+async def test_check_offers_plain_line_ambiguous_variants_stay_unmatched() -> None:
+    supplier = make()
+    line = _line("gto90915yzzm3", order_code="gto90915yzzm3")
+    with respx.mock:
+        respx.post(INFO).respond(200, content=fixture("info_oem"))
+        found = await supplier.check_offers([line])
+    assert found[line] is None

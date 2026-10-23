@@ -364,7 +364,10 @@ class MikadoSupplier:
         for (_, group), info in zip(codes, infos, strict=True):
             by_id = {o.stock_id: o for o in info.offers}
             for line in group:
-                found[line] = by_id.get(line.stock_id)
+                offer = by_id.get(line.stock_id)
+                if offer is None and "#" not in line.stock_id and len(info.offers) == 1:
+                    offer = info.offers[0]  # plain under-order line, a single variant left
+                found[line] = offer
         return found
 
     async def _stock_info(self, number: str, brand: str) -> list[Offer]:
