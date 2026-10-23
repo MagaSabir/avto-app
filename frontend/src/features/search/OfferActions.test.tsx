@@ -87,12 +87,14 @@ describe("OfferActions", () => {
 
   it.each(["0", "3", "12", "", "abc"])(
     "rejects invalid quantity %j",
-    (value) => {
+    async (value) => {
       const { posts } = setup();
       const input = screen.getByLabelText("Количество");
       fireEvent.change(input, { target: { value } });
       fireEvent.click(screen.getByRole("button", { name: "В корзину" }));
       expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByText("кратно 2, не больше 10")).toBeInTheDocument();
+      await new Promise((r) => setTimeout(r, 0));
       expect(posts).toHaveLength(0);
     },
   );

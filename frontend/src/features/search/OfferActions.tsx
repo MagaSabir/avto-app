@@ -40,9 +40,21 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
     )
     .reduce((sum, i) => sum + i.qty, 0);
 
+  const status = !valid ? (
+    <span className="text-destructive">
+      {`кратно ${String(offer.multiplicity)}, не больше ${String(offer.qty)}`}
+    </span>
+  ) : add.isError ? (
+    <span className="text-destructive">{add.error.message}</span>
+  ) : flash !== null ? (
+    <span className="text-status-ok">{flash}</span>
+  ) : inCart > 0 ? (
+    `в корзине ${String(inCart)} шт`
+  ) : null;
+
   function submit(e: SyntheticEvent) {
     e.preventDefault();
-    if (!valid || offer.stock_id === "") return;
+    if (!valid || offer.stock_id === "" || add.isPending) return;
     add.mutate(
       {
         supplier,
@@ -85,6 +97,7 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
+          add.reset();
         }}
         className="h-8 w-16 px-2 text-right tabular-nums aria-invalid:border-destructive"
       />
@@ -108,18 +121,14 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
       >
         <PackagePlus aria-hidden="true" className="size-4" />
       </Button>
-      <div
-        role="status"
-        className="basis-full text-[12px] text-muted-foreground md:text-right"
-      >
-        {add.isError ? (
-          <span className="text-destructive">{add.error.message}</span>
-        ) : flash !== null ? (
-          <span className="text-status-ok">{flash}</span>
-        ) : inCart > 0 ? (
-          `в корзине ${String(inCart)} шт`
-        ) : null}
-      </div>
+      {status !== null && (
+        <div
+          role="status"
+          className="basis-full text-[12px] text-muted-foreground md:text-right"
+        >
+          {status}
+        </div>
+      )}
     </form>
   );
 }
