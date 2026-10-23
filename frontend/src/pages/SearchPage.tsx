@@ -2,13 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import type {
-  Offer,
-  PartGroup,
-  StockSearchItem,
-  SupplierSearchResult,
-} from "@/api/search";
+import type { Offer, PartGroup, SupplierSearchResult } from "@/api/search";
 import {
+  useAnalogStock,
   useStockSearch,
   useSupplierSearches,
   useSuppliers,
@@ -88,15 +84,19 @@ export function SearchPage() {
   const partKey = chosen?.key ?? null;
   const results = partKey === null ? answered : selectPart(answered, partKey);
 
-  // The same stock item may match analogs of several suppliers.
-  // Analog matches belong to a part, so none are shown before one is chosen.
-  const matches = [
-    ...new Map(
-      (picking ? [] : results)
-        .flatMap((r) => r.stock_matches)
-        .map((it): [number, StockSearchItem] => [it.id, it]),
-    ).values(),
-  ];
+  // Analog stock is its own local query, so it can be refreshed after a
+  // receipt without asking suppliers again. Analogs belong to a part, so none
+  // are looked up before one is chosen.
+  const analogNumbers = picking
+    ? []
+    : [
+        ...new Set(
+          results.flatMap((r) =>
+            r.groups.filter((g) => !g.is_requested).map((g) => g.number_norm),
+          ),
+        ),
+      ].filter((n) => n !== stock.data?.number_norm);
+  const matches = useAnalogStock(analogNumbers).data ?? [];
   const rows = stock.data
     ? visibleStock(stock.data.items, matches, filters)
     : undefined;

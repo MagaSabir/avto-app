@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { mockApi } from "../test/mockApi";
-import { useSupplierSearches } from "./search";
+import { useAnalogStock, useSupplierSearches } from "./search";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -82,5 +82,33 @@ describe("useSupplierSearches", () => {
     focusManager.setFocused(true);
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toBe(1);
+  });
+});
+
+describe("useAnalogStock", () => {
+  it("sends sorted unique numbers as repeated params", async () => {
+    let seen: string[] = [];
+    mockApi({
+      "GET /api/search/stock": (_init, url) => {
+        seen = url.searchParams.getAll("numbers");
+        return [];
+      },
+    });
+    const { result } = renderHook(
+      () => useAnalogStock(["W683", "C170", "W683"]),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(seen).toEqual(["C170", "W683"]);
+  });
+
+  it("does not request without numbers", () => {
+    mockApi({});
+    const { result } = renderHook(() => useAnalogStock([]), {
+      wrapper: wrapper(),
+    });
+    expect(result.current.fetchStatus).toBe("idle");
   });
 });
