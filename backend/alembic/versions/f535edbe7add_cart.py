@@ -66,7 +66,7 @@ def upgrade() -> None:
             "number_norm",
             "brand",
             "stock_id",
-            name=op.f("uq_cart_items_user_id"),
+            name=op.f("uq_cart_items_offer"),
         ),
     )
     op.create_index(op.f("ix_cart_items_user_id"), "cart_items", ["user_id"], unique=False)

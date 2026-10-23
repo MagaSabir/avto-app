@@ -19,7 +19,9 @@ from app.models.base import Base
 class CartItem(Base):
     __tablename__ = "cart_items"
     __table_args__ = (
-        UniqueConstraint("user_id", "supplier", "number_norm", "brand", "stock_id"),
+        UniqueConstraint(
+            "user_id", "supplier", "number_norm", "brand", "stock_id", name="uq_cart_items_offer"
+        ),
         CheckConstraint("qty > 0", name="qty_positive"),
         CheckConstraint("multiplicity > 0", name="multiplicity_positive"),
         CheckConstraint("available >= 0", name="available_non_negative"),
