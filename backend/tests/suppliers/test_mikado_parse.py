@@ -152,3 +152,20 @@ def test_bad_price_row_skipped_and_not_defined_ignored() -> None:
 def test_not_xml_raises() -> None:
     with pytest.raises(SupplierError):
         parse_search(b"<html>", "A1")
+
+
+def test_analogs_link_to_requested_brand() -> None:
+    groups = by_key(parse_search(load("search_orders"), "W683").groups)
+    for key in ("TOYOTA|90915YZZM3", "CHERY|3721012010", "DODA|1110020070"):
+        assert groups[key].analog_of == ["MANN|W683"]
+    assert groups["MAN|W683"].analog_of == []
+
+
+def test_info_bad_optional_numbers_keep_variant() -> None:
+    xml = (
+        b'<Code_Info_Block xmlns="http://mikado-parts.ru/service"><Code>c</Code><Prices>'
+        b"<Code_PriceInfo><PriceRUR>10</PriceRUR><OnStocks/><Srock>2</Srock>"
+        b"<SrockMax>n/a</SrockMax><Rating>x</Rating></Code_PriceInfo></Prices></Code_Info_Block>"
+    )
+    (offer,) = parse_info(xml, "c").offers
+    assert (offer.delivery_days, offer.delivery_days_max, offer.rating) == (2, None, None)

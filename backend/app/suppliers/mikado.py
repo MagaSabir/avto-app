@@ -2,10 +2,11 @@ import re
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
 
-from app.domain.brands import part_key
+from app.domain.brands import canonical_brand, part_key
 from app.domain.numbers import normalize_number
 from app.suppliers.base import (
     Offer,
+    OfferKind,
     PartGroup,
     SupplierError,
     SupplierResult,
@@ -53,6 +54,13 @@ def _opt_int(el: ElementTree.Element, tag: str) -> int | None:
     return int(value) if value else None
 
 
+def _lenient_int(el: ElementTree.Element, tag: str) -> int | None:
+    try:
+        return _opt_int(el, tag)
+    except ValueError:
+        return None
+
+
 def _search_offers(row: ElementTree.Element) -> list[Offer]:
     code = _text(row, "ZakazCode").lower()
     kind_code = _text(row, "CodeType")
@@ -82,6 +90,7 @@ def _search_offers(row: ElementTree.Element) -> list[Offer]:
         return offers
     srock = _text(row, "Srock")
     days = _DAYS.search(srock)
+    kind: OfferKind
     if days:
         kind, warehouse, delivery = (
             "order",
@@ -101,7 +110,7 @@ def _search_offers(row: ElementTree.Element) -> list[Offer]:
             delivery_days=delivery,
             delivery_from=None,
             delivery_to=None,
-            kind="order" if kind == "order" else "variants",
+            kind=kind,
             kind_code=kind_code,
             purchase_price=price,
             order_code=code,
@@ -116,6 +125,9 @@ def parse_search(xml: bytes, number: str) -> SupplierResult:
             raise SupplierError(BAD_RESPONSE)
         groups: dict[str, PartGroup] = {}
         seen: dict[str, set[str]] = {}
+        # per analog group: (brand of the requested part it belongs to, last requested key so far)
+        owner: dict[str, tuple[str, str | None]] = {}
+        last_requested: str | None = None
         for row in root.findall(f"{_Q}List/{_Q}Code_List_Row"):
             kind_code = _text(row, "CodeType")
             if kind_code == "NotDefined":
@@ -144,15 +156,22 @@ def parse_search(xml: bytes, number: str) -> SupplierResult:
                 seen[key] = set()
             if kind_code in _REQUESTED_TYPES:
                 group.is_requested = True
+                last_requested = key
+            elif key not in owner:
+                owner[key] = (canonical_brand(_text(row, "Brand")), last_requested)
             for offer in offers:
                 if offer.stock_id in seen[key]:
                     continue
                 seen[key].add(offer.stock_id)
                 group.offers.append(offer)
         requested = [key for key, group in groups.items() if group.is_requested]
-        for group in groups.values():
-            if not group.is_requested:
-                group.analog_of = list(requested)
+        for key, group in groups.items():
+            if group.is_requested:
+                continue
+            # an analog row's Brand is the brand of the requested part it belongs to
+            brand, fallback = owner[key]
+            matched = [k for k in requested if canonical_brand(groups[k].brand) == brand]
+            group.analog_of = matched or ([fallback] if fallback else list(requested))
         return SupplierResult(groups=list(groups.values()), message=None)
     except ElementTree.ParseError as exc:
         raise SupplierError(BAD_RESPONSE) from exc
@@ -227,8 +246,8 @@ def parse_info(xml: bytes, order_code: str) -> SupplierVariants:
                         kind="normal" if stock is not None else "order",
                         kind_code=kind_code,
                         purchase_price=price,
-                        delivery_days_max=_opt_int(info, "SrockMax"),
-                        rating=_opt_int(info, "Rating"),
+                        delivery_days_max=_lenient_int(info, "SrockMax"),
+                        rating=_lenient_int(info, "Rating"),
                         order_code=code,
                     )
                 )
