@@ -10,6 +10,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+const newItem: CartItemIn = {
+  supplier: "rossko",
+  stock_id: "s1",
+  brand: "KYB",
+  number: "333114",
+  name: "Стойка амортизационная",
+  warehouse: "Новосибирск",
+  multiplicity: 1,
+  available: 20,
+  delivery_days: null,
+  delivery_from: null,
+  delivery_to: null,
+  kind: "normal",
+  kind_code: "0",
+  price: "2940.00",
+  qty: 2,
+};
+
 describe("cart hooks", () => {
   it("useAddToCart posts JSON and refetches the cart", async () => {
     let cartCalls = 0;
@@ -42,14 +60,7 @@ describe("cart hooks", () => {
     });
 
     await act(async () => {
-      await result.current.add.mutateAsync({
-        supplier: "rossko",
-        stock_id: "s1",
-        brand: "B",
-        number: "A1",
-        name: "N",
-        qty: 2,
-      } as unknown as CartItemIn);
+      await result.current.add.mutateAsync(newItem);
     });
 
     expect(posted?.method).toBe("POST");
