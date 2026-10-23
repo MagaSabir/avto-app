@@ -1,6 +1,13 @@
+import logging
 import re
+import time
+from collections.abc import Callable
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from xml.etree import ElementTree
+
+import httpx
 
 from app.domain.brands import canonical_brand, part_key
 from app.domain.numbers import normalize_number
@@ -12,6 +19,7 @@ from app.suppliers.base import (
     SupplierResult,
     SupplierVariants,
 )
+from app.suppliers.ratelimit import RateLimiter
 
 NS = "http://mikado-parts.ru/service"
 BAD_RESPONSE = "Микадо вернул непонятный ответ"
@@ -19,7 +27,15 @@ AUTH_ERROR = "Микадо: ошибка авторизации"
 ORDER_WAREHOUSE = "Под заказ"
 VARIANTS_WAREHOUSE = "Варианты поставки"
 
+URL = "https://mikado-parts.ru/ws1/service.asmx/{method}"
+TIMEOUT = 15.0
+# Mikado allows 2000 Code_Search + Code_Info calls a day; keep a margin
+DAILY_LIMIT = 1500
+MOSCOW = timezone(timedelta(hours=3))
+FIXTURES = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
+
 _Q = f"{{{NS}}}"
+_log = logging.getLogger("app.suppliers")
 _BRAND_SUFFIX = re.compile(r"\s*\[[^\]]*\]$")
 _DAYS = re.compile(r"(\d+)\s*дн")
 _REQUESTED_TYPES = ("Aftermarket", "OEM")
@@ -256,3 +272,114 @@ def parse_info(xml: bytes, order_code: str) -> SupplierVariants:
         return SupplierVariants(offers=offers, message=_text(root, "Message") or None)
     except ElementTree.ParseError as exc:
         raise SupplierError(BAD_RESPONSE) from exc
+
+
+class DailyLimit:
+    """In-memory counter of limited Mikado calls per Moscow calendar day."""
+
+    def __init__(
+        self,
+        limit: int = DAILY_LIMIT,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self._limit = limit
+        self._clock = clock
+        self._day: date | None = None
+        self._count = 0
+
+    def try_acquire(self) -> bool:
+        today = self._clock().astimezone(MOSCOW).date()
+        if today != self._day:
+            self._day, self._count = today, 0
+        if self._count >= self._limit:
+            return False
+        self._count += 1
+        return True
+
+
+def _fixture(name: str) -> bytes:
+    return (FIXTURES / f"mikado_{name}.xml").read_bytes()
+
+
+class MikadoSupplier:
+    code = "mikado"
+    title = "Микадо"
+
+    def __init__(
+        self,
+        client_id: str,
+        password: str,
+        *,
+        limiter: RateLimiter | None = None,
+        daily: DailyLimit | None = None,
+        fake: bool = False,
+    ) -> None:
+        self._client_id = client_id
+        self._password = password
+        self._limiter = limiter or RateLimiter(60, 60)
+        self._daily = daily or DailyLimit()
+        self._fake = fake
+
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
+        if self._fake:
+            return parse_search(
+                _fixture("search_orders" if with_orders else "search_stock"), number
+            )
+        data = {
+            "Search_Code": number,
+            "FromStockOnly": "FromStockAndByOrder" if with_orders else "FromStockOnly",
+        }
+        return parse_search(await self._call("Code_Search", number, data, limited=True), number)
+
+    async def variants(self, order_code: str) -> SupplierVariants:
+        if self._fake:
+            return parse_info(_fixture("info_oem"), order_code)
+        body = await self._call("Code_Info", order_code, {"ZakazCode": order_code}, limited=True)
+        return parse_info(body, order_code)
+
+    async def _stock_info(self, number: str, brand: str) -> list[Offer]:
+        """CodeBrandStockInfo: Mikado warehouses only, not counted in the daily limit."""
+        if self._fake:
+            return parse_stock_info(_fixture("cbsi"))
+        body = await self._call(
+            "CodeBrandStockInfo", number, {"Code": number, "Brand": brand}, limited=False
+        )
+        return parse_stock_info(body)
+
+    async def _call(self, method: str, number: str, data: dict[str, str], limited: bool) -> bytes:
+        started = time.monotonic()
+        try:
+            body = await self._post(method, data, limited)
+        except SupplierError as exc:
+            self._log(method, number, exc.message, started)
+            raise
+        self._log(method, number, "ok", started)
+        return body
+
+    def _log(self, method: str, number: str, outcome: str, started: float) -> None:
+        _log.info(
+            "supplier=%s method=%s number=%r outcome=%s duration_ms=%d",
+            self.code,
+            method,
+            number,
+            outcome,
+            (time.monotonic() - started) * 1000,
+        )
+
+    async def _post(self, method: str, data: dict[str, str], limited: bool) -> bytes:
+        if not self._client_id or not self._password:
+            raise SupplierError("Микадо не настроен")
+        if not self._limiter.try_acquire():
+            raise SupplierError("Лимит запросов к Микадо, повторите через минуту")
+        if limited and not self._daily.try_acquire():
+            raise SupplierError("Лимит запросов к Микадо на сегодня исчерпан")
+        form = {**data, "ClientID": self._client_id, "Password": self._password}
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+                response = await client.post(URL.format(method=method), data=form)
+            response.raise_for_status()
+        except httpx.TimeoutException:
+            raise SupplierError(f"Микадо не ответил за {TIMEOUT:g} с") from None
+        except httpx.HTTPError:
+            raise SupplierError("Микадо недоступен, повторите позже") from None
+        return response.content

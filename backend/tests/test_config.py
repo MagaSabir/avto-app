@@ -60,3 +60,15 @@ def test_rossko_keys_not_in_repr() -> None:
 def test_suppliers_rejects_unknown_code() -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, database_url="x", suppliers="nope")  # type: ignore[call-arg]
+
+
+def test_mikado_defaults_and_secret_not_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("MIKADO_CLIENT_ID", "MIKADO_PASSWORD", "MIKADO_FAKE"):
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(_env_file=None, database_url="x")  # type: ignore[call-arg]
+    assert (settings.mikado_client_id, settings.mikado_password) == ("", "")
+    assert settings.mikado_fake is False
+    secret = Settings(  # type: ignore[call-arg]
+        _env_file=None, database_url="x", mikado_client_id="CID", mikado_password="PWSECRET"
+    )
+    assert "PWSECRET" not in repr(secret)
