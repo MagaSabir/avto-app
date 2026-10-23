@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import type { Offer, PartGroup, SupplierSearchResult } from "@/api/search";
+import type { Offer, SupplierSearchResult } from "@/api/search";
 import {
   useAnalogStock,
   useStockSearch,
@@ -21,7 +21,10 @@ import { PartPicker } from "@/features/search/PartPicker";
 import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
 import { SuppliersBlock } from "@/features/search/SuppliersBlock";
-import { ToStockDialog } from "@/features/search/ToStockDialog";
+import {
+  ToStockDialog,
+  type ReceiptPart,
+} from "@/features/search/ToStockDialog";
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -40,7 +43,7 @@ export function SearchPage() {
   });
 
   const [toStock, setToStock] = useState<{
-    group: PartGroup;
+    group: ReceiptPart;
     offer: Offer;
     supplierTitle: string;
   } | null>(null);

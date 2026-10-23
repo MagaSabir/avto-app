@@ -15,18 +15,36 @@ type Props = {
   onToStock: (group: PartGroup, offer: Offer) => void;
 };
 
-export function OfferActions({ supplier, group, offer, onToStock }: Props) {
+// Order offers have no stock of their own: any quantity up to this.
+const ORDER_MAX = 999;
+
+export function OfferActions(props: Props) {
+  // A «variants» row has no price or term of its own: its delivery options
+  // open from here (and each of them goes to the cart).
+  if (props.offer.kind === "variants")
+    return (
+      <div className="flex md:justify-end">
+        <Button type="button" disabled className="h-8 px-2">
+          варианты поставки ▾
+        </Button>
+      </div>
+    );
+  return <CartActions {...props} />;
+}
+
+function CartActions({ supplier, group, offer, onToStock }: Props) {
   const [value, setValue] = useState(String(offer.multiplicity));
   const [flash, showFlash] = useFlash(2500);
   const cart = useCart();
   const add = useAddToCart();
 
   const qty = Number(value);
+  const max = offer.kind === "order" ? ORDER_MAX : offer.qty;
   const valid =
     /^\d+$/.test(value) &&
     qty > 0 &&
     qty % offer.multiplicity === 0 &&
-    qty <= offer.qty;
+    qty <= max;
 
   const inCart = (cart.data?.items ?? [])
     .filter(
@@ -40,7 +58,7 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
 
   const status = !valid ? (
     <span className="text-destructive">
-      {`кратно ${String(offer.multiplicity)}, не больше ${String(offer.qty)}`}
+      {`кратно ${String(offer.multiplicity)}, не больше ${String(max)}`}
     </span>
   ) : add.isError ? (
     <span className="text-destructive">{add.error.message}</span>
@@ -70,6 +88,7 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
         kind_code: offer.kind_code,
         price: offer.purchase_price,
         qty,
+        order_code: offer.order_code ?? null,
       },
       {
         onSuccess: () => {
@@ -91,7 +110,7 @@ export function OfferActions({ supplier, group, offer, onToStock }: Props) {
         aria-invalid={!valid}
         min={offer.multiplicity}
         step={offer.multiplicity}
-        max={offer.qty}
+        max={max}
         value={value}
         onChange={(e) => {
           setValue(e.target.value);

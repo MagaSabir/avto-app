@@ -7,7 +7,10 @@ const dayStart = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 export function formatDelivery(
-  offer: Pick<Offer, "delivery_from" | "delivery_to" | "delivery_days">,
+  offer: Pick<
+    Offer,
+    "delivery_from" | "delivery_to" | "delivery_days" | "delivery_days_max"
+  >,
   now: Date,
 ): string {
   if (offer.delivery_from !== null) {
@@ -23,8 +26,19 @@ export function formatDelivery(
       offer.delivery_to !== null ? `–${hhmm(new Date(offer.delivery_to))}` : "";
     return `${day} ${hhmm(from)}${end}`;
   }
-  if (offer.delivery_days !== null) return `${String(offer.delivery_days)} дн.`;
+  const days = offer.delivery_days;
+  if (days !== null) {
+    const max = offer.delivery_days_max ?? days;
+    if (max > days) return `${String(days)}–${String(max)} дн.`;
+    return days === 0 ? "сегодня" : `${String(days)} дн.`;
+  }
   return "не указан";
+}
+
+// «10+ шт» when the supplier only says "at least"; order offers have no stock.
+export function qtyLabel(offer: Pick<Offer, "qty" | "qty_plus" | "kind">) {
+  if (offer.kind === "order") return "под заказ";
+  return `${String(offer.qty)}${offer.qty_plus ? "+" : ""} шт`;
 }
 
 export function kindLabel(offer: Pick<Offer, "kind" | "kind_code">): string {

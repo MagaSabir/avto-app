@@ -181,6 +181,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "SLOWCHEAP",
               number_norm: "S1",
+              key: "SLOWCHEAP|S1",
               is_requested: false,
               analog_of: ["KYB|333114"],
               offers: [
@@ -194,6 +195,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "FASTDEAR",
               number_norm: "F1",
+              key: "FASTDEAR|F1",
               is_requested: false,
               analog_of: ["KYB|333114"],
               offers: [
@@ -238,6 +240,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "ANALOGBRAND",
               number_norm: "290074",
+              key: "ANALOGBRAND|290074",
               is_requested: false,
               analog_of: ["KYB|333114"],
             }),
@@ -600,12 +603,12 @@ describe("SearchPage", () => {
     const toggle = await screen.findByRole("button", {
       name: "Другие склады: 1",
     });
-    const row = toggle.closest("li") as HTMLElement;
-    expect(row).toHaveTextContent("500 ₽");
-    expect(row).not.toHaveTextContent("900 ₽");
+    // The best offer's price; the section header («от …») does not match.
+    const section = toggle.closest('[role="group"]') as HTMLElement;
+    const shown = () => within(section).getByText(/^\d+ ₽$/).textContent;
+    expect(shown()).toBe("500 ₽");
     fireEvent.click(screen.getByRole("button", { name: "Срок" }));
-    expect(row).toHaveTextContent("900 ₽");
-    expect(row).not.toHaveTextContent("500 ₽");
+    expect(shown()).toBe("900 ₽");
   });
 
   function renderApp(route: string) {

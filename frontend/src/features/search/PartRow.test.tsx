@@ -2,8 +2,10 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderWithProviders } from "@/test/mockApi";
-import { offer, partGroup } from "@/test/searchFixtures";
+import type { PartGroup } from "@/api/search";
+import { offer, partGroup, supplierResult } from "@/test/searchFixtures";
 
+import { mergeGroups } from "./derive";
 import { PartRow } from "./PartRow";
 
 const now = new Date(2026, 9, 21, 10, 0);
@@ -31,17 +33,22 @@ const group = partGroup({
   ],
 });
 
-function renderRow(props: Partial<Parameters<typeof PartRow>[0]> = {}) {
+const merged = (g: PartGroup) =>
+  mergeGroups([supplierResult({ groups: [g] })])[0];
+
+function renderRow(
+  props: Partial<Parameters<typeof PartRow>[0]> & { part?: PartGroup } = {},
+) {
+  const { part = group, ...rest } = props;
   mockApi({ "GET /api/cart": () => ({ items: [], total: "0.00" }) });
   return renderWithProviders(
     <ul>
       <PartRow
-        supplier="rossko"
-        group={group}
+        group={merged(part)}
         stockQty={undefined}
         now={now}
         onToStock={vi.fn()}
-        {...props}
+        {...rest}
       />
     </ul>,
   );
@@ -91,7 +98,7 @@ describe("PartRow", () => {
 
   it("marks analogs and my stock", () => {
     renderRow({
-      group: partGroup({ is_requested: false }),
+      part: partGroup({ is_requested: false }),
       stockQty: 3,
     });
     expect(screen.getByText("аналог")).toBeInTheDocument();
@@ -103,7 +110,7 @@ describe("PartRow", () => {
 
   it("notes multiplicity and an unusual offer type", () => {
     renderRow({
-      group: partGroup({
+      part: partGroup({
         offers: [offer({ multiplicity: 4, kind: "sale", kind_code: "1" })],
       }),
     });
@@ -122,10 +129,49 @@ describe("PartRow", () => {
     );
   });
 
+  it("heads the offers with the supplier, count and lowest price", () => {
+    renderRow();
+    expect(
+      screen.getByText("Росско · 3 склада · от 2 449,85 ₽"),
+    ).toBeInTheDocument();
+  });
+
   it("says when a part is not in stock", () => {
-    renderRow({ group: partGroup({ offers: [] }) });
+    renderRow({ part: partGroup({ offers: [] }) });
     expect(screen.getByText("KYB")).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
-    expect(screen.getByText("нет в наличии")).toBeInTheDocument();
+    expect(screen.getByText("Росско · нет в наличии")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "В корзину" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an order offer and a delivery variants offer", () => {
+    renderRow({
+      part: partGroup({
+        offers: [
+          offer({
+            warehouse: "Склад №1004",
+            kind: "order",
+            qty: 0,
+            delivery_days: 3,
+            purchase_price: "557.28",
+          }),
+          offer({
+            warehouse: "",
+            kind: "variants",
+            qty: 0,
+            purchase_price: "504.00",
+          }),
+        ],
+      }),
+    });
+    expect(screen.getByText("Склад №1004")).toBeInTheDocument();
+    expect(screen.getByText("под заказ")).toBeInTheDocument();
+    expect(screen.getByText("3 дн.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Другие склады: 1" }));
+    expect(screen.getByText("от 504 ₽")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "варианты поставки ▾" }),
+    ).toBeDisabled();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Offer } from "../../api/search";
-import { formatDelivery, kindLabel, warehouseLabel } from "./format";
+import { formatDelivery, kindLabel, qtyLabel, warehouseLabel } from "./format";
 
 function offer(over: Partial<Offer> = {}): Offer {
   return {
@@ -58,6 +58,19 @@ describe("formatDelivery", () => {
     expect(formatDelivery(offer({ delivery_days: 6 }), now)).toBe("6 дн.");
   });
 
+  it("says today for zero days", () => {
+    expect(formatDelivery(offer({ delivery_days: 0 }), now)).toBe("сегодня");
+  });
+
+  it("shows a range of days", () => {
+    expect(
+      formatDelivery(offer({ delivery_days: 3, delivery_days_max: 4 }), now),
+    ).toBe("3–4 дн.");
+    expect(
+      formatDelivery(offer({ delivery_days: 3, delivery_days_max: 3 }), now),
+    ).toBe("3 дн.");
+  });
+
   it("falls back to not specified", () => {
     expect(formatDelivery(offer(), now)).toBe("не указан");
   });
@@ -72,6 +85,14 @@ describe("kindLabel", () => {
     expect(kindLabel(offer({ kind: "order" }))).toBe("под заказ");
     expect(kindLabel(offer({ kind: "variants" }))).toBe("варианты поставки");
     expect(kindLabel(offer({ kind: "other", kind_code: "7" }))).toBe("тип 7");
+  });
+});
+
+describe("qtyLabel", () => {
+  it("shows pieces, at least N and on order", () => {
+    expect(qtyLabel(offer({ qty: 7 }))).toBe("7 шт");
+    expect(qtyLabel(offer({ qty: 10, qty_plus: true }))).toBe("10+ шт");
+    expect(qtyLabel(offer({ qty: 0, kind: "order" }))).toBe("под заказ");
   });
 });
 

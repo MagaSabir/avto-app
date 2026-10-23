@@ -10,7 +10,7 @@ export type Pick = { group: PartGroup; offer: Offer; supplier: string };
 
 // A «variants» row opens a list of delivery options: it has no per-item
 // price or term of its own, so summaries and minimums skip it.
-const isPriced = (o: Offer) => o.kind !== "variants";
+export const isPriced = (o: Offer) => o.kind !== "variants";
 
 const DAY_MS = 86_400_000;
 
@@ -59,29 +59,44 @@ const ownFirst = (a: Offer, b: Offer) =>
   Number(a.warehouse === PARTNER_WAREHOUSE) -
   Number(b.warehouse === PARTNER_WAREHOUSE);
 
+// Each supplier's offers sorted on their own; analogs ranked by the best
+// offer of any supplier.
 export function arrangeGroups(
-  groups: PartGroup[],
+  groups: MergedGroup[],
   opts: { showAnalogs: boolean; sort: SortMode; now: Date },
-): PartGroup[] {
+): MergedGroup[] {
   // Rows prefer Rossko's own warehouses (as on their site); the summary
   // cards still pick across all offers.
   const sortCmp = offerCmp(opts.sort, opts.now);
   const cmp = (a: Offer, b: Offer) => ownFirst(a, b) || sortCmp(a, b);
   const sorted = groups.map((g) => ({
     ...g,
-    offers: [...g.offers].sort(cmp),
+    suppliers: g.suppliers.map((s) => ({
+      ...s,
+      offers: [...s.offers].sort(cmp),
+    })),
   }));
+  const top = (g: MergedGroup): Offer | undefined => {
+    let best: Offer | undefined;
+    for (const s of g.suppliers) {
+      const o = s.offers.at(0);
+      if (o !== undefined && (best === undefined || cmp(o, best) < 0)) best = o;
+    }
+    return best;
+  };
   const requested = sorted.filter((g) => g.is_requested);
   if (!opts.showAnalogs) return requested;
   const analogs = sorted
     .filter((g) => !g.is_requested)
+    .map((g) => ({ g, best: top(g) }))
     .sort((a, b) => {
-      const x = a.offers.at(0);
-      const y = b.offers.at(0);
+      const x = a.best;
+      const y = b.best;
       if (x === undefined || y === undefined)
         return (x === undefined ? 1 : 0) - (y === undefined ? 1 : 0);
       return cmp(x, y);
-    });
+    })
+    .map(({ g }) => g);
   return [...requested, ...analogs];
 }
 
@@ -235,7 +250,14 @@ export function requestedParts(
   }));
 }
 
-export type SupplierOffers = { code: string; title: string; offers: Offer[] };
+// `group` is the supplier's own spelling of the part (its cart check and
+// receipts use it); `offers` may be re-sorted for display.
+export type SupplierOffers = {
+  code: string;
+  title: string;
+  group: PartGroup;
+  offers: Offer[];
+};
 export type MergedGroup = {
   key: string;
   brand: string;
@@ -269,7 +291,12 @@ export function mergeGroups(results: SupplierSearchResult[]): MergedGroup[] {
       m.is_requested ||= g.is_requested;
       for (const k of g.analog_of)
         if (!m.analog_of.includes(k)) m.analog_of.push(k);
-      m.suppliers.push({ code: r.code, title: r.title, offers: g.offers });
+      m.suppliers.push({
+        code: r.code,
+        title: r.title,
+        group: g,
+        offers: g.offers,
+      });
       merged.set(g.key, m);
     }
   return [...merged.values()];
