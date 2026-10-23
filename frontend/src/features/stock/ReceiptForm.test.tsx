@@ -97,7 +97,7 @@ describe("ReceiptForm", () => {
     expect(input("Продажа").value).toBe("530.00");
   });
 
-  it("prefills from props and focuses qty", async () => {
+  it("prefills from props", async () => {
     mockApi(handlers([]));
     renderWithProviders(
       <ReceiptForm
@@ -116,7 +116,6 @@ describe("ReceiptForm", () => {
     expect(input("Название").value).toBe("Фильтр масляный");
     expect(input("Закупка").value).toBe("412");
     expect(input("Поставщик").value).toBe("Росско");
-    expect(document.activeElement).toBe(input("Кол-во"));
     await waitFor(() => {
       expect(input("Наценка, %").value).toBe("25");
     });

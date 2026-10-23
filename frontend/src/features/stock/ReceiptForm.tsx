@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type Ref,
+  type SyntheticEvent,
+} from "react";
 
 import {
   useReceipt,
@@ -42,12 +49,14 @@ export function ReceiptForm({
   onAccepted,
   prefill,
   layout = "row",
+  qtyRef,
 }: {
   onAccepted: (item: StockItem) => void;
   // Starting values (an offer taken from search): the purchase price stays
   // the offer's even when the stock item has another one.
   prefill?: ReceiptPrefill;
   layout?: "row" | "column";
+  qtyRef?: Ref<HTMLInputElement>;
 }) {
   const brandsId = useId();
   const suppliersId = useId();
@@ -274,7 +283,7 @@ export function ReceiptForm({
         </Field>
         <Field label="Кол-во">
           <Input
-            autoFocus={prefill !== undefined}
+            ref={qtyRef}
             inputMode="numeric"
             value={qty}
             onChange={(e) => {

@@ -81,6 +81,7 @@ describe("ToStockDialog", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Поставщик").value).toBe(
       "Росско",
     );
+    expect(document.activeElement).toBe(screen.getByLabelText("Кол-во"));
     await waitFor(() => {
       expect(searches).toBe(1);
     });

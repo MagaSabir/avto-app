@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { Offer, PartGroup } from "@/api/search";
 import { Modal } from "@/components/ui/modal";
@@ -15,6 +15,12 @@ export function ToStockDialog({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const qtyRef = useRef<HTMLInputElement>(null);
+  // After Modal's own effect: showModal() would otherwise move focus to the
+  // close button.
+  useEffect(() => {
+    if (target) qtyRef.current?.focus();
+  }, [target]);
   const prefill = useMemo(
     () =>
       target && {
@@ -39,6 +45,7 @@ export function ToStockDialog({
           <ReceiptForm
             key={`${target.group.key}|${target.offer.stock_id}`}
             layout="column"
+            qtyRef={qtyRef}
             prefill={prefill}
             onAccepted={() => {
               // The supplier query is left alone: no new Rossko request.
