@@ -9,8 +9,8 @@ from app.suppliers.base import OfferKind
 class CartItemIn(BaseModel):
     supplier: str
     stock_id: str = Field(min_length=1)
-    brand: str
-    number: str
+    brand: str = Field(min_length=1)
+    number: str = Field(min_length=1)
     name: str
     warehouse: str
     multiplicity: int = Field(gt=0)

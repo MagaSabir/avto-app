@@ -166,3 +166,9 @@ async def test_other_users_items_are_invisible(env: Env) -> None:
 
 async def test_cart_requires_login(anon_client: httpx.AsyncClient) -> None:
     assert (await anon_client.get("/api/cart")).status_code == 401
+
+
+async def test_add_rejects_empty_brand_or_number(env: Env) -> None:
+    for field_name in ("brand", "number"):
+        r = await env.client.post("/api/cart/items", json=_body(**{field_name: ""}))
+        assert r.status_code == 422, field_name
