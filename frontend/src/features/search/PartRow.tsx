@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { Offer, PartGroup } from "@/api/search";
 import { formatPrice } from "@/features/stock/format";
@@ -30,6 +30,7 @@ function OfferCells({
   offer,
   now,
   first,
+  aside,
   onToStock,
 }: {
   supplier: string;
@@ -37,6 +38,8 @@ function OfferCells({
   offer: Offer;
   now: Date;
   first?: string;
+  // Phone: sits on the right of the actions row; desktop: its own grid cell.
+  aside?: ReactNode;
   onToStock: (group: PartGroup, offer: Offer) => void;
 }) {
   const where = warehouseLabel(offer);
@@ -69,13 +72,16 @@ function OfferCells({
           </div>
         )}
       </div>
-      <div className="col-span-3 md:col-span-1">
-        <OfferActions
-          supplier={supplier}
-          group={group}
-          offer={offer}
-          onToStock={onToStock}
-        />
+      <div className="col-span-3 flex items-start gap-x-2 md:contents">
+        <div className="min-w-0 flex-1 md:col-span-1">
+          <OfferActions
+            supplier={supplier}
+            group={group}
+            offer={offer}
+            onToStock={onToStock}
+          />
+        </div>
+        {aside}
       </div>
     </>
   );
@@ -124,24 +130,26 @@ export function PartRow({ supplier, group, stockQty, now, onToStock }: Props) {
               offer={best}
               now={now}
               onToStock={onToStock}
+              aside={
+                rest.length > 0 && (
+                  <div className="ml-auto flex h-8 shrink-0 items-center md:col-span-2 md:col-start-4 md:ml-0 md:block md:h-auto md:text-right">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-label={`Другие склады: ${String(rest.length)}`}
+                      onClick={() => {
+                        setOpen((v) => !v);
+                      }}
+                      className="cursor-pointer rounded-sm text-[12px] text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      {open
+                        ? "скрыть"
+                        : `показать др. склады (${String(rest.length)})`}
+                    </button>
+                  </div>
+                )
+              }
             />
-            {rest.length > 0 && (
-              <div className="col-span-3 row-start-2 flex h-8 items-center justify-self-end md:col-span-2 md:col-start-4 md:row-auto md:block md:h-auto md:justify-self-auto md:text-right">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-label={`Другие склады: ${String(rest.length)}`}
-                  onClick={() => {
-                    setOpen((v) => !v);
-                  }}
-                  className="cursor-pointer rounded-sm text-[12px] text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  {open
-                    ? "скрыть"
-                    : `показать др. склады (${String(rest.length)})`}
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
