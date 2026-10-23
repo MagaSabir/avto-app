@@ -13,7 +13,8 @@ from app.main import create_app
 from app.models.auth import User
 from app.repositories import users as users_repository
 from app.suppliers import get_suppliers
-from app.suppliers.base import Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.base import CartLine, Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.rossko import check_lines
 from tests.test_cart_api import _body
 
 
@@ -56,7 +57,10 @@ class FakeSupplier:
     calls: list[str] = field(default_factory=list)
     on_search: Callable[[str], Awaitable[None]] | None = None
 
-    async def search(self, number: str) -> SupplierResult:
+    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+        return await check_lines(self.search, lines)
+
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         self.calls.append(number)
         if self.on_search is not None:
             await self.on_search(number)

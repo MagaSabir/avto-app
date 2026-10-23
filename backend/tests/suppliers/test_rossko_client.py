@@ -8,7 +8,7 @@ import httpx
 import pytest
 import respx
 
-from app.suppliers.base import SupplierError
+from app.suppliers.base import CartLine, SupplierError
 from app.suppliers.ratelimit import RateLimiter
 from app.suppliers.rossko import ORDERS_LIMIT, URL, URL_ORDERS, URL_SETTLEMENTS, RosskoSupplier
 
@@ -304,3 +304,21 @@ async def test_orders_rate_limited_shares_search_limit() -> None:
         await supplier.orders()
     assert exc.value.message == "Лимит запросов к Росско, повторите через минуту"
     assert route.called is False
+
+
+@respx.mock
+async def test_check_offers_finds_offer_and_missing_stock_id() -> None:
+    fixture = Path(__file__).parent.parent / "fixtures" / "rossko_search_333114.xml"
+    route = respx.post(URL).respond(200, content=fixture.read_bytes())
+    lines = [
+        CartLine("HST1498810258", "Kyb", "333-114", None),
+        CartLine("HST1490428513", "KYB", "333114", None),
+        CartLine("NOPE", "KYB", "333114", None),
+    ]
+    found = await make().check_offers(lines)
+    assert route.call_count == 1
+    offer = found["HST1498810258"]
+    assert offer is not None
+    assert offer.purchase_price == Decimal("6802")
+    assert found["HST1490428513"] is not None
+    assert found["NOPE"] is None

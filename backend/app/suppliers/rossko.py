@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
@@ -10,6 +12,7 @@ import httpx
 from app.domain.brands import canonical_brand, part_key
 from app.domain.numbers import normalize_number
 from app.suppliers.base import (
+    CartLine,
     Offer,
     Order,
     OrderPart,
@@ -307,6 +310,42 @@ def parse_orders(xml: bytes) -> list[Order]:
         raise SupplierError(BAD_RESPONSE) from exc
 
 
+_CHECK_CONCURRENCY = 3
+
+
+def _find_offer(result: SupplierResult, line: CartLine) -> Offer | None:
+    brand = canonical_brand(line.brand)
+    number_norm = normalize_number(line.number)
+    for group in result.groups:
+        if canonical_brand(group.brand) == brand and group.number_norm == number_norm:
+            for offer in group.offers:
+                if offer.stock_id == line.stock_id:
+                    return offer
+    return None
+
+
+async def check_lines(
+    search: Callable[[str], Awaitable[SupplierResult]], lines: list[CartLine]
+) -> dict[str, Offer | None]:
+    """One search per unique number (at most 3 at once); match offers by stock id."""
+    by_number: dict[str, list[CartLine]] = {}
+    for line in lines:
+        by_number.setdefault(normalize_number(line.number), []).append(line)
+    semaphore = asyncio.Semaphore(_CHECK_CONCURRENCY)
+
+    async def run(group: list[CartLine]) -> SupplierResult:
+        async with semaphore:
+            return await search(group[0].number)
+
+    groups = list(by_number.values())
+    results = await asyncio.gather(*(run(g) for g in groups))
+    return {
+        line.stock_id: _find_offer(r, line)
+        for g, r in zip(groups, results, strict=True)
+        for line in g
+    }
+
+
 class RosskoSupplier:
     code = "rossko"
     title = "Росско"
@@ -325,7 +364,7 @@ class RosskoSupplier:
         self._address_id = address_id
         self._limiter = limiter or RateLimiter(300, 60)
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         started = time.monotonic()
         try:
             result = await self._search(number)
@@ -334,6 +373,9 @@ class RosskoSupplier:
             raise
         self._log(number, "ok", started)
         return result
+
+    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+        return await check_lines(self.search, lines)
 
     async def settlements(
         self,

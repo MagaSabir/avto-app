@@ -48,9 +48,9 @@ async def list_suppliers(suppliers: Suppliers) -> list[SupplierInfo]:
     responses={404: {"model": ErrorOut}, 422: {"model": ErrorOut}},
 )
 async def search_supplier(
-    code: str, q: str, session: Session, suppliers: Suppliers
+    code: str, q: str, session: Session, suppliers: Suppliers, with_orders: bool = False
 ) -> SupplierSearchResult:
     supplier = suppliers.get(code)
     if supplier is None:
         raise SupplierNotFound()
-    return await search_service.search_supplier(session, supplier, q)
+    return await search_service.search_supplier(session, supplier, q, with_orders)

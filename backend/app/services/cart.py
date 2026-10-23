@@ -16,7 +16,14 @@ from app.schemas.cart import (
     CartRefreshOut,
 )
 from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier
-from app.suppliers.base import Offer, OfferKind, Supplier, SupplierError, SupplierResult
+from app.suppliers.base import (
+    CartCheckSupplier,
+    CartLine,
+    Offer,
+    OfferKind,
+    Supplier,
+    SupplierError,
+)
 
 
 def to_out(item: CartItem) -> CartItemOut:
@@ -121,15 +128,6 @@ async def clear(session: AsyncSession, user_id: int) -> None:
 _REFRESH_CONCURRENCY = 3
 
 
-def _find_offer(result: SupplierResult, item: CartItem) -> Offer | None:
-    for group in result.groups:
-        if normalize_brand(group.brand) == item.brand and group.number_norm == item.number_norm:
-            for offer in group.offers:
-                if offer.stock_id == item.stock_id:
-                    return offer
-    return None
-
-
 async def refresh(
     session: AsyncSession, user_id: int, suppliers: dict[str, Supplier]
 ) -> CartRefreshOut:
@@ -137,27 +135,32 @@ async def refresh(
     # plain snapshot: the transaction ends before the slow supplier calls
     ids = [item.id for item in items]
     groups: dict[tuple[str, str], list[int]] = {}
-    raw_numbers: dict[tuple[str, str], str] = {}
+    lines: dict[tuple[str, str], list[CartLine]] = {}
     for item in items:
         key = (item.supplier, item.number_norm)
         groups.setdefault(key, []).append(item.id)
-        raw_numbers.setdefault(key, item.number_raw)
+        # cart rows have no order_code yet
+        lines.setdefault(key, []).append(CartLine(item.stock_id, item.brand, item.number_raw, None))
     await session.commit()
 
     semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)
 
-    async def query(supplier_code: str, number: str) -> SupplierResult | SupplierError:
+    async def query(
+        supplier_code: str, group: list[CartLine]
+    ) -> dict[str, Offer | None] | SupplierError:
         supplier = suppliers.get(supplier_code)
         if supplier is None:
             return SupplierError(UnknownSupplier().message)
+        if not isinstance(supplier, CartCheckSupplier):
+            return SupplierError("Поставщик не поддерживает проверку цен")
         async with semaphore:
             try:
-                return await supplier.search(number)
+                return await supplier.check_offers(group)
             except SupplierError as e:
                 return e
 
     keys = list(groups)
-    responses = await asyncio.gather(*(query(k[0], raw_numbers[k]) for k in keys))
+    responses = await asyncio.gather(*(query(k[0], lines[k]) for k in keys))
 
     # rows may have been removed meanwhile: lock and update only those still present
     current = {
@@ -165,17 +168,14 @@ async def refresh(
     }
     out: dict[int, CartRefreshItem] = {}
     error: str | None = None
-    message: str | None = None
     for key, response in zip(keys, responses, strict=True):
         if isinstance(response, SupplierError):
             error = error or response.message
-        else:
-            message = response.message
         for item_id in groups[key]:
             row = current.get(item_id)
             if row is None:
                 continue
-            offer = None if isinstance(response, SupplierError) else _find_offer(response, row)
+            offer = None if isinstance(response, SupplierError) else response.get(row.stock_id)
             if offer is None:
                 out[row.id] = CartRefreshItem(
                     id=row.id,
@@ -205,6 +205,6 @@ async def refresh(
     await session.commit()
     return CartRefreshOut(
         status="error" if error is not None else "ok",
-        message=error if error is not None else message,
+        message=error,
         items=[out[i] for i in ids if i in out],
     )

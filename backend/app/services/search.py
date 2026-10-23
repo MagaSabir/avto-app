@@ -57,14 +57,14 @@ def list_suppliers(suppliers: dict[str, Supplier]) -> list[SupplierInfo]:
 
 
 async def search_supplier(
-    session: AsyncSession, supplier: Supplier, q: str
+    session: AsyncSession, supplier: Supplier, q: str, with_orders: bool = False
 ) -> SupplierSearchResult:
     number_norm = normalize_number(q)
     if not number_norm:
         raise EmptyNumber()
     markup = (await settings_service.get_settings(session)).default_markup
     try:
-        result = await supplier.search(q)
+        result = await supplier.search(q, with_orders)
     except SupplierError as exc:
         return SupplierSearchResult(
             code=supplier.code,

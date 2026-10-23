@@ -19,7 +19,7 @@ class FakeSupplier:
     code = "rossko"
     title = "Росско"
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         return SupplierResult(groups=[], message=None)
 
 

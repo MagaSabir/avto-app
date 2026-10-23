@@ -22,7 +22,7 @@ class SearchOnlySupplier:
     code = "fake"
     title = "Фейк"
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         return SupplierResult(groups=[], message=None)
 
 
