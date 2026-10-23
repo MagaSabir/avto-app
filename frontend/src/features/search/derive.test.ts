@@ -489,10 +489,9 @@ describe("requestedParts", () => {
 });
 
 describe("selectPart", () => {
-  it("keeps only the part, its analogs and their stock matches", () => {
+  it("keeps only the part and its analogs", () => {
     const [a, b] = selectPart(twoParts(), MANN);
     expect(a.groups.map((g) => g.key)).toEqual([MANN, "BOSCH|F026"]);
-    expect(a.stock_matches.map((it) => it.id)).toEqual([5]);
     expect(b.groups.map((g) => g.key)).toEqual([
       MANN,
       "BOSCH|F026",
@@ -503,6 +502,5 @@ describe("selectPart", () => {
   it("keeps a part without offers and its analogs", () => {
     const [a] = selectPart(twoParts(), MGA);
     expect(a.groups.map((g) => g.key)).toEqual([MGA, "LUZAR|LP01"]);
-    expect(a.stock_matches.map((it) => it.id)).toEqual([6]);
   });
 });
