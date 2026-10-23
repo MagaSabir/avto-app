@@ -52,7 +52,6 @@ export function ReceiptForm({
   const brandsId = useId();
   const suppliersId = useId();
   const numberRef = useRef<HTMLInputElement>(null);
-  const qtyRef = useRef<HTMLInputElement>(null);
   const prefilledId = useRef<number | null>(null);
 
   const [number, setNumber] = useState(prefill?.number ?? "");
@@ -81,12 +80,6 @@ export function ReceiptForm({
   const brands = useStockBrands();
   const suppliers = useStockSuppliers();
   const receipt = useReceipt();
-
-  useEffect(() => {
-    if (prefill) qtyRef.current?.focus();
-    // Only on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -281,7 +274,7 @@ export function ReceiptForm({
         </Field>
         <Field label="Кол-во">
           <Input
-            ref={qtyRef}
+            autoFocus={prefill !== undefined}
             inputMode="numeric"
             value={qty}
             onChange={(e) => {
