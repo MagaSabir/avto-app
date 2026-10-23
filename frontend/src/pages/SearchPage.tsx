@@ -39,6 +39,7 @@ export function SearchPage() {
   const [filters, setFilters] = useState<SearchFilters>({
     inStockOnly: false,
     showAnalogs: true,
+    mikadoOrders: false,
     sort: "price",
   });
 
@@ -51,7 +52,9 @@ export function SearchPage() {
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
   const codes = suppliers.data?.map((s) => s.code) ?? [];
-  const searches = useSupplierSearches(codes, q, {});
+  const searches = useSupplierSearches(codes, q, {
+    mikado: filters.mikadoOrders,
+  });
 
   const onSearch = (next: string) => {
     if (next === q) {
@@ -118,6 +121,7 @@ export function SearchPage() {
         <>
           <FilterBar
             {...filters}
+            hasMikado={codes.includes("mikado")}
             onChange={(patch) => {
               setFilters((f) => ({ ...f, ...patch }));
             }}

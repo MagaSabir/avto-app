@@ -172,6 +172,6 @@ describe("PartRow", () => {
     expect(screen.getByText("от 504 ₽")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "варианты поставки ▾" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 });

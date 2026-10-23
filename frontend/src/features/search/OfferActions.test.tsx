@@ -158,7 +158,7 @@ describe("OfferActions", () => {
     setup(offer({ kind: "variants", qty: 0, order_code: "gto90915yzzm3" }));
     expect(
       screen.getByRole("button", { name: "варианты поставки ▾" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(screen.queryByLabelText("Количество")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "В корзину" }),

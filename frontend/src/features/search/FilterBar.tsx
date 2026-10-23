@@ -7,10 +7,13 @@ import type { SortMode } from "./derive";
 export type SearchFilters = {
   inStockOnly: boolean;
   showAnalogs: boolean;
+  mikadoOrders: boolean;
   sort: SortMode;
 };
 
 type Props = SearchFilters & {
+  // The toggle exists only when Mikado is among the suppliers.
+  hasMikado?: boolean;
   onChange: (patch: Partial<SearchFilters>) => void;
 };
 
@@ -40,7 +43,14 @@ function Pill({
   );
 }
 
-export function FilterBar({ inStockOnly, showAnalogs, sort, onChange }: Props) {
+export function FilterBar({
+  inStockOnly,
+  showAnalogs,
+  mikadoOrders,
+  hasMikado = false,
+  sort,
+  onChange,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Pill
@@ -59,6 +69,19 @@ export function FilterBar({ inStockOnly, showAnalogs, sort, onChange }: Props) {
       >
         Аналоги
       </Pill>
+      {hasMikado && (
+        <label className="flex h-8 cursor-pointer items-center gap-1.5 text-[13px] font-medium">
+          <input
+            type="checkbox"
+            checked={mikadoOrders}
+            onChange={(e) => {
+              onChange({ mikadoOrders: e.target.checked });
+            }}
+            className="size-4 cursor-pointer accent-primary"
+          />
+          Микадо: наличие и заказ
+        </label>
+      )}
       <div
         role="group"
         aria-label="Сортировка"

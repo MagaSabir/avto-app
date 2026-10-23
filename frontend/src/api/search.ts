@@ -14,6 +14,7 @@ export type SupplierInfo = Schemas["SupplierInfo"];
 export type SupplierSearchResult = Schemas["SupplierSearchResult"];
 export type PartGroup = Schemas["PartGroupOut"];
 export type Offer = Schemas["OfferOut"];
+export type SupplierVariants = Schemas["SupplierVariantsOut"];
 
 // Supplier answers live in the tab for 30 minutes so going to the stock
 // screen and back shows the last search without asking Rossko again. Only
@@ -82,5 +83,26 @@ export function useSupplierSearches(
       staleTime: Infinity,
       gcTime: KEEP_MS,
     })),
+  });
+}
+
+// Delivery options of one «variants» row. Asked only when opened (the supplier
+// has a daily request limit), and never re-requested on its own.
+export function useSupplierVariants(
+  code: string,
+  orderCode: string,
+  enabled: boolean,
+): UseQueryResult<SupplierVariants> {
+  return useQuery({
+    queryKey: ["search", "supplier", code, "variants", orderCode],
+    queryFn: () =>
+      apiFetch<SupplierVariants>(
+        `/api/search/suppliers/${encodeURIComponent(code)}/variants?${new URLSearchParams({ order_code: orderCode }).toString()}`,
+      ),
+    enabled,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+    gcTime: KEEP_MS,
   });
 }

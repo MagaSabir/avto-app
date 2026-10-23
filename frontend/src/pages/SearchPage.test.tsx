@@ -704,3 +704,53 @@ describe("SearchPage", () => {
     expect(link().get("part")).toBeNull();
   });
 });
+
+describe("SearchPage Mikado orders toggle", () => {
+  it("refetches only Mikado with with_orders", async () => {
+    const calls: string[] = [];
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [
+        { code: "rossko", title: "Росско" },
+        { code: "mikado", title: "Микадо" },
+      ],
+      "GET /api/search/suppliers/rossko": (_i, url) => {
+        calls.push(`rossko${url.search}`);
+        return supplierResult();
+      },
+      "GET /api/search/suppliers/mikado": (_i, url) => {
+        calls.push(`mikado${url.search}`);
+        return supplierResult({ code: "mikado", title: "Микадо" });
+      },
+      "GET /api/search/stock": () => [],
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    const box = await screen.findByRole("checkbox", {
+      name: "Микадо: наличие и заказ",
+    });
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+    fireEvent.click(box);
+    await waitFor(() => {
+      expect(calls).toHaveLength(3);
+    });
+    expect(calls[2]).toContain("mikado");
+    expect(calls[2]).toContain("with_orders=true");
+    expect(calls.filter((c) => c.startsWith("rossko"))).toHaveLength(1);
+  });
+
+  it("hides the toggle without Mikado", async () => {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => supplierResult(),
+      "GET /api/search/stock": () => [],
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    await screen.findByRole("button", { name: "Аналоги" });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+});

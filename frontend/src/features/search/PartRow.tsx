@@ -221,7 +221,12 @@ export function PartRow({ group, stockQty, now, onToStock }: Props) {
             )}
           </div>
         </div>
-        <div className="min-w-0 [overflow-wrap:anywhere]">{group.name}</div>
+        <div
+          title={group.name}
+          className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]"
+        >
+          {group.name}
+        </div>
       </div>
       {group.suppliers.map((s) => (
         <SupplierSection

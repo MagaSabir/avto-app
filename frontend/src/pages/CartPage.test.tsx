@@ -176,6 +176,17 @@ describe("CartPage", () => {
     expect(screen.queryByText("проверяем цены…")).not.toBeInTheDocument();
   });
 
+  it("labels each line with its supplier", async () => {
+    setup({
+      items: [
+        item(1),
+        item(2, { supplier: "mikado", stock_id: "gto90915yzzm3#1" }),
+      ],
+    });
+    expect(await screen.findByText("Микадо")).toBeInTheDocument();
+    expect(screen.getByText("Росско")).toBeInTheDocument();
+  });
+
   it("refreshes once per mount", async () => {
     const { calls } = setup();
     await screen.findByText("N1");
