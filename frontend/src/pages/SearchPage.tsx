@@ -2,7 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import type { StockSearchItem, SupplierSearchResult } from "@/api/search";
+import type {
+  Offer,
+  PartGroup,
+  StockSearchItem,
+  SupplierSearchResult,
+} from "@/api/search";
 import {
   useStockSearch,
   useSupplierSearches,
@@ -20,6 +25,7 @@ import { PartPicker } from "@/features/search/PartPicker";
 import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
 import { SuppliersBlock } from "@/features/search/SuppliersBlock";
+import { ToStockDialog } from "@/features/search/ToStockDialog";
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -36,6 +42,12 @@ export function SearchPage() {
     showAnalogs: true,
     sort: "price",
   });
+
+  const [toStock, setToStock] = useState<{
+    group: PartGroup;
+    offer: Offer;
+    supplierTitle: string;
+  } | null>(null);
 
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
@@ -129,8 +141,9 @@ export function SearchPage() {
               opts={{ ...filters, now }}
               results={results}
               stockNumbers={stockNumbers}
-              // Placeholder until the receipt dialog is wired.
-              onToStock={() => undefined}
+              onToStock={(group, offer, supplierTitle) => {
+                setToStock({ group, offer, supplierTitle });
+              }}
               picker={
                 picking ? (
                   <PartPicker
@@ -151,6 +164,13 @@ export function SearchPage() {
           )}
         </>
       )}
+      <ToStockDialog
+        supplierTitle={toStock?.supplierTitle ?? ""}
+        target={toStock}
+        onClose={() => {
+          setToStock(null);
+        }}
+      />
     </div>
   );
 }

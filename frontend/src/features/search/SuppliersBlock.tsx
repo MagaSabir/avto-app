@@ -28,7 +28,7 @@ type Props = {
   picker?: ReactNode;
   // Link back to the part list, when there are several parts.
   backTo?: string;
-  onToStock: (group: PartGroup, offer: Offer) => void;
+  onToStock: (group: PartGroup, offer: Offer, supplierTitle: string) => void;
 };
 
 type State =
@@ -232,7 +232,9 @@ export function SuppliersBlock({
                 ) : (
                   <Parts
                     supplier={supplier.code}
-                    onToStock={onToStock}
+                    onToStock={(group, offer) => {
+                      onToStock(group, offer, supplier.title);
+                    }}
                     groups={groups}
                     stockNumbers={stockNumbers}
                     now={opts.now}

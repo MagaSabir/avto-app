@@ -30,29 +30,48 @@ function normBrand(v: string): string {
   return v.trim().replace(/\s+/g, " ").toUpperCase();
 }
 
+export type ReceiptPrefill = {
+  number: string;
+  brand: string;
+  name: string;
+  purchase: string;
+  supplier: string;
+};
+
 export function ReceiptForm({
   onAccepted,
+  prefill,
+  layout = "row",
 }: {
   onAccepted: (item: StockItem) => void;
+  // Starting values (an offer taken from search): the purchase price stays
+  // the offer's even when the stock item has another one.
+  prefill?: ReceiptPrefill;
+  layout?: "row" | "column";
 }) {
   const brandsId = useId();
   const suppliersId = useId();
   const numberRef = useRef<HTMLInputElement>(null);
+  const qtyRef = useRef<HTMLInputElement>(null);
   const prefilledId = useRef<number | null>(null);
 
-  const [number, setNumber] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [brand, setBrand] = useState("");
-  const [name, setName] = useState("");
+  const [number, setNumber] = useState(prefill?.number ?? "");
+  const [debounced, setDebounced] = useState(prefill?.number.trim() ?? "");
+  const [brand, setBrand] = useState(prefill?.brand ?? "");
+  const [name, setName] = useState(prefill?.name ?? "");
   const [qty, setQty] = useState("");
   const [cell, setCell] = useState("");
-  const [supplier, setSupplier] = useState("");
+  const [supplier, setSupplier] = useState(prefill?.supplier ?? "");
   const [policy, setPolicy] = useState<"update" | "keep">("update");
   // The debounced number the last prefill came from; reset once the number
   // changes, so an emptied brand is auto-filled only for a new number.
   const [prefillNumber, setPrefillNumber] = useState<string | null>(null);
   const [accepted, setAccepted] = useFlash();
-  const price = usePriceFields({ purchase: "", markup: "", sale: "" });
+  const price = usePriceFields({
+    purchase: prefill?.purchase ?? "",
+    markup: "",
+    sale: "",
+  });
 
   const settings = useSettings();
   const defaultMarkup = settings.data
@@ -62,6 +81,12 @@ export function ReceiptForm({
   const brands = useStockBrands();
   const suppliers = useStockSuppliers();
   const receipt = useReceipt();
+
+  useEffect(() => {
+    if (prefill) qtyRef.current?.focus();
+    // Only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -95,11 +120,22 @@ export function ReceiptForm({
       setBrand(target.brand);
       setName(target.name);
       setCell(target.cell ?? "");
-      setAll({
-        purchase: target.purchase_price,
-        markup: trimPercent(target.markup),
-        sale: target.sale_price,
-      });
+      const markup = trimPercent(target.markup);
+      const offered = prefill ? parseMoney(prefill.purchase) : null;
+      const offeredMarkup = parseMarkup(markup);
+      setAll(
+        prefill && offered !== null && offeredMarkup !== null
+          ? {
+              purchase: prefill.purchase,
+              markup,
+              sale: salePrice(offered, offeredMarkup),
+            }
+          : {
+              purchase: target.purchase_price,
+              markup,
+              sale: target.sale_price,
+            },
+      );
     } else if (prefilledId.current !== null) {
       // The prefilled item no longer matches: drop its data. A brand the
       // user is editing for the same number is kept.
@@ -110,7 +146,7 @@ export function ReceiptForm({
       setPolicy("update");
       setAll({ purchase: "", markup: defaultMarkup, sale: "" });
     }
-  }, [target, debounced, numberChanged, defaultMarkup, setAll]);
+  }, [target, debounced, numberChanged, defaultMarkup, setAll, prefill]);
 
   // Default markup is applied once, when settings first arrive.
   const defaultApplied = useRef(false);
@@ -200,7 +236,13 @@ export function ReceiptForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 items-end gap-2.5 min-[520px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]">
+      <div
+        className={
+          layout === "column"
+            ? "grid grid-cols-1 items-end gap-2.5"
+            : "grid grid-cols-2 items-end gap-2.5 min-[520px]:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
+        }
+      >
         <Field label="Номер">
           <Input
             ref={numberRef}
@@ -226,7 +268,10 @@ export function ReceiptForm({
             ))}
           </datalist>
         </Field>
-        <Field label="Название" className="col-span-2">
+        <Field
+          label="Название"
+          className={layout === "column" ? undefined : "col-span-2"}
+        >
           <Input
             value={name}
             onChange={(e) => {
@@ -236,6 +281,7 @@ export function ReceiptForm({
         </Field>
         <Field label="Кол-во">
           <Input
+            ref={qtyRef}
             inputMode="numeric"
             value={qty}
             onChange={(e) => {
