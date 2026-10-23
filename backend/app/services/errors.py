@@ -102,3 +102,24 @@ class OrdersQueryConflict(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Укажите либо период, либо номер заказа")
+
+
+class CartItemNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Строка корзины не найдена")
+
+
+class InvalidCartQty(DomainError):
+    status_code = 422
+
+    def __init__(self, multiplicity: int, available: int) -> None:
+        super().__init__(f"Количество должно быть кратно {multiplicity} и не больше {available}")
+
+
+class UnknownSupplier(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неизвестный поставщик")
