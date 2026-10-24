@@ -59,6 +59,66 @@ const ownFirst = (a: Offer, b: Offer) =>
   Number(a.warehouse === PARTNER_WAREHOUSE) -
   Number(b.warehouse === PARTNER_WAREHOUSE);
 
+// Row order: Rossko's own warehouses first, then the chosen sort.
+function rowCmp(sort: SortMode, now: Date) {
+  const sortCmp = offerCmp(sort, now);
+  return (a: Offer, b: Offer) => ownFirst(a, b) || sortCmp(a, b);
+}
+
+export const isInStock = (o: Offer) =>
+  o.kind !== "order" && o.kind !== "variants" && o.qty > 0;
+
+// Requested parts always stay (even empty); analogs without stock go.
+export function filterInStock(groups: MergedGroup[]): MergedGroup[] {
+  return groups
+    .map((g) => ({
+      ...g,
+      suppliers: g.suppliers.map((s) => ({
+        ...s,
+        offers: s.offers.filter(isInStock),
+      })),
+    }))
+    .filter((g) => g.is_requested || g.suppliers.some((s) => s.offers.length));
+}
+
+export function bestOffers(
+  groups: MergedGroup[],
+  now: Date,
+): { cheapest: Offer | null; fastest: Offer | null } {
+  const byTime = offerCmp("time", now);
+  const cheapCmp = offerCmp("price", now);
+  let cheapest: Offer | null = null;
+  let fastest: Offer | null = null;
+  for (const g of groups)
+    for (const s of g.suppliers)
+      for (const o of s.offers.filter(isPriced)) {
+        if (cheapest === null || cheapCmp(o, cheapest) < 0) cheapest = o;
+        if (fastest === null || byTime(o, fastest) < 0) fastest = o;
+      }
+  return { cheapest, fastest };
+}
+
+export function analogOffers(
+  group: MergedGroup,
+  sort: SortMode,
+  now: Date,
+): { supplier: SupplierOffers; offer: Offer }[] {
+  const cmp = rowCmp(sort, now);
+  return group.suppliers
+    .flatMap((supplier) =>
+      supplier.offers.map((offer) => ({ supplier, offer })),
+    )
+    .sort((a, b) => cmp(a.offer, b.offer));
+}
+
+export function stockForPart(
+  items: StockSearchItem[],
+  key: string,
+): StockSearchItem[] {
+  const brand = key.split("|")[0];
+  return items.filter((it) => it.brand_key === brand);
+}
+
 // Each supplier's offers sorted on their own; analogs ranked by the best
 // offer of any supplier.
 export function arrangeGroups(
@@ -67,8 +127,7 @@ export function arrangeGroups(
 ): MergedGroup[] {
   // Rows prefer Rossko's own warehouses (as on their site); the summary
   // cards still pick across all offers.
-  const sortCmp = offerCmp(opts.sort, opts.now);
-  const cmp = (a: Offer, b: Offer) => ownFirst(a, b) || sortCmp(a, b);
+  const cmp = rowCmp(opts.sort, opts.now);
   const sorted = groups.map((g) => ({
     ...g,
     suppliers: g.suppliers.map((s) => ({
@@ -202,16 +261,19 @@ export type PartChoice = {
   minPrice: string | null;
   fastest: Offer | null;
   analogs: number;
+  suppliers: number;
 };
 
 // One row per requested part (by key), merged across suppliers.
 export function requestedParts(
   results: SupplierSearchResult[],
   now: Date,
+  opts: { inStockOnly: boolean },
 ): PartChoice[] {
   const byTime = offerCmp("time", now);
   const parts = new Map<string, PartChoice>();
   const analogs = new Map<string, Set<string>>();
+  const codes = new Map<string, Set<string>>();
   for (const r of results)
     for (const g of r.groups) {
       if (g.is_requested) {
@@ -224,9 +286,13 @@ export function requestedParts(
           minPrice: null,
           fastest: null,
           analogs: 0,
+          suppliers: 0,
         };
         if (p.name === "") p.name = g.name;
-        const priced = g.offers.filter(isPriced);
+        const set = codes.get(g.key) ?? new Set<string>();
+        set.add(r.code);
+        codes.set(g.key, set);
+        const priced = g.offers.filter(opts.inStockOnly ? isInStock : isPriced);
         p.offers += priced.length;
         for (const o of priced) {
           if (
@@ -247,6 +313,7 @@ export function requestedParts(
   return [...parts.values()].map((p) => ({
     ...p,
     analogs: analogs.get(p.key)?.size ?? 0,
+    suppliers: codes.get(p.key)?.size ?? 0,
   }));
 }
 

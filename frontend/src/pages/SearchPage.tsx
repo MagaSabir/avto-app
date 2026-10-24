@@ -81,7 +81,7 @@ export function SearchPage() {
   // Two steps when one number names several parts: pick a part, then see
   // only its offers and analogs. A single part skips the list.
   const now = new Date();
-  const parts = requestedParts(answered, now);
+  const parts = requestedParts(answered, now, { inStockOnly: false });
   const partParam = params.get("part");
   const chosen =
     parts.find((p) => p.key === partParam) ??

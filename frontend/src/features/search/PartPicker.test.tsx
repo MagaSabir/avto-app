@@ -22,6 +22,7 @@ const parts: PartChoice[] = [
       delivery_days: 1,
     }),
     analogs: 80,
+    suppliers: 1,
   },
   {
     key: "MGA|W683",
@@ -32,6 +33,7 @@ const parts: PartChoice[] = [
     minPrice: null,
     fastest: null,
     analogs: 1,
+    suppliers: 1,
   },
   {
     key: "BIG|W683",
@@ -42,6 +44,7 @@ const parts: PartChoice[] = [
     minPrice: null,
     fastest: null,
     analogs: 0,
+    suppliers: 1,
   },
 ];
 

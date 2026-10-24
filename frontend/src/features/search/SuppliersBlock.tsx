@@ -151,7 +151,7 @@ export function SuppliersBlock({
       result === null
         ? 0
         : picker !== undefined
-          ? requestedParts([result], opts.now).length
+          ? requestedParts([result], opts.now, { inStockOnly: false }).length
           : result.groups.filter((g) => opts.showAnalogs || g.is_requested)
               .length;
     return { supplier: s, query, state, result, count };

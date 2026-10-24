@@ -7,7 +7,12 @@ import type {
   SupplierSearchResult,
 } from "../../api/search";
 import {
+  analogOffers,
   arrangeGroups,
+  bestOffers,
+  filterInStock,
+  isInStock,
+  stockForPart,
   bestPriceFor,
   cents,
   cheaperBy,
@@ -359,6 +364,7 @@ describe("groupPartsByName", () => {
     minPrice: null,
     fastest: null,
     analogs: 0,
+    suppliers: 1,
   });
 
   it("joins names ignoring case and edge spaces, in first-seen order", () => {
@@ -493,10 +499,12 @@ function twoParts(): SupplierSearchResult[] {
 
 describe("requestedParts", () => {
   it("merges a part across suppliers in first-seen order", () => {
-    const parts = requestedParts(twoParts(), now).map((p) => ({
-      ...p,
-      fastest: p.fastest?.purchase_price ?? null,
-    }));
+    const parts = requestedParts(twoParts(), now, { inStockOnly: false }).map(
+      (p) => ({
+        ...p,
+        fastest: p.fastest?.purchase_price ?? null,
+      }),
+    );
     expect(parts).toEqual([
       {
         key: MANN,
@@ -507,6 +515,7 @@ describe("requestedParts", () => {
         minPrice: "710.00",
         fastest: "900.00",
         analogs: 2,
+        suppliers: 2,
       },
       {
         key: MGA,
@@ -517,12 +526,13 @@ describe("requestedParts", () => {
         minPrice: null,
         fastest: null,
         analogs: 2,
+        suppliers: 1,
       },
     ]);
   });
 
   it("is empty without results", () => {
-    expect(requestedParts([], now)).toEqual([]);
+    expect(requestedParts([], now, { inStockOnly: false })).toEqual([]);
   });
 });
 
@@ -617,7 +627,7 @@ describe("two suppliers by canonical key", () => {
   });
 
   it("requestedParts takes the minimum over both suppliers", () => {
-    const [p] = requestedParts([rossko, mikado], now);
+    const [p] = requestedParts([rossko, mikado], now, { inStockOnly: false });
     expect(p.minPrice).toBe("700.00");
     expect(p.offers).toBe(2);
     expect(p.fastest?.purchase_price).toBe("700.00");
@@ -656,5 +666,103 @@ describe("two suppliers by canonical key", () => {
     expect(pick?.offer.kind).toBe("order");
     expect(pick?.offer.purchase_price).toBe("650.00");
     expect(fastest([rossko, order], false, now)?.offer.kind).toBe("order");
+  });
+});
+
+describe("search helpers", () => {
+  const o = (price: string, over: Partial<Offer> = {}) =>
+    fx.offer({ purchase_price: price, ...over });
+  const one = (offers: Offer[], over: Partial<PartGroup> = {}) =>
+    mergeGroups([
+      fx.supplierResult({ groups: [fx.partGroup({ offers, ...over })] }),
+    ]);
+
+  it("isInStock", () => {
+    expect(isInStock(o("1", { qty: 3 }))).toBe(true);
+    expect(isInStock(o("1", { qty: 0 }))).toBe(false);
+    expect(isInStock(o("1", { kind: "order" }))).toBe(false);
+    expect(isInStock(o("1", { kind: "variants" }))).toBe(false);
+  });
+
+  it("filterInStock keeps requested, drops empty analogs", () => {
+    const req = fx.partGroup({ offers: [o("1", { kind: "order" })] });
+    const onlyOrder = fx.partGroup({
+      key: "A|1",
+      is_requested: false,
+      offers: [o("1", { kind: "order" })],
+    });
+    const mixed = fx.partGroup({
+      key: "B|1",
+      is_requested: false,
+      offers: [o("1", { kind: "order" }), o("2")],
+    });
+    const out = filterInStock(
+      mergeGroups([fx.supplierResult({ groups: [req, onlyOrder, mixed] })]),
+    );
+    expect(out.map((g) => g.key)).toEqual(["KYB|333114", "B|1"]);
+    expect(out[0]?.suppliers[0]?.offers).toEqual([]);
+    expect(out[1]?.suppliers[0]?.offers).toHaveLength(1);
+    expect(out[1]?.suppliers[0]?.offers[0]?.kind).toBe("normal");
+  });
+
+  it("bestOffers", () => {
+    const a = o("100.00", { delivery_days: 3 });
+    const b = o("200.00", { delivery_days: 0 });
+    const r = bestOffers(one([a, b]), now);
+    expect(r.cheapest).toBe(a);
+    expect(r.fastest).toBe(b);
+    const solo = bestOffers(one([a]), now);
+    expect(solo.cheapest).toBe(a);
+    expect(solo.fastest).toBe(a);
+    const slow = o("100.00", { delivery_days: 5 });
+    expect(bestOffers(one([slow, a]), now).cheapest).toBe(a);
+    const v = o("1.00", { kind: "variants" });
+    expect(bestOffers(one([v, a]), now).cheapest).toBe(a);
+    expect(bestOffers([], now)).toEqual({ cheapest: null, fastest: null });
+  });
+
+  it("analogOffers", () => {
+    const [g] = mergeGroups([
+      fx.supplierResult({
+        groups: [fx.partGroup({ offers: [o("150.00", { delivery_days: 1 })] })],
+      }),
+      fx.supplierResult({
+        code: "mikado",
+        title: "Микадо",
+        groups: [fx.partGroup({ offers: [o("120.00", { delivery_days: 4 })] })],
+      }),
+    ]);
+    const byP = analogOffers(g, "price", now);
+    expect(byP[0]?.supplier.code).toBe("mikado");
+    expect(byP[0]?.offer.purchase_price).toBe("120.00");
+    expect(analogOffers(g, "time", now)[0]?.supplier.code).toBe("rossko");
+  });
+
+  it("requestedParts suppliers and inStockOnly", () => {
+    const both = [
+      fx.supplierResult({
+        groups: [
+          fx.partGroup({
+            offers: [o("50.00", { kind: "order" }), o("100.00")],
+          }),
+        ],
+      }),
+      fx.supplierResult({ code: "mikado", title: "Микадо" }),
+    ];
+    const all = requestedParts(both, now, { inStockOnly: false });
+    expect(all[0]?.suppliers).toBe(2);
+    expect(all[0]?.minPrice).toBe("50.00");
+    const stock = requestedParts(both, now, { inStockOnly: true });
+    expect(stock[0]?.minPrice).toBe("100.00");
+  });
+
+  it("stockForPart", () => {
+    const items = [
+      fx.stockItem(1, { brand: "MANN", brand_key: "MANN" }),
+      fx.stockItem(2, { brand: "MANN-FILTER", brand_key: "MANN" }),
+      fx.stockItem(3, { brand: "FILTRON", brand_key: "FILTRON" }),
+    ];
+    expect(stockForPart(items, "MANN|W683").map((i) => i.id)).toEqual([1, 2]);
+    expect(stockForPart(items, "BOSCH|W683")).toEqual([]);
   });
 });
