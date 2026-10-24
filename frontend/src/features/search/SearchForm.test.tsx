@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { SearchForm } from "./SearchForm";
 
 function field() {
-  return screen.getByLabelText("OEM-номер или артикул");
+  return screen.getByLabelText("OEM/Номер или артикул");
 }
 
 describe("SearchForm", () => {
@@ -32,5 +32,18 @@ describe("SearchForm", () => {
     fireEvent.change(field(), { target: { value: "@abc" } });
     fireEvent.submit(field());
     expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it("clears the field and refocuses it without searching", () => {
+    const onSearch = vi.fn();
+    render(<SearchForm initial="W68/3" onSearch={onSearch} />);
+    (document.activeElement as HTMLElement).blur();
+    fireEvent.click(screen.getByRole("button", { name: "Очистить" }));
+    expect(field()).toHaveValue("");
+    expect(field()).toHaveFocus();
+    expect(onSearch).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Очистить" }),
+    ).not.toBeInTheDocument();
   });
 });

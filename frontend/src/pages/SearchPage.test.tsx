@@ -34,6 +34,7 @@ function Where() {
 }
 
 afterEach(() => {
+  localStorage.clear();
   vi.unstubAllGlobals();
   setLastSearch("");
 });
@@ -90,7 +91,7 @@ describe("SearchPage", () => {
   it("shows only the form without a query", () => {
     mockApi({});
     renderWithProviders(<SearchPage />, { route: "/" });
-    expect(screen.getByLabelText("OEM-номер или артикул")).toBeVisible();
+    expect(screen.getByLabelText("OEM/Номер или артикул")).toBeVisible();
     expect(screen.queryByText("На моём складе")).not.toBeInTheDocument();
   });
 
@@ -125,10 +126,10 @@ describe("SearchPage", () => {
     renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
     const t = await screen.findByRole("table");
     expect(within(t).getByText("FILTRON")).toBeInTheDocument();
-    const pill = screen.getByRole("button", { name: "В наличии" });
-    expect(pill).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(pill);
-    expect(pill).toHaveAttribute("aria-pressed", "true");
+    const box = screen.getByRole("checkbox", { name: "В наличии" });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(box).toBeChecked();
     expect(within(t).queryByText("FILTRON")).not.toBeInTheDocument();
     expect(within(t).getByText("MANN")).toBeInTheDocument();
   });
@@ -212,7 +213,9 @@ describe("SearchPage", () => {
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     const slow = await screen.findByText("SLOWCHEAP");
     expect(isBefore(slow, screen.getByText("FASTDEAR"))).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Срок" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Сортировка" }), {
+      target: { value: "time" },
+    });
     expect(
       isBefore(screen.getByText("FASTDEAR"), screen.getByText("SLOWCHEAP")),
     ).toBe(true);
@@ -250,7 +253,9 @@ describe("SearchPage", () => {
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     expect(await screen.findByText("ANALOGBRAND")).toBeInTheDocument();
     expect((await screen.findAllByText("290 074")).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Аналоги" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Показывать аналоги" }),
+    );
     expect(screen.queryByText("ANALOGBRAND")).not.toBeInTheDocument();
     expect(screen.queryByText("290 074")).not.toBeInTheDocument();
   });
@@ -356,7 +361,7 @@ describe("SearchPage", () => {
     );
     renderWithProviders(<SearchPage />, { route: "/?q=A1" });
     await screen.findByText("Росско · ждём ответ…");
-    const input = screen.getByLabelText("OEM-номер или артикул");
+    const input = screen.getByLabelText("OEM/Номер или артикул");
     fireEvent.change(input, { target: { value: "B2" } });
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
     expect(await screen.findByText("BRAND-B2")).toBeInTheDocument();
@@ -384,7 +389,7 @@ describe("SearchPage", () => {
       return json(supplierResult({ groups: [] }));
     });
     renderWithProviders(<SearchPage />, { route: "/?q=A1" });
-    const input = screen.getByLabelText("OEM-номер или артикул");
+    const input = screen.getByLabelText("OEM/Номер или артикул");
     await waitFor(() => {
       expect(asked).toEqual(["A1"]);
     });
@@ -393,7 +398,7 @@ describe("SearchPage", () => {
     await waitFor(() => {
       expect(asked).toEqual(["A1", "B2"]);
     });
-    fireEvent.change(screen.getByLabelText("OEM-номер или артикул"), {
+    fireEvent.change(screen.getByLabelText("OEM/Номер или артикул"), {
       target: { value: "A1" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
@@ -550,7 +555,7 @@ describe("SearchPage", () => {
     it("drops the part on a new number", async () => {
       setup(`/?q=W68/3&part=${encodeURIComponent(mann)}`);
       expect(await screen.findByText("BOSCHMANN")).toBeInTheDocument();
-      const input = screen.getByLabelText("OEM-номер или артикул");
+      const input = screen.getByLabelText("OEM/Номер или артикул");
       fireEvent.change(input, { target: { value: "W712" } });
       fireEvent.click(screen.getByRole("button", { name: "Найти" }));
       expect(screen.getByLabelText("where")).toHaveTextContent("?q=W712");
@@ -607,7 +612,9 @@ describe("SearchPage", () => {
     const section = toggle.closest('[role="group"]') as HTMLElement;
     const shown = () => within(section).getByText(/^\d+ ₽$/).textContent;
     expect(shown()).toBe("500 ₽");
-    fireEvent.click(screen.getByRole("button", { name: "Срок" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Сортировка" }), {
+      target: { value: "time" },
+    });
     expect(shown()).toBe("900 ₽");
   });
 
@@ -697,7 +704,7 @@ describe("SearchPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));
     expect(link().get("q")).toBe("W68/3");
     expect(link().get("part")).toBe("MANN|W683");
-    const input = screen.getByLabelText("OEM-номер или артикул");
+    const input = screen.getByLabelText("OEM/Номер или артикул");
     fireEvent.change(input, { target: { value: "333114" } });
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
     expect(link().get("q")).toBe("333114");
@@ -750,7 +757,60 @@ describe("SearchPage Mikado orders toggle", () => {
       "GET /api/search/stock": () => [],
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    await screen.findByRole("button", { name: "Аналоги" });
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    await screen.findByRole("checkbox", { name: "Показывать аналоги" });
+    expect(
+      screen.queryByRole("checkbox", { name: "Микадо: наличие и заказ" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchPage supplier choice", () => {
+  function setup(calls: string[]) {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [
+        { code: "rossko", title: "Росско" },
+        { code: "mikado", title: "Микадо" },
+      ],
+      "GET /api/search/suppliers/rossko": () => {
+        calls.push("rossko");
+        return supplierResult();
+      },
+      "GET /api/search/suppliers/mikado": () => {
+        calls.push("mikado");
+        return supplierResult({ code: "mikado", title: "Микадо" });
+      },
+      "GET /api/search/stock": () => [],
+    });
+  }
+
+  it("does not ask a supplier that was not chosen", async () => {
+    localStorage.setItem("search.suppliers", '["rossko"]');
+    const calls: string[] = [];
+    setup(calls);
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    await waitFor(() => {
+      expect(calls).toContain("rossko");
+    });
+    await screen.findByRole("button", { name: /Поставщик: Росско$/ });
+    expect(calls).not.toContain("mikado");
+  });
+
+  it("asks a supplier once it is checked and remembers the choice", async () => {
+    localStorage.setItem("search.suppliers", '["rossko"]');
+    const calls: string[] = [];
+    setup(calls);
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Поставщик: Росско$/ }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Микадо" }));
+    await waitFor(() => {
+      expect(calls).toContain("mikado");
+    });
+    expect(localStorage.getItem("search.suppliers")).toBe(
+      '["rossko","mikado"]',
+    );
   });
 });

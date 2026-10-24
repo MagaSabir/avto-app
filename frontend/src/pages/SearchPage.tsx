@@ -22,6 +22,11 @@ import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
 import { SuppliersBlock } from "@/features/search/SuppliersBlock";
 import {
+  loadSupplierChoice,
+  saveSupplierChoice,
+  selectedSuppliers,
+} from "@/features/search/supplierChoice";
+import {
   ToStockDialog,
   type ReceiptPart,
 } from "@/features/search/ToStockDialog";
@@ -51,7 +56,9 @@ export function SearchPage() {
 
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
-  const codes = suppliers.data?.map((s) => s.code) ?? [];
+  const [saved, setSaved] = useState(loadSupplierChoice);
+  const selected = selectedSuppliers(suppliers.data ?? [], saved);
+  const codes = selected.map((s) => s.code);
   const searches = useSupplierSearches(codes, q, {
     mikado: filters.mikadoOrders,
   });
@@ -121,7 +128,12 @@ export function SearchPage() {
         <>
           <FilterBar
             {...filters}
-            hasMikado={codes.includes("mikado")}
+            suppliers={suppliers.data ?? []}
+            chosen={codes}
+            onChoose={(next) => {
+              setSaved(next);
+              saveSupplierChoice(next);
+            }}
             onChange={(patch) => {
               setFilters((f) => ({ ...f, ...patch }));
             }}
@@ -143,7 +155,7 @@ export function SearchPage() {
           />
           {(suppliers.data?.length ?? 0) > 0 && (
             <SuppliersBlock
-              suppliers={suppliers.data ?? []}
+              suppliers={selected}
               queries={searches}
               opts={{ ...filters, now }}
               results={results}

@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import type { SupplierInfo } from "@/api/search";
 
 import type { SortMode } from "./derive";
 
@@ -12,34 +13,109 @@ export type SearchFilters = {
 };
 
 type Props = SearchFilters & {
-  // The toggle exists only when Mikado is among the suppliers.
-  hasMikado?: boolean;
+  suppliers: SupplierInfo[]; // all connected
+  chosen: string[]; // codes of selected ones
+  onChoose: (codes: string[]) => void;
   onChange: (patch: Partial<SearchFilters>) => void;
 };
 
-function Pill({
-  pressed,
-  onClick,
+function Check({
+  checked,
+  disabled,
+  onChange,
   children,
 }: {
-  pressed: boolean;
-  onClick: () => void;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
   children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "h-8 cursor-pointer rounded-full border px-3 text-[13px] font-medium",
-        pressed
-          ? "border-foreground bg-foreground text-card"
-          : "bg-card text-foreground hover:bg-selected",
-      )}
-    >
+    <label className="flex h-[34px] cursor-pointer items-center gap-1.5 text-[13px] font-medium">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => {
+          onChange(e.target.checked);
+        }}
+        className="size-4 cursor-pointer accent-primary"
+      />
       {children}
-    </button>
+    </label>
+  );
+}
+
+function SupplierPicker({
+  suppliers,
+  chosen,
+  onChoose,
+}: Pick<Props, "suppliers" | "chosen" | "onChoose">) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const label = suppliers
+    .filter((s) => chosen.includes(s.code))
+    .map((s) => s.title)
+    .join(", ");
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open);
+        }}
+        className="inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border bg-card px-3 text-[13px] font-medium hover:bg-selected"
+      >
+        <span className="font-normal text-muted-foreground">Поставщик:</span>{" "}
+        {label}
+        <ChevronDown size={14} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute left-0 z-30 mt-1 min-w-44 rounded-lg border bg-card px-3 py-1 shadow-md">
+          {suppliers.map((s) => {
+            const on = chosen.includes(s.code);
+            return (
+              <Check
+                key={s.code}
+                checked={on}
+                disabled={on && chosen.length === 1}
+                onChange={(v) => {
+                  onChoose(
+                    v
+                      ? suppliers
+                          .map((x) => x.code)
+                          .filter((c) => c === s.code || chosen.includes(c))
+                      : chosen.filter((c) => c !== s.code),
+                  );
+                }}
+              >
+                {s.title}
+              </Check>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -47,65 +123,62 @@ export function FilterBar({
   inStockOnly,
   showAnalogs,
   mikadoOrders,
-  hasMikado = false,
   sort,
+  suppliers,
+  chosen,
+  onChoose,
   onChange,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Pill
-        pressed={inStockOnly}
-        onClick={() => {
-          onChange({ inStockOnly: !inStockOnly });
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <Check
+        checked={inStockOnly}
+        onChange={(v) => {
+          onChange({ inStockOnly: v });
         }}
       >
         В наличии
-      </Pill>
-      <Pill
-        pressed={showAnalogs}
-        onClick={() => {
-          onChange({ showAnalogs: !showAnalogs });
+      </Check>
+      <Check
+        checked={showAnalogs}
+        onChange={(v) => {
+          onChange({ showAnalogs: v });
         }}
       >
-        Аналоги
-      </Pill>
-      {hasMikado && (
-        <label className="flex h-8 cursor-pointer items-center gap-1.5 text-[13px] font-medium">
-          <input
-            type="checkbox"
-            checked={mikadoOrders}
-            onChange={(e) => {
-              onChange({ mikadoOrders: e.target.checked });
-            }}
-            className="size-4 cursor-pointer accent-primary"
-          />
+        Показывать аналоги
+      </Check>
+      {chosen.includes("mikado") && (
+        <Check
+          checked={mikadoOrders}
+          onChange={(v) => {
+            onChange({ mikadoOrders: v });
+          }}
+        >
           Микадо: наличие и заказ
-        </label>
+        </Check>
       )}
-      <div
-        role="group"
-        aria-label="Сортировка"
-        className="flex items-center gap-2"
-      >
-        <span className="hidden text-muted-foreground md:inline">
+      {suppliers.length > 1 && (
+        <SupplierPicker
+          suppliers={suppliers}
+          chosen={chosen}
+          onChoose={onChoose}
+        />
+      )}
+      <div className="flex h-[34px] items-center gap-1.5 rounded-lg border bg-card px-3 text-[13px]">
+        <span aria-hidden="true" className="text-muted-foreground">
           Сортировка:
         </span>
-        <Pill
-          pressed={sort === "price"}
-          onClick={() => {
-            onChange({ sort: "price" });
+        <select
+          aria-label="Сортировка"
+          value={sort}
+          onChange={(e) => {
+            onChange({ sort: e.target.value as SortMode });
           }}
+          className="cursor-pointer bg-transparent font-medium outline-none"
         >
-          Цена
-        </Pill>
-        <Pill
-          pressed={sort === "time"}
-          onClick={() => {
-            onChange({ sort: "time" });
-          }}
-        >
-          Срок
-        </Pill>
+          <option value="price">По цене ↑</option>
+          <option value="time">По сроку ↑</option>
+        </select>
       </div>
     </div>
   );
