@@ -31,7 +31,12 @@ function Card({
   const { group, analogs, minPrice, fastest } = card;
   const summary = [
     card.title,
-    `${String(analogs)} ${plural(analogs, "аналог", "аналога", "аналогов")}`,
+    // Parts without data are left out: no «0 аналогов».
+    ...(analogs > 0
+      ? [
+          `${String(analogs)} ${plural(analogs, "аналог", "аналога", "аналогов")}`,
+        ]
+      : []),
     ...(qty > 0 ? [`у вас ${String(qty)} шт`] : []),
   ].join(" · ");
   return (

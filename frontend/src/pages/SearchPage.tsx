@@ -15,6 +15,7 @@ import {
   supplierBest,
   supplierPart,
 } from "@/features/search/derive";
+import { Button } from "@/components/ui/button";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
 import { setLastSearch } from "@/features/search/lastSearch";
 import { PartPicker } from "@/features/search/PartPicker";
@@ -92,13 +93,40 @@ export function SearchPage() {
   const chosen =
     cards.find(
       (c) => c.supplier === supplierParam && c.group.key === partParam,
-    ) ?? (cards.length === 1 && !pending ? cards[0] : undefined);
+    ) ??
+    // A single card opens by itself, but never instead of another supplier
+    // named in the address.
+    (cards.length === 1 &&
+    !pending &&
+    (supplierParam === null || cards[0].supplier === supplierParam)
+      ? cards[0]
+      : undefined);
   const chosenResult = answered.find((r) => r.code === chosen?.supplier);
   const chosenQuery = searches.at(codes.indexOf(chosen?.supplier ?? ""));
   const part =
     chosen === undefined || chosenResult === undefined
       ? undefined
       : { ...supplierPart(chosenResult, chosen.group.key), card: chosen };
+
+  // Step 2 of a supplier that failed: its message instead of the tables.
+  const failedIndex =
+    supplierParam === null ? -1 : codes.indexOf(supplierParam);
+  const failedQuery = searches.at(failedIndex);
+  const failed =
+    failedIndex >= 0 &&
+    failedQuery !== undefined &&
+    !failedQuery.isFetching &&
+    (failedQuery.isError || failedQuery.data?.status === "error")
+      ? {
+          title: selected[failedIndex]?.title ?? "",
+          message: failedQuery.isError
+            ? failedQuery.error.message
+            : (failedQuery.data?.message ?? "Ошибка поставщика"),
+          retry: () => {
+            void failedQuery.refetch();
+          },
+        }
+      : undefined;
 
   const waitingTitles: { title: string }[] = [];
   const errors: { title: string; message: string; retry: () => void }[] = [];
@@ -172,7 +200,28 @@ export function SearchPage() {
               setFilters((f) => ({ ...f, ...patch }));
             }}
           />
-          {part === undefined ? (
+          {failed !== undefined ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                <BackLink q={q} />
+                <h2 className="text-[20px] font-bold [overflow-wrap:anywhere]">
+                  {`${(partParam ?? "").split("|")[0] ?? ""} ${q}`.trim()}{" "}
+                  <SupplierPlaque title={failed.title} />
+                </h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p
+                  role="alert"
+                  className="text-destructive [overflow-wrap:anywhere]"
+                >
+                  {failed.message}
+                </p>
+                <Button type="button" onClick={failed.retry}>
+                  Повторить
+                </Button>
+              </div>
+            </div>
+          ) : part === undefined ? (
             <div className="flex flex-col gap-3">
               {answered.map(
                 (r) =>
@@ -204,20 +253,11 @@ export function SearchPage() {
           ) : (
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-                {cards.length > 1 && (
-                  <Link
-                    to={`?${new URLSearchParams({ q }).toString()}`}
-                    className="rounded-[9px] border bg-card px-3 py-2 text-[14px] font-semibold text-link hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                  >
-                    ← Другие детали
-                  </Link>
-                )}
+                {cards.length > 1 && <BackLink q={q} />}
                 <div className="min-w-0">
                   <h2 className="text-[20px] font-bold [overflow-wrap:anywhere]">
                     {`${part.card.group.brand} ${part.card.group.number}`}{" "}
-                    <span className="ml-1 inline-block rounded-full bg-muted px-2.5 py-0.5 align-middle text-[12.5px] font-normal text-soft-foreground">
-                      {part.card.title}
-                    </span>
+                    <SupplierPlaque title={part.card.title} />
                   </h2>
                   {part.card.group.name !== "" && (
                     <p className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
@@ -279,5 +319,24 @@ export function SearchPage() {
         }}
       />
     </div>
+  );
+}
+
+function BackLink({ q }: { q: string }) {
+  return (
+    <Link
+      to={`?${new URLSearchParams({ q }).toString()}`}
+      className="rounded-[9px] border bg-card px-3 py-2 text-[14px] font-semibold text-link hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+    >
+      ← Другие детали
+    </Link>
+  );
+}
+
+function SupplierPlaque({ title }: { title: string }) {
+  return (
+    <span className="ml-1 inline-block rounded-full bg-muted px-2.5 py-0.5 align-middle text-[12.5px] font-normal text-soft-foreground">
+      {title}
+    </span>
   );
 }

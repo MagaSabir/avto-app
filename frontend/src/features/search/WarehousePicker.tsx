@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { Offer, PartGroup } from "@/api/search";
 import { useSupplierVariants } from "@/api/search";
@@ -37,6 +37,7 @@ export function WarehousePicker({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
+  const listId = useId();
 
   // A variant picked earlier is not one of the part's offers: its list is
   // still the variants of the row it came from.
@@ -93,14 +94,19 @@ export function WarehousePicker({
     o === current ||
     (variantsRow !== undefined &&
       current !== variantsRow &&
-      o.stock_id === current.stock_id);
+      // Variants may share a stock id: match the whole offer.
+      o.stock_id === current.stock_id &&
+      o.delivery_from === current.delivery_from &&
+      o.purchase_price === current.purchase_price);
   const pick = (o: Offer) => {
     onSelect(o);
     setOpen(false);
   };
 
   return (
-    <div ref={ref} className="relative min-w-0">
+    // Phones: the list spans the row card (the row is its anchor), so it never
+    // leaves the screen; desktop: under the cell.
+    <div ref={ref} className="min-w-0 md:relative">
       <span className="text-[13.5px] [overflow-wrap:anywhere]">
         {current.kind !== "variants" && (
           <>
@@ -116,6 +122,7 @@ export function WarehousePicker({
             ref={toggle}
             type="button"
             aria-haspopup="listbox"
+            aria-controls={open ? listId : undefined}
             aria-expanded={open}
             onClick={() => {
               setOpen((v) => !v);
@@ -127,11 +134,11 @@ export function WarehousePicker({
         )}
       </span>
       {open && (
-        <div className="absolute top-full left-0 z-20 mt-1 w-[min(520px,calc(100vw-2rem))] rounded-[10px] border border-border-active bg-card p-1.5 text-[13px] shadow-xl">
+        <div className="absolute inset-x-2 z-20 mt-1 md:inset-x-auto md:top-full md:left-0 md:w-[min(520px,calc(100vw-2rem))] rounded-[10px] border border-border-active bg-card p-1.5 text-[13px] shadow-xl">
           {variantsRow === undefined ? (
             <>
               <Header last="Остаток" />
-              <div role="listbox" aria-label="Склады">
+              <div id={listId} role="listbox" aria-label="Склады">
                 {offers.map((o, i) => (
                   <Option
                     key={`${o.stock_id}|${o.delivery_from ?? ""}|${String(i)}`}
@@ -167,7 +174,7 @@ export function WarehousePicker({
                 </p>
               )}
               <Header last="Рейтинг" />
-              <div role="listbox" aria-label="Варианты поставки">
+              <div id={listId} role="listbox" aria-label="Варианты поставки">
                 {variants.map((v, i) => (
                   <Option
                     key={`${v.stock_id}|${String(i)}`}

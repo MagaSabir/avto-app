@@ -29,6 +29,10 @@ describe("WarehousePicker", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAttribute(
+      "aria-controls",
+      screen.getByRole("listbox").id,
+    );
     const option = screen.getByRole("option", { name: /склад партнёра/ });
     option.focus();
     expect(option).toHaveFocus();
@@ -70,5 +74,52 @@ describe("WarehousePicker", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Лимит запросов",
     );
+  });
+
+  it("marks only the chosen one of variants sharing a stock id", async () => {
+    const row = offer({
+      kind: "variants",
+      warehouse: "Варианты поставки",
+      stock_id: "",
+      order_code: "x1",
+    });
+    const v = (price: string, days: string) =>
+      offer({
+        kind: "order",
+        stock_id: "x1#1",
+        warehouse: "Склад",
+        delivery_from: days,
+        purchase_price: price,
+        order_code: "x1",
+      });
+    const a = v("100.00", new Date(2026, 9, 25, 10).toISOString());
+    const b = v("120.00", new Date(2026, 9, 26, 10).toISOString());
+    mockApi({
+      "GET /api/search/suppliers/mikado/variants": () => ({
+        code: "mikado",
+        title: "Микадо",
+        status: "ok",
+        message: null,
+        markup: "20.00",
+        offers: [a, b],
+      }),
+    });
+    renderWithProviders(
+      <WarehousePicker
+        supplier="mikado"
+        group={partGroup({ offers: [row] })}
+        offers={[row]}
+        current={{ ...b }}
+        onSelect={vi.fn()}
+        now={now}
+      />,
+      { route: "/" },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "варианты поставки ▾" }),
+    );
+    const [first, second] = await screen.findAllByRole("option");
+    expect(first).toHaveAttribute("aria-selected", "false");
+    expect(second).toHaveAttribute("aria-selected", "true");
   });
 });

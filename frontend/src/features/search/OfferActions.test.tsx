@@ -231,4 +231,13 @@ describe("OfferActions", () => {
     }
     expect(screen.getByLabelText("Количество")).toBeDisabled();
   });
+
+  it("does not mark a disabled quantity invalid", () => {
+    setup(offer({ kind: "variants", qty: 0 }), [], vi.fn(), true);
+    expect(screen.getByLabelText("Количество")).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
 });

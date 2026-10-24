@@ -83,6 +83,13 @@ describe("PartPicker", () => {
     expect(card).not.toHaveTextContent("у вас");
   });
 
+  it("omits «0 аналогов» from the summary", () => {
+    setup({ cards: [{ ...mikado, analogs: 0 }], stockQty: () => 0 });
+    const card = screen.getByRole("button", { name: /MANN-FILTER/ });
+    expect(within(card).getByText("Микадо")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("аналог");
+  });
+
   it("shows a dash and dims a card without offers", () => {
     setup({ cards: [empty] });
     const card = screen.getByRole("button", { name: /MGA/ });

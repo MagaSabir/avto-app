@@ -133,8 +133,9 @@ export function supplierBest(
   groups: PartGroup[],
   now: Date,
 ): { cheapest: Best | null; fastest: Best | null } {
-  const priceCmp = offerCmp("price", now);
-  const timeCmp = offerCmp("time", now);
+  // Same order as the row's default offer, so a badge finds its offer.
+  const priceCmp = defaultCmp("price", now);
+  const timeCmp = defaultCmp("time", now);
   let cheapest: Best | null = null;
   let fastest: Best | null = null;
   for (const group of groups)

@@ -133,7 +133,7 @@ export function OfferActions({
         type="number"
         inputMode="numeric"
         aria-label="Количество"
-        aria-invalid={!valid}
+        aria-invalid={!disabled && !valid}
         min={offer.multiplicity}
         step={offer.multiplicity}
         max={max}

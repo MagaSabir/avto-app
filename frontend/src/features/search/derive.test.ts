@@ -241,6 +241,20 @@ describe("row helpers", () => {
     expect(supplierBest([], now)).toEqual({ cheapest: null, fastest: null });
   });
 
+  it("supplierBest breaks a full tie like the row's default offer", () => {
+    const partner = o("100.00", {
+      warehouse: "Партнерский склад",
+      delivery_days: 1,
+    });
+    const own = o("100.00", { warehouse: "Грозный", delivery_days: 1 });
+    const g = fx.partGroup({ offers: [partner, own] });
+    const b = supplierBest([g], now);
+    expect(b.cheapest?.offer).toBe(own);
+    expect(b.fastest?.offer).toBe(own);
+    expect(defaultOffer(g, "price", now)).toBe(b.cheapest?.offer);
+    expect(defaultOffer(g, "time", now)).toBe(b.fastest?.offer);
+  });
+
   it("stockQty sums positive qty by brand key and number", () => {
     const items = [
       fx.stockItem(1, {

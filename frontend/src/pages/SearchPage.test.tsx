@@ -866,6 +866,59 @@ describe("SearchPage", () => {
   });
 });
 
+describe("SearchPage step 2 supplier error", () => {
+  it("shows the chosen supplier's error, not another supplier's card", async () => {
+    let rossko = 0;
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/suppliers": () => [
+        { code: "rossko", title: "Росско" },
+        { code: "mikado", title: "Микадо" },
+      ],
+      "GET /api/search/suppliers/rossko": () => {
+        rossko += 1;
+        return supplierResult({
+          status: "error",
+          message: "Росско не отвечает",
+          groups: [],
+        });
+      },
+      "GET /api/search/suppliers/mikado": () =>
+        supplierResult({
+          code: "mikado",
+          title: "Микадо",
+          groups: [partGroup({ brand: "MIKABRAND" })],
+        }),
+      "GET /api/search/stock": () => [],
+    });
+    renderWithProviders(
+      <>
+        <SearchPage />
+        <Where />
+      </>,
+      { route: "/?q=333114&supplier=rossko&part=KYB%7C333114" },
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Росско не отвечает",
+    );
+    expect(
+      screen.getByRole("heading", { name: /KYB 333114.*Росско/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Оригинал" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("MIKABRAND")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
+    await waitFor(() => {
+      expect(rossko).toBe(2);
+    });
+    fireEvent.click(screen.getByRole("link", { name: "← Другие детали" }));
+    expect(screen.getByLabelText("where")).toHaveTextContent("?q=333114");
+    expect(screen.getByLabelText("where")).not.toHaveTextContent("supplier=");
+  });
+});
+
 describe("SearchPage Mikado orders", () => {
   it("always requests Mikado with with_orders=true", async () => {
     const calls: string[] = [];
