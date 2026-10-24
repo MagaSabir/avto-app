@@ -43,7 +43,7 @@ function cmpBig(a: bigint, b: bigint): number {
 const byPrice = (a: Offer, b: Offer) =>
   cmpBig(cents(a.purchase_price), cents(b.purchase_price));
 
-function offerCmp(sort: SortMode, now: Date) {
+export function offerCmp(sort: SortMode, now: Date) {
   const byTime = (a: Offer, b: Offer) =>
     cmpNum(deliveryRank(a, now), deliveryRank(b, now));
   return (a: Offer, b: Offer) =>
@@ -395,4 +395,133 @@ export function groupPartsByName(
     cards.set(key, card);
   }
   return [...cards.values()];
+}
+
+export type PartCard = {
+  supplier: string;
+  title: string;
+  group: PartGroup;
+  analogs: number;
+  minPrice: string | null;
+  fastest: Offer | null;
+};
+
+// The requested group of one supplier plus its groups that are analogs of it.
+export function supplierPart(
+  result: SupplierSearchResult,
+  key: string,
+): { original: PartGroup | undefined; analogs: PartGroup[] } {
+  return {
+    original: result.groups.find((g) => g.is_requested && g.key === key),
+    analogs: result.groups.filter((g) => g.analog_of.includes(key)),
+  };
+}
+
+// Variants rows go last; own Rossko warehouses win only a full tie.
+function defaultCmp(sort: SortMode, now: Date) {
+  const sortCmp = offerCmp(sort, now);
+  return (a: Offer, b: Offer) =>
+    Number(!isPriced(a)) - Number(!isPriced(b)) ||
+    sortCmp(a, b) ||
+    ownFirst(a, b);
+}
+
+export function defaultOffer(
+  group: PartGroup,
+  sort: SortMode,
+  now: Date,
+): Offer | undefined {
+  return [...group.offers].sort(defaultCmp(sort, now))[0];
+}
+
+export function sortGroups(
+  groups: PartGroup[],
+  sort: SortMode,
+  now: Date,
+): PartGroup[] {
+  const cmp = defaultCmp(sort, now);
+  const tops = new Map(groups.map((g) => [g, defaultOffer(g, sort, now)]));
+  return [...groups].sort((a, b) => {
+    const x = tops.get(a);
+    const y = tops.get(b);
+    if (x === undefined || y === undefined)
+      return Number(x === undefined) - Number(y === undefined);
+    return cmp(x, y);
+  });
+}
+
+export type Best = { group: PartGroup; offer: Offer };
+
+export function supplierBest(
+  groups: PartGroup[],
+  now: Date,
+): { cheapest: Best | null; fastest: Best | null } {
+  const priceCmp = offerCmp("price", now);
+  const timeCmp = offerCmp("time", now);
+  let cheapest: Best | null = null;
+  let fastest: Best | null = null;
+  for (const group of groups)
+    for (const offer of group.offers.filter(isPriced)) {
+      if (cheapest === null || priceCmp(offer, cheapest.offer) < 0)
+        cheapest = { group, offer };
+      if (fastest === null || timeCmp(offer, fastest.offer) < 0)
+        fastest = { group, offer };
+    }
+  return { cheapest, fastest };
+}
+
+export function partCards(
+  results: SupplierSearchResult[],
+  opts: { showAnalogs: boolean; sort: SortMode; now: Date },
+): PartCard[] {
+  const timeCmp = offerCmp("time", opts.now);
+  const cards: PartCard[] = [];
+  for (const r of results)
+    for (const group of r.groups.filter((g) => g.is_requested)) {
+      const { analogs } = supplierPart(r, group.key);
+      const set = opts.showAnalogs ? [group, ...analogs] : [group];
+      let minPrice: string | null = null;
+      let fastestOffer: Offer | null = null;
+      for (const g of set)
+        for (const o of g.offers) {
+          if (minPrice === null || cents(o.purchase_price) < cents(minPrice))
+            minPrice = o.purchase_price;
+          if (
+            isPriced(o) &&
+            (fastestOffer === null || timeCmp(o, fastestOffer) < 0)
+          )
+            fastestOffer = o;
+        }
+      cards.push({
+        supplier: r.code,
+        title: r.title,
+        group,
+        analogs: analogs.length,
+        minPrice,
+        fastest: fastestOffer,
+      });
+    }
+  const byMin = (a: PartCard, b: PartCard) => {
+    if (a.minPrice === null || b.minPrice === null)
+      return Number(a.minPrice === null) - Number(b.minPrice === null);
+    return cmpBig(cents(a.minPrice), cents(b.minPrice));
+  };
+  const byFast = (a: PartCard, b: PartCard) => {
+    if (a.fastest === null || b.fastest === null)
+      return Number(a.fastest === null) - Number(b.fastest === null);
+    return timeCmp(a.fastest, b.fastest);
+  };
+  return cards.sort((a, b) =>
+    opts.sort === "price"
+      ? byMin(a, b) || byFast(a, b)
+      : byFast(a, b) || byMin(a, b),
+  );
+}
+
+export function stockQty(items: StockSearchItem[], key: string): number {
+  let sum = 0;
+  for (const it of items)
+    if (it.qty > 0 && `${it.brand_key}|${it.number_norm}` === key)
+      sum += it.qty;
+  return sum;
 }
