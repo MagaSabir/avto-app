@@ -53,7 +53,7 @@ export function Layout() {
         <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
           <Logo className="h-7 w-auto" />
         </NavLink>
-        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-14 sm:w-auto">
+        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-13 sm:w-auto">
           <NavLink to={`/${search}`} end className={navClass}>
             Поиск
           </NavLink>
