@@ -42,9 +42,7 @@ export function SearchPage() {
     if (q !== "") setLastSearch(`?${search}`);
   }, [q, search]);
   const [filters, setFilters] = useState<SearchFilters>({
-    inStockOnly: false,
     showAnalogs: true,
-    mikadoOrders: false,
     sort: "price",
   });
 
@@ -60,7 +58,7 @@ export function SearchPage() {
   const selected = selectedSuppliers(suppliers.data ?? [], saved);
   const codes = selected.map((s) => s.code);
   const searches = useSupplierSearches(codes, q, {
-    mikado: filters.mikadoOrders,
+    mikado: true,
   });
 
   const onSearch = (next: string) => {
@@ -111,7 +109,10 @@ export function SearchPage() {
       ].filter((n) => n !== stock.data?.number_norm);
   const matches = useAnalogStock(analogNumbers).data ?? [];
   const rows = stock.data
-    ? visibleStock(stock.data.items, matches, filters)
+    ? visibleStock(stock.data.items, matches, {
+        ...filters,
+        inStockOnly: false,
+      })
     : undefined;
   const stockNumbers = new Map<string, number>();
   for (const it of [...(stock.data?.items ?? []), ...matches])

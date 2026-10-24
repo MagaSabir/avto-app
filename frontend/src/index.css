@@ -49,6 +49,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-border-active: var(--border-active);
+  --color-soft-foreground: var(--soft-foreground);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -91,6 +92,7 @@
   --destructive: #b42318;
   --border: #d6e0ee;
   --border-active: #8cb9ed;
+  --soft-foreground: #526782;
   --input: #ffffff;
   --ring: rgb(23 109 229 / 22%);
   --selected: #e0eeff;
@@ -113,7 +115,7 @@
   --move-writeoff-bg: #f8e6e4;
   --move-adjustment: #4b525b;
   --move-adjustment-bg: #eceef1;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   --link: #075fc5;
   --info: #1456a0;
   --info-bg: #e0eeff;
@@ -138,6 +140,7 @@
   --destructive: #ff8a7f;
   --border: #19395c;
   --border-active: #28598a;
+  --soft-foreground: #b8c7dc;
   --input: #0b203a;
   --ring: rgb(22 119 249 / 22%);
   --selected: #0c2b50;

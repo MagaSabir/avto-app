@@ -46,4 +46,16 @@ describe("SearchForm", () => {
       screen.queryByRole("button", { name: "Очистить" }),
     ).not.toBeInTheDocument();
   });
+
+  it("has a search icon in the field and none in the button", () => {
+    const { container } = render(<SearchForm initial="" onSearch={vi.fn()} />);
+    expect(
+      screen.getByRole("button", { name: "Найти" }).querySelector("svg"),
+    ).toBeNull();
+    expect(
+      field().parentElement?.parentElement?.querySelector("svg"),
+    ).not.toBeNull();
+    expect(container.querySelector("svg")).not.toBeNull();
+    expect(field()).not.toHaveClass("font-mono");
+  });
 });

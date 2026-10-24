@@ -117,23 +117,6 @@ describe("SearchPage", () => {
     ).toHaveAttribute("aria-busy", "true");
   });
 
-  it("hides zero stock with «В наличии»", async () => {
-    mockApi({
-      "GET /api/cart": () => ({ items: [], total: "0.00" }),
-      "GET /api/search": () => stock,
-      "GET /api/search/suppliers": () => [],
-    });
-    renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
-    const t = await screen.findByRole("table");
-    expect(within(t).getByText("FILTRON")).toBeInTheDocument();
-    const box = screen.getByRole("checkbox", { name: "В наличии" });
-    expect(box).not.toBeChecked();
-    fireEvent.click(box);
-    expect(box).toBeChecked();
-    expect(within(t).queryByText("FILTRON")).not.toBeInTheDocument();
-    expect(within(t).getByText("MANN")).toBeInTheDocument();
-  });
-
   it("re-requests the supplier and shows loading again on the same number", async () => {
     let lists = 0;
     mockApi({
@@ -712,8 +695,8 @@ describe("SearchPage", () => {
   });
 });
 
-describe("SearchPage Mikado orders toggle", () => {
-  it("refetches only Mikado with with_orders", async () => {
+describe("SearchPage Mikado orders", () => {
+  it("always requests Mikado with with_orders=true", async () => {
     const calls: string[] = [];
     mockApi({
       "GET /api/cart": () => ({ items: [], total: "0.00" }),
@@ -733,34 +716,15 @@ describe("SearchPage Mikado orders toggle", () => {
       "GET /api/search/stock": () => [],
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    const box = await screen.findByRole("checkbox", {
-      name: "Микадо: наличие и заказ",
-    });
     await waitFor(() => {
       expect(calls).toHaveLength(2);
     });
-    fireEvent.click(box);
-    await waitFor(() => {
-      expect(calls).toHaveLength(3);
-    });
-    expect(calls[2]).toContain("mikado");
-    expect(calls[2]).toContain("with_orders=true");
-    expect(calls.filter((c) => c.startsWith("rossko"))).toHaveLength(1);
-  });
-
-  it("hides the toggle without Mikado", async () => {
-    mockApi({
-      "GET /api/cart": () => ({ items: [], total: "0.00" }),
-      "GET /api/search": () => stock,
-      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
-      "GET /api/search/suppliers/rossko": () => supplierResult(),
-      "GET /api/search/stock": () => [],
-    });
-    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    await screen.findByRole("checkbox", { name: "Показывать аналоги" });
-    expect(
-      screen.queryByRole("checkbox", { name: "Микадо: наличие и заказ" }),
-    ).not.toBeInTheDocument();
+    expect(calls.find((c) => c.startsWith("mikado"))).toContain(
+      "with_orders=true",
+    );
+    expect(calls.find((c) => c.startsWith("rossko"))).not.toContain(
+      "with_orders",
+    );
   });
 });
 

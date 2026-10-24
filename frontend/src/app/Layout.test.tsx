@@ -100,10 +100,10 @@ describe("Layout", () => {
       "page",
     );
     expect(screen.getByRole("link", { name: "Склад" })).toHaveClass(
-      "border-primary",
+      "text-foreground",
     );
     expect(screen.getByRole("link", { name: "Взаиморасчёты" })).not.toHaveClass(
-      "border-primary",
+      "text-foreground",
     );
     expect(screen.getByRole("heading", { name: "Склад" })).toBeInTheDocument();
   });

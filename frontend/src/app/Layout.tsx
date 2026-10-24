@@ -17,10 +17,10 @@ import { UserMenu } from "./UserMenu";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return cn(
-    "-mb-px flex h-full cursor-pointer items-center border-b-2 px-1 font-medium",
+    "relative flex h-full cursor-pointer items-center px-1 text-[14px] font-semibold",
     isActive
-      ? "border-primary text-foreground"
-      : "border-transparent text-muted-foreground hover:text-foreground",
+      ? "text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-t-[3px] after:bg-primary"
+      : "text-soft-foreground hover:text-foreground",
   );
 }
 
@@ -49,11 +49,11 @@ export function Layout() {
 
   return (
     <>
-      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-card px-4 sm:px-8">
+      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-card px-4 sm:px-7">
         <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
           <Logo className="h-7 w-auto" />
         </NavLink>
-        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-13 sm:w-auto">
+        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-16 sm:w-auto">
           <NavLink to={`/${search}`} end className={navClass}>
             Поиск
           </NavLink>

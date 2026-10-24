@@ -56,7 +56,7 @@ export function SearchForm({ initial, onSearch }: Props) {
               aria-invalid={error}
               autoComplete="off"
               spellCheck={false}
-              className="w-full bg-transparent font-mono text-[15px] font-semibold outline-none"
+              className="w-full bg-transparent text-[15px] font-semibold outline-none"
             />
           </div>
           {value !== "" && (
@@ -73,13 +73,17 @@ export function SearchForm({ initial, onSearch }: Props) {
               <X size={16} aria-hidden="true" />
             </button>
           )}
+          <Search
+            size={20}
+            aria-hidden="true"
+            className="shrink-0 text-muted-foreground"
+          />
         </div>
         <Button
           type="submit"
           variant="primary"
-          className="inline-flex h-[50px] items-center gap-2 rounded-[10px] border-primary-foreground/20 px-[23px] text-[15px] font-semibold"
+          className="h-[50px] rounded-[10px] border-primary-foreground/20 px-[30px] text-[15px] font-[650]"
         >
-          <Search size={16} aria-hidden="true" />
           Найти
         </Button>
       </div>

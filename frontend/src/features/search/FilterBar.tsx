@@ -6,9 +6,7 @@ import type { SupplierInfo } from "@/api/search";
 import type { SortMode } from "./derive";
 
 export type SearchFilters = {
-  inStockOnly: boolean;
   showAnalogs: boolean;
-  mikadoOrders: boolean;
   sort: SortMode;
 };
 
@@ -31,7 +29,7 @@ function Check({
   children: ReactNode;
 }) {
   return (
-    <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[14px] text-muted-foreground">
+    <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[14px] text-soft-foreground">
       <input
         type="checkbox"
         checked={checked}
@@ -120,9 +118,7 @@ function SupplierPicker({
 }
 
 export function FilterBar({
-  inStockOnly,
   showAnalogs,
-  mikadoOrders,
   sort,
   suppliers,
   chosen,
@@ -131,14 +127,6 @@ export function FilterBar({
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <Check
-        checked={inStockOnly}
-        onChange={(v) => {
-          onChange({ inStockOnly: v });
-        }}
-      >
-        В наличии
-      </Check>
       <Check
         checked={showAnalogs}
         onChange={(v) => {
@@ -169,16 +157,6 @@ export function FilterBar({
           chosen={chosen}
           onChoose={onChoose}
         />
-      )}
-      {chosen.includes("mikado") && (
-        <Check
-          checked={mikadoOrders}
-          onChange={(v) => {
-            onChange({ mikadoOrders: v });
-          }}
-        >
-          Микадо: наличие и заказ
-        </Check>
       )}
     </div>
   );

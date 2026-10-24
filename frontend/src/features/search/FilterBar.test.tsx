@@ -13,9 +13,7 @@ function setup(over: Partial<Parameters<typeof FilterBar>[0]> = {}) {
   const onChoose = vi.fn();
   render(
     <FilterBar
-      inStockOnly={false}
       showAnalogs={false}
-      mikadoOrders={false}
       sort="price"
       suppliers={both}
       chosen={["rossko", "mikado"]}
@@ -28,14 +26,29 @@ function setup(over: Partial<Parameters<typeof FilterBar>[0]> = {}) {
 }
 
 describe("FilterBar", () => {
-  it("toggles the stock and analog checkboxes", () => {
+  it("toggles the analogs checkbox", () => {
     const { onChange } = setup();
-    fireEvent.click(screen.getByRole("checkbox", { name: "В наличии" }));
-    expect(onChange).toHaveBeenCalledWith({ inStockOnly: true });
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Показывать аналоги" }),
     );
     expect(onChange).toHaveBeenCalledWith({ showAnalogs: true });
+  });
+
+  it("has no stock or Mikado-orders checkboxes", () => {
+    setup();
+    expect(
+      screen.queryByRole("checkbox", { name: "В наличии" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Микадо: наличие и заказ" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses the soft color for checkbox labels", () => {
+    setup();
+    expect(screen.getByText("Показывать аналоги")).toHaveClass(
+      "text-soft-foreground",
+    );
   });
 
   it("changes the sort", () => {
@@ -86,13 +99,6 @@ describe("FilterBar", () => {
     });
     expect(
       screen.queryByRole("button", { name: /Поставщик/ }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows the Mikado orders toggle only when Mikado is chosen", () => {
-    setup({ chosen: ["rossko"] });
-    expect(
-      screen.queryByRole("checkbox", { name: "Микадо: наличие и заказ" }),
     ).not.toBeInTheDocument();
   });
 });
