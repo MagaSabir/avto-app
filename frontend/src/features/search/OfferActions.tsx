@@ -95,13 +95,17 @@ function CartActions({
     )
     .reduce((sum, i) => sum + i.qty, 0);
 
-  function step(delta: number) {
-    const base = /^\d+$/.test(value) ? qty : offer.multiplicity;
-    const next = Math.min(
-      Math.max(base + delta * offer.multiplicity, offer.multiplicity),
-      max,
-    );
-    setValue(String(next));
+  const m = offer.multiplicity;
+  const top = Math.floor(max / m) * m;
+  const cur = /^\d+$/.test(value) ? qty : null;
+  const upDisabled = cur === null ? top < m : cur + m > top;
+  const downDisabled = cur !== null && cur - m < m;
+
+  function step(delta: 1 | -1) {
+    const base = cur ?? m;
+    const aligned =
+      delta > 0 ? Math.floor(base / m) * m + m : Math.ceil(base / m) * m - m;
+    setValue(String(Math.min(Math.max(aligned, m), top)));
     add.reset();
   }
 
@@ -113,8 +117,6 @@ function CartActions({
     <span className="text-destructive">{add.error.message}</span>
   ) : flash !== null ? (
     <span className="text-status-ok">{flash}</span>
-  ) : inCart > 0 ? (
-    `в корзине ${String(inCart)} шт`
   ) : null;
 
   function submit(e: SyntheticEvent) {
@@ -155,7 +157,7 @@ function CartActions({
       <button
         type="button"
         aria-label="Уменьшить"
-        disabled={disabled}
+        disabled={disabled || downDisabled}
         onClick={() => {
           step(-1);
         }}
@@ -182,7 +184,7 @@ function CartActions({
       <button
         type="button"
         aria-label="Увеличить"
-        disabled={disabled}
+        disabled={disabled || upDisabled}
         onClick={() => {
           step(1);
         }}

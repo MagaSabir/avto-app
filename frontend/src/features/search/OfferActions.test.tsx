@@ -102,20 +102,28 @@ describe("OfferActions", () => {
     },
   );
 
-  it("shows quantity already in cart", async () => {
+  it("shows quantity already in cart as a badge only", async () => {
     setup(offer({ multiplicity: 2, qty: 10 }), [cartItem()]);
-    expect(await screen.findByText("в корзине 4 шт")).toBeInTheDocument();
+    const btn = await screen.findByRole("button", {
+      name: "В корзину, в корзине 4",
+    });
+    expect(btn).toHaveTextContent("4");
+    expect(screen.queryByText(/шт/)).not.toBeInTheDocument();
   });
 
   it("ignores cart rows of other offers", async () => {
     setup(offer(), [cartItem({ stock_id: "other" })]);
     await screen.findByRole("button", { name: "В корзину" });
-    expect(screen.queryByText(/в корзине/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /в корзине/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("matches the brand ignoring case and extra spaces", async () => {
     setup(offer(), [cartItem({ brand: "KYB  " })]);
-    expect(await screen.findByText("в корзине 4 шт")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "В корзину, в корзине 4" }),
+    ).toBeInTheDocument();
   });
 
   it("disables add without stock id", () => {
@@ -159,9 +167,9 @@ describe("OfferActions", () => {
   it("shows the cart button without a count when nothing is in the cart", async () => {
     setup(offer(), []);
     const btn = screen.getByRole("button", { name: "В корзину" });
-    await new Promise((r) => setTimeout(r, 0));
-    expect(btn).toBeInTheDocument();
-    expect(btn).not.toHaveTextContent(/\d/);
+    await waitFor(() => {
+      expect(btn).not.toHaveTextContent(/\d/);
+    });
   });
 
   it("shows the count on the cart button when the offer is in the cart", async () => {
@@ -188,6 +196,29 @@ describe("OfferActions", () => {
     expect(screen.getByLabelText("Количество")).toHaveValue(2);
   });
 
+  it("keeps the quantity within multiplicity and stock", () => {
+    setup(offer({ multiplicity: 4, qty: 6 }));
+    expect(screen.getByLabelText("Количество")).toHaveValue(4);
+    expect(screen.getByRole("button", { name: "Уменьшить" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Увеличить" })).toBeDisabled();
+  });
+
+  it("rejects a typed quantity that is not a multiple and does not post", async () => {
+    const { posts } = setup(offer({ multiplicity: 4, qty: 6 }));
+    fireEvent.change(screen.getByLabelText("Количество"), {
+      target: { value: "5" },
+    });
+    expect(screen.getByText("кратно 4, не больше 6")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "В корзину" }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(posts).toHaveLength(0);
+  });
+
+  it("allows stepping up on an order offer without stock", () => {
+    setup(offer({ kind: "order", qty: 0, order_code: "v1" }));
+    expect(screen.getByRole("button", { name: "Увеличить" })).toBeEnabled();
+  });
+
   it("disables everything when disabled", () => {
     setup(offer(), [], vi.fn(), true);
     for (const name of [
@@ -198,6 +229,7 @@ describe("OfferActions", () => {
     ]) {
       expect(screen.getByRole("button", { name })).toBeDisabled();
     }
+    expect(screen.getByLabelText("Количество")).toBeDisabled();
   });
 
   it("offers delivery variants instead of the cart", () => {
