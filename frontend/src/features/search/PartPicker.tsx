@@ -97,9 +97,11 @@ export function PartPicker({
   const n = cards.length;
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-[20px] font-bold">
-        {`Найдено ${String(n)} ${plural(n, "деталь", "детали", "деталей")}`}
-      </h3>
+      {n > 0 && (
+        <h3 className="text-[20px] font-bold">
+          {`Найдено ${String(n)} ${plural(n, "деталь", "детали", "деталей")}`}
+        </h3>
+      )}
       {cards.map((card) => (
         <Card
           key={`${card.supplier}|${card.group.key}`}

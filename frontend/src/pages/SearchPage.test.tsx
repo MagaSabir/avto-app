@@ -92,10 +92,10 @@ describe("SearchPage", () => {
     mockApi({});
     renderWithProviders(<SearchPage />, { route: "/" });
     expect(screen.getByLabelText("OEM/Номер или артикул")).toBeVisible();
-    expect(screen.queryByText("На моём складе")).not.toBeInTheDocument();
+    expect(screen.queryByText("Мой склад")).not.toBeInTheDocument();
   });
 
-  it("shows my stock while the supplier is still answering", async () => {
+  it("shows a waiting card while the supplier is still answering", async () => {
     mockApi({
       "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => stock,
@@ -110,11 +110,11 @@ describe("SearchPage", () => {
         : base(input, init),
     );
     renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
-    const t = await screen.findByRole("table");
-    expect(within(t).getByText("W 68/3")).toBeInTheDocument();
+    expect(await screen.findByText("Росско · ждём ответ…")).toBeInTheDocument();
+    // The blocks belong to a chosen part (step 2).
     expect(
-      screen.getByRole("region", { name: "Дешевле всего" }),
-    ).toHaveAttribute("aria-busy", "true");
+      screen.queryByRole("region", { name: "Мой склад" }),
+    ).not.toBeInTheDocument();
   });
 
   it("re-requests the supplier and shows loading again on the same number", async () => {
@@ -131,22 +131,16 @@ describe("SearchPage", () => {
     const second = deferred();
     routeSupplier(() => {
       calls += 1;
-      return calls === 1
-        ? json(supplierResult({ groups: [] }))
-        : second.promise;
+      return calls === 1 ? json(supplierResult()) : second.promise;
     });
     renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
-    const cheap = screen.getByRole("region", { name: "Дешевле всего" });
-    await waitFor(() => {
-      expect(cheap).toHaveAttribute("aria-busy", "false");
-    });
+    expect(
+      await screen.findByRole("region", { name: "Дешевле всего" }),
+    ).toHaveAttribute("aria-busy", "false");
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
     await waitFor(() => {
       expect(calls).toBe(2);
     });
-    expect(
-      screen.getByRole("region", { name: "Дешевле всего" }),
-    ).toHaveAttribute("aria-busy", "true");
     expect(screen.getByText("Росско · ждём ответ…")).toBeInTheDocument();
     expect(lists).toBe(1);
   });
@@ -204,7 +198,7 @@ describe("SearchPage", () => {
     ).toBe(true);
   });
 
-  it("hides analogs in my stock and at the supplier with «Аналоги»", async () => {
+  it("hides the analogs table with «Показывать аналоги»", async () => {
     mockApi({
       "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [stockItem(1)] }),
@@ -214,7 +208,8 @@ describe("SearchPage", () => {
           stockItem(9, {
             number_raw: "290 074",
             number_norm: "290074",
-            brand: "SACHS",
+            brand: "ANALOGBRAND",
+            brand_key: "ANALOGBRAND",
           }),
         ];
       },
@@ -235,12 +230,20 @@ describe("SearchPage", () => {
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     expect(await screen.findByText("ANALOGBRAND")).toBeInTheDocument();
-    expect((await screen.findAllByText("290 074")).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("heading", { name: "Аналоги · 1" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("у вас 3 шт")).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("checkbox", { name: "Показывать аналоги" }),
     );
     expect(screen.queryByText("ANALOGBRAND")).not.toBeInTheDocument();
-    expect(screen.queryByText("290 074")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: /^Аналоги/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Оригинал" }),
+    ).toBeInTheDocument();
   });
 
   it("refreshes analog stock after a receipt without asking Rossko again", async () => {
@@ -266,7 +269,14 @@ describe("SearchPage", () => {
       "GET /api/search/stock": () => {
         analogCalls += 1;
         return received
-          ? [stockItem(9, { number_norm: "290074", qty: 5, brand: "SACHS" })]
+          ? [
+              stockItem(9, {
+                number_norm: "290074",
+                qty: 5,
+                brand: "SACHS",
+                brand_key: "SACHS",
+              }),
+            ]
           : [];
       },
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
@@ -397,13 +407,15 @@ describe("SearchPage", () => {
         new Response(JSON.stringify({ detail: "Ошибка базы" }), {
           status: 500,
         }),
-      "GET /api/search/suppliers": () => [],
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => supplierResult(),
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    expect(await screen.findByText("Ошибка базы")).toBeInTheDocument();
-    const mine = screen.getByRole("region", { name: "Мой склад" });
+    const mine = await screen.findByRole("region", { name: "Мой склад" });
+    expect(
+      await within(mine).findByText("Склад недоступен"),
+    ).toBeInTheDocument();
     expect(mine).toHaveAttribute("aria-busy", "false");
-    expect(within(mine).getByText("—")).toBeInTheDocument();
   });
 
   describe("two parts under one number", () => {
@@ -467,14 +479,8 @@ describe("SearchPage", () => {
         await screen.findByRole("heading", { name: "Найдено 2 детали" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("region", { name: "Дешевле всего" }),
-      ).toHaveTextContent("выберите деталь");
-      expect(
-        screen.getByRole("region", { name: "Быстрее всего" }),
-      ).toHaveTextContent("выберите деталь");
-      expect(
-        within(screen.getByRole("table")).getByText("W 68/3"),
-      ).toBeInTheDocument();
+        screen.queryByRole("region", { name: "Дешевле всего" }),
+      ).not.toBeInTheDocument();
       expect(screen.queryByText("BOSCHMANN")).not.toBeInTheDocument();
       expect(
         within(screen.getByRole("button", { name: /MGA W68\/3/ })).getByText(
@@ -494,7 +500,10 @@ describe("SearchPage", () => {
       ).toHaveTextContent("710 ₽");
       expect(screen.queryByText(/860/)).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("link", { name: "← все детали" }));
+      expect(
+        screen.getByRole("heading", { name: /Mann W 68\/3.*Росско/ }),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("link", { name: "← Другие детали" }));
       expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
       expect(screen.getByLabelText("where")).not.toHaveTextContent("supplier=");
@@ -512,22 +521,6 @@ describe("SearchPage", () => {
       expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
       expect(screen.getByLabelText("where")).not.toHaveTextContent("supplier=");
-    });
-
-    it("shows supplier prices in my stock only for a chosen part", async () => {
-      setup("/?q=W68/3");
-      await screen.findByText("Найдено 2 детали");
-      const row = within(screen.getByRole("table"))
-        .getByText("W 68/3")
-        .closest("tr");
-      expect(row).not.toBeNull();
-      expect(row?.lastElementChild).toHaveTextContent(/^—$/);
-      expect(screen.queryByText(/дешевле/)).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: /Mann.*W 68\/3/ }));
-      const [mine] = screen.getAllByRole("table");
-      const chosen = within(mine).getByText("W 68/3").closest("tr");
-      expect(chosen?.lastElementChild).toHaveTextContent("710 ₽");
-      expect(chosen).toHaveTextContent("на 1 739,85 ₽ дешевле закупки");
     });
 
     it("shows the part list for an unknown part", async () => {
@@ -579,7 +572,16 @@ describe("SearchPage", () => {
           supplierResult({
             code: "mikado",
             title: "Микадо",
-            groups: [group("MANN-FILTER", "150.00", 1)],
+            groups: [
+              group("MANN-FILTER", "150.00", 1),
+              partGroup({
+                brand: "MIKANALOG",
+                number_norm: "M1",
+                key: "MIKANALOG|M1",
+                is_requested: false,
+                analog_of: ["MANN|W683"],
+              }),
+            ],
           }),
         "GET /api/search/stock": () => [],
       });
@@ -602,6 +604,22 @@ describe("SearchPage", () => {
         "?q=W68%2F3&supplier=mikado&part=MANN%7CW683",
       );
       expect(screen.queryByText("Найдено 2 детали")).not.toBeInTheDocument();
+    });
+
+    it("shows only the chosen supplier's data on step 2", async () => {
+      setup("/?q=W68/3");
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Mann.*W 68\/3/ }),
+      );
+      expect(
+        screen.getByRole("heading", { name: /Mann W 68\/3.*Росско/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("BOSCHMANN")).toBeInTheDocument();
+      expect(screen.queryByText("MIKANALOG")).not.toBeInTheDocument();
+      expect(screen.queryByText("MANN-FILTER")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("region", { name: "Дешевле всего" }),
+      ).toHaveTextContent("50 ₽");
     });
 
     it("prices a card from the original when analogs are hidden", async () => {
@@ -676,7 +694,7 @@ describe("SearchPage", () => {
           : again.promise;
       });
       expect(
-        await screen.findByText("Стойка амортизационная"),
+        await screen.findByRole("heading", { name: /KYB 333114/ }),
       ).toBeInTheDocument();
       expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
       void queryClient.refetchQueries({ queryKey: ["search", "supplier"] });
@@ -684,7 +702,9 @@ describe("SearchPage", () => {
         expect(calls).toBe(2);
       });
       expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
-      expect(screen.getByText("Стойка амортизационная")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /KYB 333114/ }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -697,11 +717,15 @@ describe("SearchPage", () => {
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     expect(
-      await screen.findByText("Стойка амортизационная"),
+      await screen.findByRole("heading", { name: /KYB 333114/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
-    expect(screen.queryByText("← все детали")).not.toBeInTheDocument();
-    expect(screen.getByText("Стойка амортизационная")).toBeInTheDocument();
+    expect(screen.queryByText("← Другие детали")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Оригинал" })).getByText(
+        "Стойка амортизационная",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows the cheapest or the fastest offer in each row", async () => {
@@ -732,12 +756,11 @@ describe("SearchPage", () => {
         }),
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    const toggle = await screen.findByRole("button", {
-      name: "Другие склады: 1",
-    });
-    // The best offer's price; the section header («от …») does not match.
-    const section = toggle.closest('[role="group"]') as HTMLElement;
-    const shown = () => within(section).getByText(/^\d+ ₽$/).textContent;
+    const original = await screen.findByRole("region", { name: "Оригинал" });
+    expect(
+      within(original).getByRole("button", { name: "и ещё 1 склад ▾" }),
+    ).toBeInTheDocument();
+    const shown = () => within(original).getByText(/^\d+ ₽$/).textContent;
     expect(shown()).toBe("500 ₽");
     fireEvent.change(screen.getByRole("combobox", { name: "Сортировка" }), {
       target: { value: "time" },
@@ -788,11 +811,15 @@ describe("SearchPage", () => {
     });
     renderApp("/?q=W68/3");
     fireEvent.click(await screen.findByRole("button", { name: /^Mann/ }));
-    expect(await screen.findByText("Фильтр")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /^Mann/ }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Склад" }));
     expect(await screen.findByText("STOCK")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("link", { name: "Поиск" })[0]);
-    expect(await screen.findByText("Фильтр")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /^Mann/ }),
+    ).toBeInTheDocument();
     const where = screen.getByLabelText("where").textContent;
     expect(new URLSearchParams(where).get("q")).toBe("W68/3");
     expect(new URLSearchParams(where).get("part")).toBe("MANN|W683");

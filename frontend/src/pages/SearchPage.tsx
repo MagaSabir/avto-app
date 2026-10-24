@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import type { Offer, SupplierSearchResult } from "@/api/search";
 import {
@@ -11,22 +11,21 @@ import {
 } from "@/api/search";
 import {
   partCards,
-  selectPart,
   stockQty,
-  visibleStock,
+  supplierBest,
+  supplierPart,
 } from "@/features/search/derive";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
 import { setLastSearch } from "@/features/search/lastSearch";
-import { MyStockBlock } from "@/features/search/MyStockBlock";
 import { PartPicker } from "@/features/search/PartPicker";
+import { PartTable } from "@/features/search/PartTable";
 import { SearchForm } from "@/features/search/SearchForm";
-import { SummaryCards } from "@/features/search/SummaryCards";
-import { SuppliersBlock } from "@/features/search/SuppliersBlock";
 import {
   loadSupplierChoice,
   saveSupplierChoice,
   selectedSuppliers,
 } from "@/features/search/supplierChoice";
+import { SummaryPanel } from "@/features/search/SummaryPanel";
 import {
   ToStockDialog,
   type ReceiptPart,
@@ -94,20 +93,12 @@ export function SearchPage() {
     cards.find(
       (c) => c.supplier === supplierParam && c.group.key === partParam,
     ) ?? (cards.length === 1 && !pending ? cards[0] : undefined);
-  const picking = cards.length > 0 && chosen === undefined;
   const chosenResult = answered.find((r) => r.code === chosen?.supplier);
-  const results =
+  const chosenQuery = searches.at(codes.indexOf(chosen?.supplier ?? ""));
+  const part =
     chosen === undefined || chosenResult === undefined
-      ? answered
-      : selectPart([chosenResult], chosen.group.key);
-  const stepSuppliers =
-    chosen === undefined
-      ? selected
-      : selected.filter((s) => s.code === chosen.supplier);
-  const stepQueries =
-    chosen === undefined
-      ? searches
-      : searches.filter((_, i) => selected.at(i)?.code === chosen.supplier);
+      ? undefined
+      : { ...supplierPart(chosenResult, chosen.group.key), card: chosen };
 
   const waitingTitles: { title: string }[] = [];
   const errors: { title: string; message: string; retry: () => void }[] = [];
@@ -131,28 +122,37 @@ export function SearchPage() {
   // Analog stock is its own local query, so it can be refreshed after a
   // receipt without asking suppliers again. Analogs belong to a part, so none
   // are looked up before one is chosen.
-  const analogNumbers = picking
-    ? []
-    : [
-        ...new Set(
-          results.flatMap((r) =>
-            r.groups.filter((g) => !g.is_requested).map((g) => g.number_norm),
-          ),
-        ),
-      ].filter((n) => n !== stock.data?.number_norm);
+  const analogNumbers =
+    part === undefined
+      ? []
+      : [...new Set(part.analogs.map((g) => g.number_norm))].filter(
+          (n) => n !== stock.data?.number_norm,
+        );
   const matches = useAnalogStock(analogNumbers).data ?? [];
-  const rows = stock.data
-    ? visibleStock(stock.data.items, matches, {
-        ...filters,
-        inStockOnly: false,
-      })
-    : undefined;
-  const stockNumbers = new Map<string, number>();
-  for (const it of [...(stock.data?.items ?? []), ...matches])
-    stockNumbers.set(
-      it.number_norm,
-      (stockNumbers.get(it.number_norm) ?? 0) + it.qty,
-    );
+  const myItems = [...(stock.data?.items ?? []), ...matches];
+
+  const best =
+    part === undefined
+      ? { cheapest: null, fastest: null }
+      : supplierBest(
+          filters.showAnalogs
+            ? [part.card.group, ...part.analogs]
+            : [part.card.group],
+          now,
+        );
+  const onToStock = (
+    group: ReceiptPart,
+    offer: Offer,
+    supplierTitle: string,
+  ) => {
+    setToStock({ group, offer, supplierTitle });
+  };
+
+  const nothing =
+    cards.length === 0 &&
+    waitingTitles.length === 0 &&
+    errors.length === 0 &&
+    !suppliers.isPending;
 
   return (
     <div className="flex flex-col gap-3">
@@ -172,22 +172,7 @@ export function SearchPage() {
               setFilters((f) => ({ ...f, ...patch }));
             }}
           />
-          <SummaryCards
-            items={rows?.map((r) => r.item)}
-            stockFailed={stock.isError}
-            results={results}
-            pending={pending}
-            pickPart={picking}
-            opts={{ showAnalogs: filters.showAnalogs, now }}
-          />
-          <MyStockBlock
-            rows={rows}
-            // Prices match by number only, which mixes parts: none on step 1.
-            results={picking ? [] : results}
-            loadingMatches={pending}
-            error={stock.error}
-          />
-          {picking && (
+          {part === undefined ? (
             <div className="flex flex-col gap-3">
               {answered.map(
                 (r) =>
@@ -206,28 +191,83 @@ export function SearchPage() {
                 now={now}
                 pending={waitingTitles}
                 errors={errors}
-                onPick={(supplier, part) => {
-                  setParams({ q, supplier, part });
+                onPick={(supplier, key) => {
+                  setParams({ q, supplier, part: key });
                 }}
               />
+              {nothing && (
+                <p className="py-4 text-center text-muted-foreground">
+                  Ничего не найдено
+                </p>
+              )}
             </div>
-          )}
-          {!picking && (suppliers.data?.length ?? 0) > 0 && (
-            <SuppliersBlock
-              suppliers={stepSuppliers}
-              queries={stepQueries}
-              opts={{ ...filters, now }}
-              results={results}
-              stockNumbers={stockNumbers}
-              onToStock={(group, offer, supplierTitle) => {
-                setToStock({ group, offer, supplierTitle });
-              }}
-              backTo={
-                cards.length > 1 && chosen !== undefined
-                  ? `?${new URLSearchParams({ q }).toString()}`
-                  : undefined
-              }
-            />
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                {cards.length > 1 && (
+                  <Link
+                    to={`?${new URLSearchParams({ q }).toString()}`}
+                    className="rounded-[9px] border bg-card px-3 py-2 text-[14px] font-semibold text-link hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    ← Другие детали
+                  </Link>
+                )}
+                <div className="min-w-0">
+                  <h2 className="text-[20px] font-bold [overflow-wrap:anywhere]">
+                    {`${part.card.group.brand} ${part.card.group.number}`}{" "}
+                    <span className="ml-1 inline-block rounded-full bg-muted px-2.5 py-0.5 align-middle text-[12.5px] font-normal text-soft-foreground">
+                      {part.card.title}
+                    </span>
+                  </h2>
+                  {part.card.group.name !== "" && (
+                    <p className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
+                      {part.card.group.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <SummaryPanel
+                stock={stock.data?.items}
+                stockError={stock.isError}
+                partKey={part.card.group.key}
+                best={best}
+                pending={chosenQuery?.isFetching ?? false}
+                now={now}
+              />
+              {chosenResult?.message != null && (
+                <p className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">
+                  {chosenResult.message}
+                </p>
+              )}
+              <PartTable
+                title="Оригинал"
+                groups={[part.card.group]}
+                supplier={{ code: part.card.supplier, title: part.card.title }}
+                sort={filters.sort}
+                best={best}
+                stockQty={(key) => stockQty(myItems, key)}
+                now={now}
+                onToStock={onToStock}
+              />
+              {filters.showAnalogs && part.analogs.length > 0 && (
+                <PartTable
+                  // A new search, card or filter starts again from 20 rows.
+                  key={`${q}|${part.card.supplier}|${part.card.group.key}|${String(filters.showAnalogs)}|${filters.sort}`}
+                  title="Аналоги"
+                  groups={part.analogs}
+                  supplier={{
+                    code: part.card.supplier,
+                    title: part.card.title,
+                  }}
+                  sort={filters.sort}
+                  best={best}
+                  stockQty={(key) => stockQty(myItems, key)}
+                  now={now}
+                  limit={20}
+                  onToStock={onToStock}
+                />
+              )}
+            </div>
           )}
         </>
       )}

@@ -9,12 +9,9 @@ import { useState, type SyntheticEvent } from "react";
 
 import { useAddToCart, useCart } from "@/api/cart";
 import type { Offer, PartGroup } from "@/api/search";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { normBrand } from "@/lib/brand";
 import { useFlash } from "@/features/stock/useFlash";
-
-import { VariantsList } from "./VariantsList";
 
 type Props = {
   supplier: string;
@@ -32,40 +29,7 @@ const STEP_BTN =
 // Order offers have no stock of their own: any quantity up to this.
 const ORDER_MAX = 999; // mirrors ORDER_MAX in backend/app/domain/cart.py
 
-export function OfferActions(props: Props) {
-  // A «variants» row has no price or term of its own: its delivery options
-  // open from here (and each of them goes to the cart).
-  if (props.offer.kind === "variants") return <VariantsToggle {...props} />;
-  return <CartActions {...props} />;
-}
-
-function VariantsToggle({ supplier, group, offer, onToStock }: Props) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex flex-col md:items-end">
-      <Button
-        type="button"
-        aria-expanded={open}
-        onClick={() => {
-          setOpen((v) => !v);
-        }}
-        className="h-8 px-2"
-      >
-        {open ? "варианты поставки ▴" : "варианты поставки ▾"}
-      </Button>
-      {open && (
-        <VariantsList
-          supplier={supplier}
-          group={group}
-          orderCode={offer.order_code ?? ""}
-          onToStock={onToStock}
-        />
-      )}
-    </div>
-  );
-}
-
-function CartActions({
+export function OfferActions({
   supplier,
   group,
   offer,
@@ -109,7 +73,7 @@ function CartActions({
     add.reset();
   }
 
-  const status = !valid ? (
+  const status = disabled ? null : !valid ? (
     <span className="text-destructive">
       {`кратно ${String(offer.multiplicity)}, не больше ${String(max)}`}
     </span>
