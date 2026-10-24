@@ -31,7 +31,7 @@ function Check({
   children: ReactNode;
 }) {
   return (
-    <label className="flex h-[34px] cursor-pointer items-center gap-1.5 text-[13px] font-medium">
+    <label className="flex min-h-9 cursor-pointer items-center gap-2 text-[14px] text-muted-foreground">
       <input
         type="checkbox"
         checked={checked}
@@ -39,7 +39,7 @@ function Check({
         onChange={(e) => {
           onChange(e.target.checked);
         }}
-        className="size-4 cursor-pointer accent-primary"
+        className="grid size-[22px] shrink-0 cursor-pointer appearance-none place-items-center rounded-[5px] border border-border-active bg-card checked:border-primary checked:bg-primary checked:after:text-[16px] checked:after:leading-none checked:after:font-extrabold checked:after:text-primary-foreground checked:after:content-['✓'] focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:opacity-60"
       />
       {children}
     </label>
@@ -84,14 +84,14 @@ function SupplierPicker({
         onClick={() => {
           setOpen(!open);
         }}
-        className="inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border bg-card px-3 text-[13px] font-medium hover:bg-selected"
+        className="inline-flex h-[38px] cursor-pointer items-center gap-2 rounded-[9px] border bg-card px-[11px] text-[14px] font-medium text-foreground hover:bg-selected"
       >
         <span className="font-normal text-muted-foreground">Поставщик:</span>{" "}
         {label}
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute left-0 z-30 mt-1 min-w-44 rounded-lg border bg-card px-3 py-1 shadow-md">
+        <div className="absolute left-0 z-30 mt-1 min-w-44 rounded-[9px] border bg-card px-3 py-1 shadow-md">
           {suppliers.map((s) => {
             const on = chosen.includes(s.code);
             return (
@@ -130,7 +130,7 @@ export function FilterBar({
   onChange,
 }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <div className="flex flex-wrap items-center gap-4">
       <Check
         checked={inStockOnly}
         onChange={(v) => {
@@ -147,6 +147,29 @@ export function FilterBar({
       >
         Показывать аналоги
       </Check>
+      <div className="flex h-[38px] items-center gap-2 rounded-[9px] border bg-card px-[11px] text-[14px]">
+        <span aria-hidden="true" className="text-muted-foreground">
+          Сортировка:
+        </span>
+        <select
+          aria-label="Сортировка"
+          value={sort}
+          onChange={(e) => {
+            onChange({ sort: e.target.value as SortMode });
+          }}
+          className="cursor-pointer bg-transparent font-medium text-foreground outline-none"
+        >
+          <option value="price">По цене ↑</option>
+          <option value="time">По сроку ↑</option>
+        </select>
+      </div>
+      {suppliers.length > 1 && (
+        <SupplierPicker
+          suppliers={suppliers}
+          chosen={chosen}
+          onChoose={onChoose}
+        />
+      )}
       {chosen.includes("mikado") && (
         <Check
           checked={mikadoOrders}
@@ -157,29 +180,6 @@ export function FilterBar({
           Микадо: наличие и заказ
         </Check>
       )}
-      {suppliers.length > 1 && (
-        <SupplierPicker
-          suppliers={suppliers}
-          chosen={chosen}
-          onChoose={onChoose}
-        />
-      )}
-      <div className="flex h-[34px] items-center gap-1.5 rounded-lg border bg-card px-3 text-[13px]">
-        <span aria-hidden="true" className="text-muted-foreground">
-          Сортировка:
-        </span>
-        <select
-          aria-label="Сортировка"
-          value={sort}
-          onChange={(e) => {
-            onChange({ sort: e.target.value as SortMode });
-          }}
-          className="cursor-pointer bg-transparent font-medium outline-none"
-        >
-          <option value="price">По цене ↑</option>
-          <option value="time">По сроку ↑</option>
-        </select>
-      </div>
     </div>
   );
 }

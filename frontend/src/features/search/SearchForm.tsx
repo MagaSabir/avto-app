@@ -34,14 +34,14 @@ export function SearchForm({ initial, onSearch }: Props) {
       }}
       className="flex flex-col gap-1"
     >
-      <div className="flex gap-2">
+      <div className="flex max-w-[940px] gap-2">
         <div
-          className={`flex h-[52px] min-w-0 flex-1 items-center gap-2 rounded-lg border bg-input px-3.5 focus-within:ring-[3px] focus-within:ring-ring md:max-w-xl ${
-            error ? "border-status-out" : ""
+          className={`flex h-[50px] min-w-0 flex-1 items-center gap-3 rounded-[10px] border border-border-active bg-card px-[13px] focus-within:ring-[3px] focus-within:ring-ring ${
+            error ? "border-status-out!" : ""
           }`}
         >
           <div className="flex min-w-0 flex-1 flex-col">
-            <label htmlFor={id} className="text-[12px] text-muted-foreground">
+            <label htmlFor={id} className="text-[13px] text-muted-foreground">
               OEM/Номер или артикул
             </label>
             <input
@@ -56,7 +56,7 @@ export function SearchForm({ initial, onSearch }: Props) {
               aria-invalid={error}
               autoComplete="off"
               spellCheck={false}
-              className="w-full bg-transparent font-mono text-[15px] outline-none"
+              className="w-full bg-transparent font-mono text-[15px] font-semibold outline-none"
             />
           </div>
           {value !== "" && (
@@ -77,7 +77,7 @@ export function SearchForm({ initial, onSearch }: Props) {
         <Button
           type="submit"
           variant="primary"
-          className="inline-flex h-[52px] items-center gap-2 px-6"
+          className="inline-flex h-[50px] items-center gap-2 rounded-[10px] border-primary-foreground/20 px-[23px] text-[15px] font-semibold"
         >
           <Search size={16} aria-hidden="true" />
           Найти
