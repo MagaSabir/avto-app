@@ -633,6 +633,61 @@ describe("SearchPage", () => {
     });
   });
 
+  describe("one card with a second supplier", () => {
+    function setup(mikado: () => Promise<Response> | Response) {
+      mockApi({
+        "GET /api/cart": () => ({ items: [], total: "0.00" }),
+        "GET /api/search": () => ({ ...stock, items: [] }),
+        "GET /api/search/suppliers": () => [
+          { code: "rossko", title: "Росско" },
+          { code: "mikado", title: "Микадо" },
+        ],
+        "GET /api/search/suppliers/rossko": () => supplierResult(),
+        "GET /api/search/stock": () => [],
+      });
+      const base = globalThis.fetch;
+      vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+        (input instanceof Request ? input.url : input.toString()).includes(
+          "/api/search/suppliers/mikado",
+        )
+          ? Promise.resolve(mikado())
+          : base(input, init),
+      );
+      return renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    }
+
+    it("shows the picker with a skeleton while the other supplier answers", async () => {
+      setup(() => new Promise<Response>(() => undefined));
+      expect(
+        await screen.findByRole("heading", { name: "Найдено 1 деталь" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Микадо · ждём ответ…")).toBeInTheDocument();
+    });
+
+    it("stays on step 2 when the other supplier is refetched", async () => {
+      const again = deferred();
+      let calls = 0;
+      const { queryClient } = setup(() => {
+        calls += 1;
+        return calls === 1
+          ? json(
+              supplierResult({ code: "mikado", title: "Микадо", groups: [] }),
+            )
+          : again.promise;
+      });
+      expect(
+        await screen.findByText("Стойка амортизационная"),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
+      void queryClient.refetchQueries({ queryKey: ["search", "supplier"] });
+      await waitFor(() => {
+        expect(calls).toBe(2);
+      });
+      expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
+      expect(screen.getByText("Стойка амортизационная")).toBeInTheDocument();
+    });
+  });
+
   it("goes straight to the offers with a single part", async () => {
     mockApi({
       "GET /api/cart": () => ({ items: [], total: "0.00" }),

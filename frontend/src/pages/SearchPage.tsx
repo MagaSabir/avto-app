@@ -83,8 +83,6 @@ export function SearchPage() {
     s.data?.status === "ok" ? [s.data] : [],
   );
   const pending = suppliers.isPending || searches.some((s) => s.isPending);
-  const waiting =
-    suppliers.isPending || searches.some((s) => s.isPending || s.isFetching);
 
   // Two steps: pick a supplier's part (a card), then see its offers and
   // analogs. A single card skips the list once every supplier has answered.
@@ -95,7 +93,7 @@ export function SearchPage() {
   const chosen =
     cards.find(
       (c) => c.supplier === supplierParam && c.group.key === partParam,
-    ) ?? (cards.length === 1 && !waiting ? cards[0] : undefined);
+    ) ?? (cards.length === 1 && !pending ? cards[0] : undefined);
   const picking = cards.length > 0 && chosen === undefined;
   const chosenResult = answered.find((r) => r.code === chosen?.supplier);
   const results =
