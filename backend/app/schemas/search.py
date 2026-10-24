@@ -9,6 +9,7 @@ from app.suppliers.base import OfferKind
 
 
 class StockSearchItem(StockItemOut):
+    brand_key: str
     last_receipt_at: datetime | None
     last_receipt_supplier: str | None
     sold_30d: int

@@ -38,3 +38,9 @@ async def test_stock_by_numbers_limit(client: AsyncClient) -> None:
 async def test_stock_by_numbers_requires_login(anon_client: AsyncClient) -> None:
     r = await anon_client.get("/api/search/stock", params={"numbers": "W683"})
     assert r.status_code == 401
+
+
+async def test_stock_by_numbers_has_brand_key(client: AsyncClient) -> None:
+    await _receive(client, "W683", "Mann-Filter")
+    r = await client.get("/api/search/stock", params={"numbers": "W683"})
+    assert [i["brand_key"] for i in r.json()] == ["MANN"]

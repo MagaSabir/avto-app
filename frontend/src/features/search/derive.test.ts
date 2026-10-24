@@ -86,6 +86,7 @@ function item(
     number_norm: `N${String(id)}`,
     brand: "B",
     name: "n",
+    brand_key: "B",
     qty: 1,
     min_qty: 0,
     cell: null,

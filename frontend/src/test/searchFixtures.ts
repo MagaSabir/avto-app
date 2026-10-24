@@ -14,6 +14,7 @@ export function stockItem(
     number_raw: "333114",
     number_norm: "333114",
     brand: "KYB",
+    brand_key: "KYB",
     name: "Стойка амортизационная",
     qty: 3,
     min_qty: 1,
