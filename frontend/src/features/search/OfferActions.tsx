@@ -1,4 +1,10 @@
-import { PackagePlus, ShoppingCart } from "lucide-react";
+import {
+  GitCompareArrows,
+  Minus,
+  PackagePlus,
+  Plus,
+  ShoppingCart,
+} from "lucide-react";
 import { useState, type SyntheticEvent } from "react";
 
 import { useAddToCart, useCart } from "@/api/cart";
@@ -15,7 +21,13 @@ type Props = {
   group: PartGroup;
   offer: Offer;
   onToStock: (group: PartGroup, offer: Offer) => void;
+  disabled?: boolean;
 };
+
+const ICON_BTN =
+  "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
+const STEP_BTN =
+  "inline-flex h-8 w-7 cursor-pointer items-center justify-center rounded-[7px] border bg-card text-foreground enabled:hover:bg-selected disabled:cursor-default disabled:opacity-50";
 
 // Order offers have no stock of their own: any quantity up to this.
 const ORDER_MAX = 999; // mirrors ORDER_MAX in backend/app/domain/cart.py
@@ -53,7 +65,13 @@ function VariantsToggle({ supplier, group, offer, onToStock }: Props) {
   );
 }
 
-function CartActions({ supplier, group, offer, onToStock }: Props) {
+function CartActions({
+  supplier,
+  group,
+  offer,
+  onToStock,
+  disabled = false,
+}: Props) {
   const [value, setValue] = useState(String(offer.multiplicity));
   const [flash, showFlash] = useFlash(2500);
   const cart = useCart();
@@ -76,6 +94,16 @@ function CartActions({ supplier, group, offer, onToStock }: Props) {
         i.stock_id === offer.stock_id,
     )
     .reduce((sum, i) => sum + i.qty, 0);
+
+  function step(delta: number) {
+    const base = /^\d+$/.test(value) ? qty : offer.multiplicity;
+    const next = Math.min(
+      Math.max(base + delta * offer.multiplicity, offer.multiplicity),
+      max,
+    );
+    setValue(String(next));
+    add.reset();
+  }
 
   const status = !valid ? (
     <span className="text-destructive">
@@ -124,6 +152,17 @@ function CartActions({ supplier, group, offer, onToStock }: Props) {
       onSubmit={submit}
       className="flex flex-wrap items-center gap-x-2 gap-y-1 md:justify-end"
     >
+      <button
+        type="button"
+        aria-label="Уменьшить"
+        disabled={disabled}
+        onClick={() => {
+          step(-1);
+        }}
+        className={STEP_BTN}
+      >
+        <Minus aria-hidden="true" className="size-3.5" />
+      </button>
       <Input
         type="number"
         inputMode="numeric"
@@ -133,32 +172,65 @@ function CartActions({ supplier, group, offer, onToStock }: Props) {
         step={offer.multiplicity}
         max={max}
         value={value}
+        disabled={disabled}
         onChange={(e) => {
           setValue(e.target.value);
           add.reset();
         }}
-        className="h-8 w-16 px-2 text-right tabular-nums aria-invalid:border-destructive"
+        className="h-8 w-14 px-2 text-center tabular-nums aria-invalid:border-destructive"
       />
-      <Button
+      <button
+        type="button"
+        aria-label="Увеличить"
+        disabled={disabled}
+        onClick={() => {
+          step(1);
+        }}
+        className={STEP_BTN}
+      >
+        <Plus aria-hidden="true" className="size-3.5" />
+      </button>
+      <button
         type="submit"
-        aria-label="В корзину"
+        aria-label={
+          inCart > 0 ? `В корзину, в корзине ${String(inCart)}` : "В корзину"
+        }
         title="В корзину"
-        disabled={offer.stock_id === "" || add.isPending}
-        className="h-8 px-2"
+        disabled={disabled || offer.stock_id === "" || add.isPending}
+        className={`${ICON_BTN} ${
+          inCart > 0
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-primary text-link"
+        }`}
       >
         <ShoppingCart aria-hidden="true" className="size-4" />
-      </Button>
-      <Button
+        {inCart > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full border-2 border-card bg-primary px-1 text-center text-[10.5px] leading-3 text-primary-foreground">
+            {inCart}
+          </span>
+        )}
+      </button>
+      <button
         type="button"
         aria-label="Принять на склад"
         title="Принять на склад"
-        className="h-8 px-2"
+        disabled={disabled}
+        className={`${ICON_BTN} border-primary text-link`}
         onClick={() => {
           onToStock(group, offer);
         }}
       >
         <PackagePlus aria-hidden="true" className="size-4" />
-      </Button>
+      </button>
+      <button
+        type="button"
+        aria-label="В сравнение"
+        title="Сравнение — позже"
+        disabled
+        className={`${ICON_BTN} text-soft-foreground`}
+      >
+        <GitCompareArrows aria-hidden="true" className="size-4" />
+      </button>
       {status !== null && (
         <div
           role="status"

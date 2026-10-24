@@ -36,6 +36,7 @@ function setup(
   o = offer({ multiplicity: 2, qty: 10 }),
   items: CartItem[] = [],
   onToStock = vi.fn(),
+  disabled = false,
 ) {
   const posts: unknown[] = [];
   mockApi({
@@ -52,6 +53,7 @@ function setup(
       group={group}
       offer={o}
       onToStock={onToStock}
+      disabled={disabled}
     />,
   );
   return { posts, onToStock, group, o };
@@ -152,6 +154,50 @@ describe("OfferActions", () => {
       expect(posts).toHaveLength(1);
     });
     expect(posts[0]).toMatchObject({ order_code: null });
+  });
+
+  it("shows the cart button without a count when nothing is in the cart", async () => {
+    setup(offer(), []);
+    const btn = screen.getByRole("button", { name: "В корзину" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toHaveTextContent(/\d/);
+  });
+
+  it("shows the count on the cart button when the offer is in the cart", async () => {
+    setup(offer(), [cartItem({ qty: 2 })]);
+    const btn = await screen.findByRole("button", {
+      name: "В корзину, в корзине 2",
+    });
+    expect(btn).toHaveTextContent("2");
+  });
+
+  it("has a disabled compare button", () => {
+    setup();
+    const btn = screen.getByRole("button", { name: "В сравнение" });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("title", "Сравнение — позже");
+  });
+
+  it("steps the quantity by multiplicity", () => {
+    setup(offer({ multiplicity: 2, qty: 10 }));
+    fireEvent.click(screen.getByRole("button", { name: "Увеличить" }));
+    expect(screen.getByLabelText("Количество")).toHaveValue(4);
+    fireEvent.click(screen.getByRole("button", { name: "Уменьшить" }));
+    fireEvent.click(screen.getByRole("button", { name: "Уменьшить" }));
+    expect(screen.getByLabelText("Количество")).toHaveValue(2);
+  });
+
+  it("disables everything when disabled", () => {
+    setup(offer(), [], vi.fn(), true);
+    for (const name of [
+      "В корзину",
+      "Принять на склад",
+      "Уменьшить",
+      "Увеличить",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+    }
   });
 
   it("offers delivery variants instead of the cart", () => {
