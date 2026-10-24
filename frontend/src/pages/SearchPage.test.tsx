@@ -439,6 +439,7 @@ describe("SearchPage", () => {
           key: "LUZARMGA|L1",
           is_requested: false,
           analog_of: ["MGA|W683"],
+          offers: [],
         }),
       ],
     });
@@ -462,8 +463,9 @@ describe("SearchPage", () => {
 
     it("asks to pick a part first, then shows only its offers", async () => {
       setup("/?q=W68/3");
-      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
-      expect(screen.getByText("Росско · 2 детали")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { name: "Найдено 2 детали" }),
+      ).toBeInTheDocument();
       expect(
         screen.getByRole("region", { name: "Дешевле всего" }),
       ).toHaveTextContent("выберите деталь");
@@ -476,17 +478,15 @@ describe("SearchPage", () => {
       expect(screen.queryByText("BOSCHMANN")).not.toBeInTheDocument();
       expect(
         within(screen.getByRole("button", { name: /MGA W68\/3/ })).getByText(
-          "нет в наличии",
+          "—",
         ),
       ).toBeInTheDocument();
 
-      fireEvent.click(
-        screen.getByRole("button", { name: /Mann W 68\/3 Фильтр масляный/ }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Mann.*W 68\/3/ }));
       expect(screen.getByLabelText("where")).toHaveTextContent(
-        `part=${encodeURIComponent(mann)}`,
+        `supplier=rossko&part=${encodeURIComponent(mann)}`,
       );
-      expect(screen.queryByText("Результаты поиска")).not.toBeInTheDocument();
+      expect(screen.queryByText("Найдено 2 детали")).not.toBeInTheDocument();
       expect(screen.getByText("BOSCHMANN")).toBeInTheDocument();
       expect(screen.queryByText("LUZARMGA")).not.toBeInTheDocument();
       expect(
@@ -495,35 +495,35 @@ describe("SearchPage", () => {
       expect(screen.queryByText(/860/)).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("link", { name: "← все детали" }));
-      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
+      expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
+      expect(screen.getByLabelText("where")).not.toHaveTextContent("supplier=");
     });
 
     it("returns to the part list with browser Back", async () => {
       setup("/?q=W68/3");
       fireEvent.click(
         await screen.findByRole("button", {
-          name: /Mann W 68\/3 Фильтр масляный/,
+          name: /Mann.*W 68\/3/,
         }),
       );
       expect(await screen.findByText("BOSCHMANN")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "history-back" }));
-      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
+      expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
+      expect(screen.getByLabelText("where")).not.toHaveTextContent("supplier=");
     });
 
     it("shows supplier prices in my stock only for a chosen part", async () => {
       setup("/?q=W68/3");
-      await screen.findByText("Результаты поиска");
+      await screen.findByText("Найдено 2 детали");
       const row = within(screen.getByRole("table"))
         .getByText("W 68/3")
         .closest("tr");
       expect(row).not.toBeNull();
       expect(row?.lastElementChild).toHaveTextContent(/^—$/);
       expect(screen.queryByText(/дешевле/)).not.toBeInTheDocument();
-      fireEvent.click(
-        screen.getByRole("button", { name: /Mann W 68\/3 Фильтр масляный/ }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: /Mann.*W 68\/3/ }));
       const [mine] = screen.getAllByRole("table");
       const chosen = within(mine).getByText("W 68/3").closest("tr");
       expect(chosen?.lastElementChild).toHaveTextContent("710 ₽");
@@ -531,18 +531,105 @@ describe("SearchPage", () => {
     });
 
     it("shows the part list for an unknown part", async () => {
-      setup("/?q=W68/3&part=NOPE|1");
-      expect(await screen.findByText("Результаты поиска")).toBeInTheDocument();
+      setup("/?q=W68/3&supplier=rossko&part=NOPE|1");
+      expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
     });
 
     it("drops the part on a new number", async () => {
-      setup(`/?q=W68/3&part=${encodeURIComponent(mann)}`);
+      setup(`/?q=W68/3&supplier=rossko&part=${encodeURIComponent(mann)}`);
       expect(await screen.findByText("BOSCHMANN")).toBeInTheDocument();
       const input = screen.getByLabelText("OEM/Номер или артикул");
       fireEvent.change(input, { target: { value: "W712" } });
       fireEvent.click(screen.getByRole("button", { name: "Найти" }));
       expect(screen.getByLabelText("where")).toHaveTextContent("?q=W712");
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");
+    });
+  });
+
+  describe("two suppliers", () => {
+    const group = (brand: string, price: string, days: number) =>
+      partGroup({
+        brand,
+        number: "W 68/3",
+        number_norm: "W683",
+        name: "Фильтр масляный",
+        key: "MANN|W683",
+        offers: [offer({ purchase_price: price, price, delivery_days: days })],
+      });
+    const analog = partGroup({
+      brand: "BOSCHMANN",
+      number_norm: "F1",
+      key: "BOSCHMANN|F1",
+      is_requested: false,
+      analog_of: ["MANN|W683"],
+      offers: [offer({ purchase_price: "50.00", price: "50.00" })],
+    });
+
+    function setup(route: string) {
+      mockApi({
+        "GET /api/cart": () => ({ items: [], total: "0.00" }),
+        "GET /api/search": () => ({ ...stock, items: [] }),
+        "GET /api/search/suppliers": () => [
+          { code: "rossko", title: "Росско" },
+          { code: "mikado", title: "Микадо" },
+        ],
+        "GET /api/search/suppliers/rossko": () =>
+          supplierResult({ groups: [group("Mann", "200.00", 3), analog] }),
+        "GET /api/search/suppliers/mikado": () =>
+          supplierResult({
+            code: "mikado",
+            title: "Микадо",
+            groups: [group("MANN-FILTER", "150.00", 1)],
+          }),
+        "GET /api/search/stock": () => [],
+      });
+      renderWithProviders(
+        <>
+          <SearchPage />
+          <Where />
+        </>,
+        { route },
+      );
+    }
+
+    it("shows a card per supplier and opens the clicked one", async () => {
+      setup("/?q=W68/3");
+      expect(
+        await screen.findByRole("heading", { name: "Найдено 2 детали" }),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /MANN-FILTER/ }));
+      expect(screen.getByLabelText("where")).toHaveTextContent(
+        "?q=W68%2F3&supplier=mikado&part=MANN%7CW683",
+      );
+      expect(screen.queryByText("Найдено 2 детали")).not.toBeInTheDocument();
+    });
+
+    it("prices a card from the original when analogs are hidden", async () => {
+      setup("/?q=W68/3");
+      const card = await screen.findByRole("button", { name: /Mann.*W 68\/3/ });
+      expect(card).toHaveTextContent("от 50 ₽");
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Показывать аналоги" }),
+      );
+      expect(
+        screen.getByRole("button", { name: /Mann.*W 68\/3/ }),
+      ).toHaveTextContent("от 200 ₽");
+    });
+
+    it("reorders the cards by delivery time", async () => {
+      setup("/?q=W68/3");
+      await screen.findByText("Найдено 2 детали");
+      const order = () =>
+        screen
+          .getAllByRole("button", { name: /W 68\/3/ })
+          .map((b) =>
+            b.textContent.includes("MANN-FILTER") ? "mikado" : "rossko",
+          );
+      expect(order()).toEqual(["rossko", "mikado"]);
+      fireEvent.change(screen.getByRole("combobox", { name: "Сортировка" }), {
+        target: { value: "time" },
+      });
+      expect(order()).toEqual(["mikado", "rossko"]);
     });
   });
 
@@ -554,8 +641,10 @@ describe("SearchPage", () => {
       "GET /api/search/suppliers/rossko": () => supplierResult(),
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
-    expect(await screen.findByText("Росско · 1 деталь")).toBeInTheDocument();
-    expect(screen.queryByText("Результаты поиска")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Стойка амортизационная"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Найдено/)).not.toBeInTheDocument();
     expect(screen.queryByText("← все детали")).not.toBeInTheDocument();
     expect(screen.getByText("Стойка амортизационная")).toBeInTheDocument();
   });

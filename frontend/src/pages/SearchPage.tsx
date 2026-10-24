@@ -10,8 +10,9 @@ import {
   useSuppliers,
 } from "@/api/search";
 import {
-  requestedParts,
+  partCards,
   selectPart,
+  stockQty,
   visibleStock,
 } from "@/features/search/derive";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
@@ -82,18 +83,52 @@ export function SearchPage() {
     s.data?.status === "ok" ? [s.data] : [],
   );
   const pending = suppliers.isPending || searches.some((s) => s.isPending);
+  const waiting =
+    suppliers.isPending || searches.some((s) => s.isPending || s.isFetching);
 
-  // Two steps when one number names several parts: pick a part, then see
-  // only its offers and analogs. A single part skips the list.
+  // Two steps: pick a supplier's part (a card), then see its offers and
+  // analogs. A single card skips the list once every supplier has answered.
   const now = new Date();
-  const parts = requestedParts(answered, now, { inStockOnly: false });
+  const cards = partCards(answered, { ...filters, now });
+  const supplierParam = params.get("supplier");
   const partParam = params.get("part");
   const chosen =
-    parts.find((p) => p.key === partParam) ??
-    (parts.length === 1 ? parts[0] : undefined);
-  const picking = parts.length > 1 && chosen === undefined;
-  const partKey = chosen?.key ?? null;
-  const results = partKey === null ? answered : selectPart(answered, partKey);
+    cards.find(
+      (c) => c.supplier === supplierParam && c.group.key === partParam,
+    ) ?? (cards.length === 1 && !waiting ? cards[0] : undefined);
+  const picking = cards.length > 0 && chosen === undefined;
+  const chosenResult = answered.find((r) => r.code === chosen?.supplier);
+  const results =
+    chosen === undefined || chosenResult === undefined
+      ? answered
+      : selectPart([chosenResult], chosen.group.key);
+  const stepSuppliers =
+    chosen === undefined
+      ? selected
+      : selected.filter((s) => s.code === chosen.supplier);
+  const stepQueries =
+    chosen === undefined
+      ? searches
+      : searches.filter((_, i) => selected.at(i)?.code === chosen.supplier);
+
+  const waitingTitles: { title: string }[] = [];
+  const errors: { title: string; message: string; retry: () => void }[] = [];
+  selected.forEach((s, i) => {
+    const q = searches.at(i);
+    if (q === undefined || q.isPending || q.isFetching) {
+      waitingTitles.push({ title: s.title });
+    } else if (q.isError || q.data.status === "error") {
+      errors.push({
+        title: s.title,
+        message: q.isError
+          ? q.error.message
+          : (q.data.message ?? "Ошибка поставщика"),
+        retry: () => {
+          void q.refetch();
+        },
+      });
+    }
+  });
 
   // Analog stock is its own local query, so it can be refreshed after a
   // receipt without asking suppliers again. Analogs belong to a part, so none
@@ -154,29 +189,43 @@ export function SearchPage() {
             loadingMatches={pending}
             error={stock.error}
           />
-          {(suppliers.data?.length ?? 0) > 0 && (
+          {picking && (
+            <div className="flex flex-col gap-3">
+              {answered.map(
+                (r) =>
+                  r.message !== null && (
+                    <p
+                      key={r.code}
+                      className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]"
+                    >
+                      {r.message}
+                    </p>
+                  ),
+              )}
+              <PartPicker
+                cards={cards}
+                stockQty={(key) => stockQty(stock.data?.items ?? [], key)}
+                now={now}
+                pending={waitingTitles}
+                errors={errors}
+                onPick={(supplier, part) => {
+                  setParams({ q, supplier, part });
+                }}
+              />
+            </div>
+          )}
+          {!picking && (suppliers.data?.length ?? 0) > 0 && (
             <SuppliersBlock
-              suppliers={selected}
-              queries={searches}
+              suppliers={stepSuppliers}
+              queries={stepQueries}
               opts={{ ...filters, now }}
               results={results}
               stockNumbers={stockNumbers}
               onToStock={(group, offer, supplierTitle) => {
                 setToStock({ group, offer, supplierTitle });
               }}
-              picker={
-                picking ? (
-                  <PartPicker
-                    parts={parts}
-                    now={now}
-                    onPick={(part) => {
-                      setParams({ q, part });
-                    }}
-                  />
-                ) : undefined
-              }
               backTo={
-                parts.length > 1 && !picking
+                cards.length > 1 && chosen !== undefined
                   ? `?${new URLSearchParams({ q }).toString()}`
                   : undefined
               }
