@@ -2,7 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { mockApi, renderWithProviders } from "@/test/mockApi";
-import { offer, partGroup } from "@/test/searchFixtures";
+import { offer } from "@/test/searchFixtures";
 
 import { WarehousePicker } from "./WarehousePicker";
 
@@ -17,10 +17,10 @@ describe("WarehousePicker", () => {
     renderWithProviders(
       <WarehousePicker
         supplier="rossko"
-        group={partGroup({ offers: [a, b] })}
         offers={[a, b]}
         current={a}
         onSelect={onSelect}
+        onReset={vi.fn()}
         now={now}
       />,
       { route: "/" },
@@ -60,10 +60,10 @@ describe("WarehousePicker", () => {
     renderWithProviders(
       <WarehousePicker
         supplier="mikado"
-        group={partGroup({ offers: [row] })}
         offers={[row]}
         current={row}
         onSelect={vi.fn()}
+        onReset={vi.fn()}
         now={now}
       />,
       { route: "/" },
@@ -107,10 +107,10 @@ describe("WarehousePicker", () => {
     renderWithProviders(
       <WarehousePicker
         supplier="mikado"
-        group={partGroup({ offers: [row] })}
         offers={[row]}
         current={{ ...b }}
         onSelect={vi.fn()}
+        onReset={vi.fn()}
         now={now}
       />,
       { route: "/" },

@@ -190,10 +190,12 @@ function PartRow({
         ) : (
           <WarehousePicker
             supplier={supplier.code}
-            group={group}
             offers={sortOffers(group.offers, sort, now)}
             current={offer}
             onSelect={setChosen}
+            onReset={() => {
+              setChosen(null);
+            }}
             now={now}
           />
         )}

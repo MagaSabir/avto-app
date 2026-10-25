@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import type { Offer, PartGroup } from "@/api/search";
+import type { Offer } from "@/api/search";
 import { useSupplierVariants } from "@/api/search";
 import { formatPrice } from "@/features/stock/format";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,12 @@ import { formatDelivery, plural, qtyLabel, warehouseLabel } from "./format";
 
 type Props = {
   supplier: string;
-  group: PartGroup;
   // The part's offers in display order.
   offers: Offer[];
   current: Offer;
   onSelect: (o: Offer) => void;
+  // Back from the variants to the row's default warehouse.
+  onReset: () => void;
   now: Date;
 };
 
@@ -32,6 +33,7 @@ export function WarehousePicker({
   offers,
   current,
   onSelect,
+  onReset,
   now,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -98,6 +100,7 @@ export function WarehousePicker({
       o.stock_id === current.stock_id &&
       o.delivery_from === current.delivery_from &&
       o.purchase_price === current.purchase_price);
+  const hasWarehouses = offers.some((o) => o.kind !== "variants");
   const pick = (o: Offer) => {
     onSelect(o);
     setOpen(false);
@@ -175,6 +178,20 @@ export function WarehousePicker({
               )}
               <Header last="Рейтинг" />
               <div id={listId} role="listbox" aria-label="Варианты поставки">
+                {hasWarehouses && (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => {
+                      onReset();
+                      setOpen(false);
+                    }}
+                    className="w-full cursor-pointer rounded-[7px] px-2.5 py-2 text-left text-link hover:bg-selected focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    ← все склады
+                  </button>
+                )}
                 {variants.map((v, i) => (
                   <Option
                     key={`${v.stock_id}|${String(i)}`}

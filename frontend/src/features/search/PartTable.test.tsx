@@ -348,6 +348,61 @@ describe("PartTable", () => {
       ).toBeDisabled();
     });
 
+    it("returns from the variants to all warehouses", async () => {
+      const ekb = offer({
+        warehouse: "Екатеринбург",
+        stock_id: "e",
+        purchase_price: "490.00",
+        ...term(26),
+      });
+      setup(
+        {
+          supplier: { code: "mikado", title: "Микадо" },
+          groups: [partGroup({ brand: "TOYOTA", offers: [variantsRow, ekb] })],
+        },
+        { "GET /api/search/suppliers/mikado/variants": () => answer },
+      );
+      const row = rowOf("333114");
+      expect(within(row).getByText("490 ₽")).toBeInTheDocument();
+      fireEvent.click(
+        within(row).getByRole("button", { name: "и ещё 1 склад ▾" }),
+      );
+      fireEvent.click(
+        within(row).getByRole("option", { name: /варианты поставки/ }),
+      );
+      fireEvent.click(
+        within(row).getByRole("button", { name: "варианты поставки ▾" }),
+      );
+      fireEvent.click(
+        await within(row).findByRole("option", { name: /Под заказ/ }),
+      );
+      expect(within(row).getByText("520 ₽")).toBeInTheDocument();
+      fireEvent.click(
+        within(row).getByRole("button", { name: "варианты поставки ▾" }),
+      );
+      const options = within(row).getAllByRole("option");
+      expect(options[0]).toHaveTextContent("← все склады");
+      fireEvent.click(options[0]);
+      expect(within(row).getByText("490 ₽")).toBeInTheDocument();
+      fireEvent.click(
+        within(row).getByRole("button", { name: "и ещё 1 склад ▾" }),
+      );
+      expect(
+        within(row).getByRole("listbox", { name: "Склады" }),
+      ).toBeInTheDocument();
+    });
+
+    it("has no way back without other warehouses", async () => {
+      const row = mikado();
+      fireEvent.click(
+        within(row).getByRole("button", { name: "варианты поставки ▾" }),
+      );
+      await within(row).findByRole("option", { name: /Под заказ/ });
+      expect(
+        within(row).queryByRole("option", { name: "← все склады" }),
+      ).not.toBeInTheDocument();
+    });
+
     it("asks for the variants on opening and takes the chosen one", async () => {
       const calls: string[] = [];
       const row = mikado(calls);
