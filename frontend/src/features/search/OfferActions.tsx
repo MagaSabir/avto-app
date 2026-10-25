@@ -1,5 +1,4 @@
 import {
-  Check,
   GitCompareArrows,
   Minus,
   PackagePlus,
@@ -11,7 +10,6 @@ import { useState, type SyntheticEvent } from "react";
 import { useAddToCart, useCart } from "@/api/cart";
 import type { Offer, PartGroup } from "@/api/search";
 import { normBrand } from "@/lib/brand";
-import { useFlash } from "@/features/stock/useFlash";
 
 type Props = {
   supplier: string;
@@ -24,7 +22,7 @@ type Props = {
 const ICON_BTN =
   "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
 const STEP_BTN =
-  "inline-flex h-8 w-7 cursor-pointer items-center justify-center bg-card text-foreground enabled:hover:bg-selected disabled:cursor-default disabled:opacity-50";
+  "inline-flex h-8 w-7 cursor-pointer items-center justify-center bg-card text-foreground enabled:hover:bg-selected disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50";
 
 // Order offers have no stock of their own: any quantity up to this.
 const ORDER_MAX = 999; // mirrors ORDER_MAX in backend/app/domain/cart.py
@@ -37,7 +35,6 @@ export function OfferActions({
   disabled = false,
 }: Props) {
   const [value, setValue] = useState(String(offer.multiplicity));
-  const [flash, showFlash] = useFlash(1000);
   const cart = useCart();
   const add = useAddToCart();
 
@@ -80,36 +77,28 @@ export function OfferActions({
   ) : add.isError ? (
     <span className="text-destructive">{add.error.message}</span>
   ) : null;
-  const added = flash !== null;
 
   function submit(e: SyntheticEvent) {
     e.preventDefault();
     if (!valid || offer.stock_id === "" || add.isPending) return;
-    add.mutate(
-      {
-        supplier,
-        stock_id: offer.stock_id,
-        brand: group.brand,
-        number: group.number,
-        name: group.name,
-        warehouse: offer.warehouse,
-        multiplicity: offer.multiplicity,
-        available: offer.qty,
-        delivery_days: offer.delivery_days,
-        delivery_from: offer.delivery_from,
-        delivery_to: offer.delivery_to,
-        kind: offer.kind,
-        kind_code: offer.kind_code,
-        price: offer.purchase_price,
-        qty,
-        order_code: offer.order_code ?? null,
-      },
-      {
-        onSuccess: () => {
-          showFlash("added");
-        },
-      },
-    );
+    add.mutate({
+      supplier,
+      stock_id: offer.stock_id,
+      brand: group.brand,
+      number: group.number,
+      name: group.name,
+      warehouse: offer.warehouse,
+      multiplicity: offer.multiplicity,
+      available: offer.qty,
+      delivery_days: offer.delivery_days,
+      delivery_from: offer.delivery_from,
+      delivery_to: offer.delivery_to,
+      kind: offer.kind,
+      kind_code: offer.kind_code,
+      price: offer.purchase_price,
+      qty,
+      order_code: offer.order_code ?? null,
+    });
   }
 
   return (
@@ -160,20 +149,12 @@ export function OfferActions({
           inCart > 0 ? `В корзину, в корзине ${String(inCart)}` : "В корзину"
         }
         title="В корзину"
-        data-state={added ? "added" : undefined}
         disabled={disabled || offer.stock_id === "" || add.isPending}
-        className={`${ICON_BTN} border-primary text-link motion-safe:data-[state=added]:animate-cart-pulse`}
+        className={`${ICON_BTN} border-foreground text-foreground`}
       >
-        {added ? (
-          <Check aria-hidden="true" className="size-4 text-status-ok" />
-        ) : (
-          <ShoppingCart aria-hidden="true" className="size-4" />
-        )}
+        <ShoppingCart aria-hidden="true" className="size-4" />
         {inCart > 0 && (
-          <span
-            key={inCart}
-            className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full border-2 border-card bg-primary px-1 text-center text-[10.5px] leading-3 text-primary-foreground motion-safe:animate-badge-in"
-          >
+          <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full border-2 border-card bg-status-ok px-1 text-center text-[10.5px] leading-3 text-background">
             {inCart}
           </span>
         )}
@@ -183,7 +164,7 @@ export function OfferActions({
         aria-label="Принять на склад"
         title="Принять на склад"
         disabled={disabled}
-        className={`${ICON_BTN} border-primary text-link`}
+        className={`${ICON_BTN} border-foreground text-foreground`}
         onClick={() => {
           onToStock(group, offer);
         }}

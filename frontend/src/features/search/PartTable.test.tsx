@@ -118,6 +118,11 @@ const rowOf = (text: string) => {
 };
 
 describe("PartTable", () => {
+  it("centres the quantity header over the actions column", () => {
+    setup();
+    expect(screen.getByText("Количество")).toHaveClass("text-center");
+  });
+
   it("shows one row per part, not per warehouse", () => {
     setup({ groups: [mann, { ...big, is_requested: true }] });
     expect(rows()).toHaveLength(2);

@@ -76,6 +76,15 @@ describe("PartPicker", () => {
     expect(card).toHaveTextContent("Фильтр масляный");
   });
 
+  it("renders the brand in its own element apart from the number", () => {
+    setup();
+    const card = screen.getByRole("button", { name: /Mann.*W 68\/3/ });
+    const brand = within(card).getByText("Mann");
+    const number = within(card).getByText("W 68/3");
+    expect(brand).not.toBe(number);
+    expect(brand.parentElement).not.toBe(number.parentElement);
+  });
+
   it("omits the stock part when nothing is in stock", () => {
     setup({ stockQty: () => 0 });
     const card = screen.getByRole("button", { name: /MANN-FILTER/ });

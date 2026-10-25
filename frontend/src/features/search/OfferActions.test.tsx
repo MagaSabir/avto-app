@@ -1,5 +1,4 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { act } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CartItem } from "@/api/cart";
@@ -83,27 +82,51 @@ describe("OfferActions", () => {
       price: "2449.85",
     });
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "В корзину" })).toHaveAttribute(
-        "data-state",
-        "added",
-      );
+      expect(posts).toHaveLength(1);
     });
     expect(screen.queryByText("Добавлено")).not.toBeInTheDocument();
   });
 
-  it("returns the cart button to normal after about a second", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    setup();
+  it("has no success state or animation after adding", async () => {
+    const { posts } = setup();
     const btn = screen.getByRole("button", { name: "В корзину" });
-    expect(btn).not.toHaveAttribute("data-state");
     fireEvent.click(btn);
     await waitFor(() => {
-      expect(btn).toHaveAttribute("data-state", "added");
-    });
-    act(() => {
-      vi.advanceTimersByTime(1100);
+      expect(posts).toHaveLength(1);
     });
     expect(btn).not.toHaveAttribute("data-state");
+    expect(btn.querySelector("svg")).toHaveClass("lucide-shopping-cart");
+    expect(btn.className).not.toMatch(/animate/);
+  });
+
+  it("draws the cart and stock buttons in the foreground colour", () => {
+    setup();
+    for (const name of ["В корзину", "Принять на склад"]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn).toHaveClass("text-foreground", "border-foreground");
+      expect(btn).not.toHaveClass("text-link");
+      expect(btn).not.toHaveClass("border-primary");
+    }
+  });
+
+  it("makes the cart badge green", async () => {
+    setup(offer({ multiplicity: 2, qty: 10 }), [cartItem()]);
+    const btn = await screen.findByRole("button", {
+      name: "В корзину, в корзине 4",
+    });
+    expect(screen.getByText("4")).toHaveClass("bg-status-ok");
+    expect(btn).toBeInTheDocument();
+  });
+
+  it("colours enabled steppers and mutes disabled ones", () => {
+    setup(offer({ multiplicity: 1, qty: 10 }));
+    expect(screen.getByRole("button", { name: "Увеличить" })).toHaveClass(
+      "text-foreground",
+    );
+    const down = screen.getByRole("button", { name: "Уменьшить" });
+    expect(down).toBeDisabled();
+    expect(down).toHaveClass("disabled:text-muted-foreground");
+    expect(down).toHaveClass("disabled:cursor-not-allowed");
   });
 
   it("never fills the cart button", async () => {

@@ -4,36 +4,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  --animate-cart-pulse: cart-pulse 0.4s ease-out;
-  --animate-badge-in: badge-in 0.25s ease-out;
-
-  @keyframes cart-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.12);
-    }
-  }
-
-  @keyframes badge-in {
-    from {
-      transform: scale(0);
-    }
-    to {
-      transform: scale(1);
-    }
-  }
-}
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace;
   --color-selected: var(--selected);
   --color-link: var(--link);
+  --color-supplier: var(--supplier);
+  --color-supplier-bg: var(--supplier-bg);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
   --color-status-ok-border: var(--status-ok-border);
@@ -141,6 +119,8 @@
   --move-adjustment-bg: #eceef1;
   --radius: 0.625rem;
   --link: #075fc5;
+  --supplier: #6a3fb5;
+  --supplier-bg: #efe7fb;
   --info: #1456a0;
   --info-bg: #e0eeff;
   --status-ok-border: #a6e2cf;
@@ -188,6 +168,8 @@
   --move-adjustment: #b7bec7;
   --move-adjustment-bg: #24282d;
   --link: #45a3ff;
+  --supplier: #c2a6f5;
+  --supplier-bg: #2a2140;
   --info: #60a5fa;
   --info-bg: #102f57;
   --status-ok-border: #12685d;

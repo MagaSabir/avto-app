@@ -336,7 +336,7 @@ function BackLink({ q }: { q: string }) {
 
 function SupplierPlaque({ title }: { title: string }) {
   return (
-    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-info-bg px-2.5 py-[3px] align-middle text-[13px] font-semibold text-info">
+    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-supplier-bg px-2.5 py-[3px] align-middle text-[13px] font-semibold text-supplier">
       <Truck size={14} aria-hidden="true" />
       {title}
     </span>

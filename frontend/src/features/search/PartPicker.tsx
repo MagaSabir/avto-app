@@ -50,21 +50,21 @@ function Card({
         minPrice === null && "opacity-60",
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[17px] font-semibold text-soft-foreground [overflow-wrap:anywhere]">
-            {group.brand}
-          </span>{" "}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 md:flex-row md:items-baseline md:gap-3">
+        <span className="text-[17px] font-semibold text-soft-foreground [overflow-wrap:anywhere] md:w-[110px] md:shrink-0">
+          {group.brand}
+        </span>{" "}
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[17px] font-[650] [overflow-wrap:anywhere]">
             {group.number}
           </span>
+          {group.name !== "" && (
+            <span className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
+              {group.name}
+            </span>
+          )}
+          <span className="text-[13px] text-link">{summary}</span>
         </span>
-        {group.name !== "" && (
-          <span className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
-            {group.name}
-          </span>
-        )}
-        <span className="text-[13px] text-link">{summary}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end text-right">
         {minPrice === null ? (
