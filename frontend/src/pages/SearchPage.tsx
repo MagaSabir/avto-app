@@ -1,6 +1,7 @@
+import { Truck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import type { Offer, SupplierSearchResult } from "@/api/search";
 import {
@@ -10,17 +11,23 @@ import {
   useSuppliers,
 } from "@/api/search";
 import {
-  requestedParts,
-  selectPart,
-  visibleStock,
+  partCards,
+  stockQty,
+  supplierBest,
+  supplierPart,
 } from "@/features/search/derive";
+import { Button } from "@/components/ui/button";
 import { FilterBar, type SearchFilters } from "@/features/search/FilterBar";
 import { setLastSearch } from "@/features/search/lastSearch";
-import { MyStockBlock } from "@/features/search/MyStockBlock";
 import { PartPicker } from "@/features/search/PartPicker";
+import { PartTable } from "@/features/search/PartTable";
 import { SearchForm } from "@/features/search/SearchForm";
-import { SummaryCards } from "@/features/search/SummaryCards";
-import { SuppliersBlock } from "@/features/search/SuppliersBlock";
+import {
+  loadSupplierChoice,
+  saveSupplierChoice,
+  selectedSuppliers,
+} from "@/features/search/supplierChoice";
+import { MyStockBlock, SummaryPanel } from "@/features/search/SummaryPanel";
 import {
   ToStockDialog,
   type ReceiptPart,
@@ -37,9 +44,7 @@ export function SearchPage() {
     if (q !== "") setLastSearch(`?${search}`);
   }, [q, search]);
   const [filters, setFilters] = useState<SearchFilters>({
-    inStockOnly: false,
     showAnalogs: true,
-    mikadoOrders: false,
     sort: "price",
   });
 
@@ -51,9 +56,11 @@ export function SearchPage() {
 
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
-  const codes = suppliers.data?.map((s) => s.code) ?? [];
+  const [saved, setSaved] = useState(loadSupplierChoice);
+  const selected = selectedSuppliers(suppliers.data ?? [], saved);
+  const codes = selected.map((s) => s.code);
   const searches = useSupplierSearches(codes, q, {
-    mikado: filters.mikadoOrders,
+    mikado: true,
   });
 
   const onSearch = (next: string) => {
@@ -78,40 +85,106 @@ export function SearchPage() {
   );
   const pending = suppliers.isPending || searches.some((s) => s.isPending);
 
-  // Two steps when one number names several parts: pick a part, then see
-  // only its offers and analogs. A single part skips the list.
+  // Two steps: pick a supplier's part (a card), then see its offers and
+  // analogs. A single card skips the list once every supplier has answered.
   const now = new Date();
-  const parts = requestedParts(answered, now);
+  const cards = partCards(answered, { ...filters, now });
+  const supplierParam = params.get("supplier");
   const partParam = params.get("part");
   const chosen =
-    parts.find((p) => p.key === partParam) ??
-    (parts.length === 1 ? parts[0] : undefined);
-  const picking = parts.length > 1 && chosen === undefined;
-  const partKey = chosen?.key ?? null;
-  const results = partKey === null ? answered : selectPart(answered, partKey);
+    cards.find(
+      (c) => c.supplier === supplierParam && c.group.key === partParam,
+    ) ??
+    // A single card opens by itself, but never instead of another supplier
+    // named in the address.
+    (cards.length === 1 &&
+    !pending &&
+    (supplierParam === null || cards[0].supplier === supplierParam)
+      ? cards[0]
+      : undefined);
+  const chosenResult = answered.find((r) => r.code === chosen?.supplier);
+  const chosenQuery = searches.at(codes.indexOf(chosen?.supplier ?? ""));
+  const part =
+    chosen === undefined || chosenResult === undefined
+      ? undefined
+      : { ...supplierPart(chosenResult, chosen.group.key), card: chosen };
+
+  // Step 2 of a supplier that failed: its message instead of the tables.
+  const failedIndex =
+    supplierParam === null ? -1 : codes.indexOf(supplierParam);
+  const failedQuery = searches.at(failedIndex);
+  const failed =
+    failedIndex >= 0 &&
+    failedQuery !== undefined &&
+    !failedQuery.isFetching &&
+    (failedQuery.isError || failedQuery.data?.status === "error")
+      ? {
+          title: selected[failedIndex]?.title ?? "",
+          message: failedQuery.isError
+            ? failedQuery.error.message
+            : (failedQuery.data?.message ?? "Ошибка поставщика"),
+          retry: () => {
+            void failedQuery.refetch();
+          },
+        }
+      : undefined;
+
+  const waitingTitles: { title: string }[] = [];
+  const errors: { title: string; message: string; retry: () => void }[] = [];
+  selected.forEach((s, i) => {
+    const q = searches.at(i);
+    if (q === undefined || q.isPending || q.isFetching) {
+      waitingTitles.push({ title: s.title });
+    } else if (q.isError || q.data.status === "error") {
+      errors.push({
+        title: s.title,
+        message: q.isError
+          ? q.error.message
+          : (q.data.message ?? "Ошибка поставщика"),
+        retry: () => {
+          void q.refetch();
+        },
+      });
+    }
+  });
 
   // Analog stock is its own local query, so it can be refreshed after a
   // receipt without asking suppliers again. Analogs belong to a part, so none
   // are looked up before one is chosen.
-  const analogNumbers = picking
-    ? []
-    : [
-        ...new Set(
-          results.flatMap((r) =>
-            r.groups.filter((g) => !g.is_requested).map((g) => g.number_norm),
-          ),
-        ),
-      ].filter((n) => n !== stock.data?.number_norm);
+  // The endpoint takes up to 200 numbers; analogs are ordered, so the first
+  // ones are kept.
+  const analogNumbers =
+    part === undefined
+      ? []
+      : [...new Set(part.analogs.map((g) => g.number_norm))]
+          .filter((n) => n !== stock.data?.number_norm)
+          .slice(0, 200);
   const matches = useAnalogStock(analogNumbers).data ?? [];
-  const rows = stock.data
-    ? visibleStock(stock.data.items, matches, filters)
-    : undefined;
-  const stockNumbers = new Map<string, number>();
-  for (const it of [...(stock.data?.items ?? []), ...matches])
-    stockNumbers.set(
-      it.number_norm,
-      (stockNumbers.get(it.number_norm) ?? 0) + it.qty,
-    );
+  const myItems = [...(stock.data?.items ?? []), ...matches];
+
+  const best =
+    part === undefined
+      ? { cheapest: null, fastest: null }
+      : supplierBest(
+          filters.showAnalogs
+            ? [part.card.group, ...part.analogs]
+            : [part.card.group],
+          now,
+        );
+  const onToStock = (
+    group: ReceiptPart,
+    offer: Offer,
+    supplierTitle: string,
+  ) => {
+    setToStock({ group, offer, supplierTitle });
+  };
+
+  const noCards =
+    cards.length === 0 && waitingTitles.length === 0 && !suppliers.isPending;
+  // No supplier has the number, but my stock may: show it anyway.
+  const stockOnly =
+    noCards &&
+    (stock.isPending || stock.isError || stock.data.items.length > 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -121,53 +194,132 @@ export function SearchPage() {
         <>
           <FilterBar
             {...filters}
-            hasMikado={codes.includes("mikado")}
+            suppliers={suppliers.data ?? []}
+            chosen={codes}
+            onChoose={(next) => {
+              setSaved(next);
+              saveSupplierChoice(next);
+            }}
             onChange={(patch) => {
               setFilters((f) => ({ ...f, ...patch }));
             }}
           />
-          <SummaryCards
-            items={rows?.map((r) => r.item)}
-            stockFailed={stock.isError}
-            results={results}
-            pending={pending}
-            pickPart={picking}
-            opts={{ showAnalogs: filters.showAnalogs, now }}
-          />
-          <MyStockBlock
-            rows={rows}
-            // Prices match by number only, which mixes parts: none on step 1.
-            results={picking ? [] : results}
-            loadingMatches={pending}
-            error={stock.error}
-          />
-          {(suppliers.data?.length ?? 0) > 0 && (
-            <SuppliersBlock
-              suppliers={suppliers.data ?? []}
-              queries={searches}
-              opts={{ ...filters, now }}
-              results={results}
-              stockNumbers={stockNumbers}
-              onToStock={(group, offer, supplierTitle) => {
-                setToStock({ group, offer, supplierTitle });
-              }}
-              picker={
-                picking ? (
-                  <PartPicker
-                    parts={parts}
-                    now={now}
-                    onPick={(part) => {
-                      setParams({ q, part });
-                    }}
-                  />
-                ) : undefined
-              }
-              backTo={
-                parts.length > 1 && !picking
-                  ? `?${new URLSearchParams({ q }).toString()}`
-                  : undefined
-              }
-            />
+          {failed !== undefined ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                <BackLink q={q} />
+                <h2 className="text-[20px] font-bold [overflow-wrap:anywhere]">
+                  {`${(partParam ?? "").split("|")[0] ?? ""} ${q}`.trim()}{" "}
+                  <SupplierPlaque title={failed.title} />
+                </h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p
+                  role="alert"
+                  className="text-destructive [overflow-wrap:anywhere]"
+                >
+                  {failed.message}
+                </p>
+                <Button type="button" onClick={failed.retry}>
+                  Повторить
+                </Button>
+              </div>
+            </div>
+          ) : part === undefined ? (
+            <div className="flex flex-col gap-3">
+              {answered.map(
+                (r) =>
+                  r.message !== null && (
+                    <p
+                      key={r.code}
+                      className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]"
+                    >
+                      {r.message}
+                    </p>
+                  ),
+              )}
+              {stockOnly && (
+                <MyStockBlock
+                  stock={stock.data?.items}
+                  stockError={stock.isError}
+                />
+              )}
+              <PartPicker
+                cards={cards}
+                stockQty={(key) => stockQty(stock.data?.items ?? [], key)}
+                now={now}
+                pending={waitingTitles}
+                errors={errors}
+                onPick={(supplier, key) => {
+                  setParams({ q, supplier, part: key });
+                }}
+              />
+              {noCards && errors.length === 0 && (
+                <p className="py-4 text-center text-muted-foreground">
+                  {stockOnly
+                    ? "У поставщиков ничего не найдено"
+                    : "Ничего не найдено"}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+                {cards.length > 1 && <BackLink q={q} />}
+                <div className="min-w-0">
+                  <h2 className="text-[20px] font-bold [overflow-wrap:anywhere]">
+                    {`${part.card.group.brand} ${part.card.group.number}`}{" "}
+                    <SupplierPlaque title={part.card.title} />
+                  </h2>
+                  {part.card.group.name !== "" && (
+                    <p className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
+                      {part.card.group.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <SummaryPanel
+                stock={stock.data?.items}
+                stockError={stock.isError}
+                partKey={part.card.group.key}
+                best={best}
+                pending={chosenQuery?.isFetching ?? false}
+                now={now}
+              />
+              {chosenResult?.message != null && (
+                <p className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">
+                  {chosenResult.message}
+                </p>
+              )}
+              <PartTable
+                title="Оригинал"
+                groups={[part.card.group]}
+                supplier={{ code: part.card.supplier, title: part.card.title }}
+                sort={filters.sort}
+                best={best}
+                stockQty={(key) => stockQty(myItems, key)}
+                now={now}
+                onToStock={onToStock}
+              />
+              {filters.showAnalogs && part.analogs.length > 0 && (
+                <PartTable
+                  // A new search, card or filter starts again from 20 rows.
+                  key={`${q}|${part.card.supplier}|${part.card.group.key}|${String(filters.showAnalogs)}|${filters.sort}`}
+                  title="Аналоги"
+                  groups={part.analogs}
+                  supplier={{
+                    code: part.card.supplier,
+                    title: part.card.title,
+                  }}
+                  sort={filters.sort}
+                  best={best}
+                  stockQty={(key) => stockQty(myItems, key)}
+                  now={now}
+                  limit={20}
+                  onToStock={onToStock}
+                />
+              )}
+            </div>
           )}
         </>
       )}
@@ -179,5 +331,25 @@ export function SearchPage() {
         }}
       />
     </div>
+  );
+}
+
+function BackLink({ q }: { q: string }) {
+  return (
+    <Link
+      to={`?${new URLSearchParams({ q }).toString()}`}
+      className="rounded-[9px] border bg-card px-3 py-2 text-[14px] font-semibold text-link hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+    >
+      ← Другие детали
+    </Link>
+  );
+}
+
+function SupplierPlaque({ title }: { title: string }) {
+  return (
+    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-supplier-bg px-2.5 py-[3px] align-middle text-[13px] font-semibold text-supplier">
+      <Truck size={14} aria-hidden="true" />
+      {title}
+    </span>
   );
 }

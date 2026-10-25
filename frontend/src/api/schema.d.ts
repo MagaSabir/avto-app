@@ -1081,6 +1081,8 @@ export interface components {
             markup: string;
             /** Sale Price */
             sale_price: string;
+            /** Brand Key */
+            brand_key: string;
             /** Last Receipt At */
             last_receipt_at: string | null;
             /** Last Receipt Supplier */

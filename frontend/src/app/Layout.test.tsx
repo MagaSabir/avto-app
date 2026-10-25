@@ -77,6 +77,15 @@ async function openLogout() {
 }
 
 describe("Layout", () => {
+  it("limits header and main content to 1440px", async () => {
+    setup();
+
+    await screen.findByText("sabir");
+    const nav = screen.getByRole("navigation");
+    expect(nav.parentElement).toHaveClass("max-w-[1440px]");
+    expect(screen.getByRole("main")).toHaveClass("max-w-[1440px]");
+  });
+
   it("renders logo, navigation, login and the stock page", async () => {
     setup();
 
@@ -100,12 +109,20 @@ describe("Layout", () => {
       "page",
     );
     expect(screen.getByRole("link", { name: "Склад" })).toHaveClass(
-      "border-primary",
+      "text-foreground",
     );
     expect(screen.getByRole("link", { name: "Взаиморасчёты" })).not.toHaveClass(
-      "border-primary",
+      "text-foreground",
     );
     expect(screen.getByRole("heading", { name: "Склад" })).toBeInTheDocument();
+  });
+
+  it("has a background header and a plain-font balance", async () => {
+    setup();
+    const link = await screen.findByRole("link", { name: /Баланс/ });
+    expect(screen.getByRole("banner")).toHaveClass("bg-background");
+    expect(screen.getByRole("banner")).not.toHaveClass("bg-card");
+    expect(link.querySelector(".font-mono")).toBeNull();
   });
 
   it("puts «Заказы» between «Склад» and «Взаиморасчёты»", async () => {

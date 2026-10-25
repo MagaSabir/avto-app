@@ -1,86 +1,145 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { offer } from "@/test/searchFixtures";
+import { offer, partGroup } from "@/test/searchFixtures";
 
-import type { PartChoice } from "./derive";
+import type { PartCard } from "./derive";
 import { PartPicker } from "./PartPicker";
 
 const now = new Date(2026, 9, 21, 10, 0);
 
-const parts: PartChoice[] = [
-  {
-    key: "MANN|W683",
+const mann: PartCard = {
+  supplier: "rossko",
+  title: "Росско",
+  group: partGroup({
     brand: "Mann",
     number: "W 68/3",
     name: "Фильтр масляный",
-    offers: 3,
-    minPrice: "540.00",
-    fastest: offer({
-      purchase_price: "696.00",
-      price: "840.00",
-      delivery_days: 1,
-    }),
-    analogs: 80,
-  },
-  {
-    key: "MGA|W683",
-    brand: "MGA",
-    number: "W68/3",
-    name: "Насос водяной",
-    offers: 0,
-    minPrice: null,
-    fastest: null,
-    analogs: 1,
-  },
-  {
-    key: "BIG|W683",
-    brand: "BIG",
-    number: "W683",
-    name: " фильтр масляный",
-    offers: 0,
-    minPrice: null,
-    fastest: null,
-    analogs: 0,
-  },
-];
+    key: "MANN|W683",
+  }),
+  analogs: 86,
+  minPrice: "126.00",
+  fastest: offer({
+    purchase_price: "140.00",
+    delivery_from: new Date(2026, 9, 21, 18, 0).toISOString(),
+  }),
+};
+
+const mikado: PartCard = {
+  supplier: "mikado",
+  title: "Микадо",
+  group: partGroup({
+    brand: "MANN-FILTER",
+    number: "W 68/3",
+    name: "Фильтр масляный",
+    key: "MANN|W683",
+  }),
+  analogs: 41,
+  minPrice: "130.00",
+  fastest: null,
+};
+
+const empty: PartCard = {
+  ...mann,
+  supplier: "other",
+  title: "Другой",
+  group: partGroup({ brand: "MGA", number: "W68/3", key: "MGA|W683" }),
+  analogs: 0,
+  minPrice: null,
+  fastest: null,
+};
+
+function setup(over: Partial<Parameters<typeof PartPicker>[0]> = {}) {
+  const props = {
+    cards: [mann, mikado],
+    stockQty: (key: string) => (key === "MANN|W683" ? 15 : 0),
+    now,
+    pending: [],
+    errors: [],
+    onPick: vi.fn(),
+    ...over,
+  };
+  render(<PartPicker {...props} />);
+  return props;
+}
 
 describe("PartPicker", () => {
-  it("shows cards by part name with the fastest offer", () => {
-    render(<PartPicker parts={parts} now={now} onPick={() => undefined} />);
+  it("shows the count and a card per supplier part", () => {
+    setup();
     expect(
-      screen.getByRole("heading", { name: "Результаты поиска" }),
+      screen.getByRole("heading", { level: 2, name: "Найдено 2 детали" }),
     ).toBeInTheDocument();
-    const filters = screen.getByRole("region", { name: "Фильтр масляный" });
-    expect(within(filters).getByText("Бренд")).toBeInTheDocument();
-    expect(
-      within(filters).getByText("Артикул / Наименование"),
-    ).toBeInTheDocument();
-    expect(within(filters).getByText("Цена")).toBeInTheDocument();
-    const mann = within(filters).getByRole("button", {
-      name: /Mann W 68\/3 Фильтр масляный/,
-    });
-    expect(within(mann).getByText("Mann")).toBeInTheDocument();
-    expect(within(mann).getByText("W 68/3")).toHaveClass("font-mono");
-    expect(within(mann).getByText("696 ₽")).toBeInTheDocument();
-    expect(within(mann).getByText("1 дн.")).toBeInTheDocument();
-    expect(within(mann).getByText("+ 80 аналогов")).toBeInTheDocument();
-    expect(mann).not.toHaveTextContent("840");
-    expect(
-      within(filters).getByRole("button", { name: /BIG W683/ }),
-    ).toBeInTheDocument();
-
-    const pump = screen.getByRole("region", { name: "Насос водяной" });
-    const mga = within(pump).getByRole("button", { name: /MGA W68\/3/ });
-    expect(within(mga).getByText("—")).toBeInTheDocument();
-    expect(within(mga).getByText("нет в наличии")).toBeInTheDocument();
-    expect(within(mga).getByText("+ 1 аналог")).toBeInTheDocument();
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
+    expect(card).toHaveTextContent("Росско · 86 аналогов · у вас 15 шт");
+    expect(card).toHaveTextContent("от 126 ₽");
+    expect(card).toHaveTextContent("сегодня 18:00");
+    expect(card).toHaveTextContent("Фильтр масляный");
   });
 
-  it("picks a part by key", () => {
-    const onPick = vi.fn();
-    render(<PartPicker parts={parts} now={now} onPick={onPick} />);
-    fireEvent.click(screen.getByRole("button", { name: /MGA W68\/3/ }));
-    expect(onPick).toHaveBeenCalledWith("MGA|W683");
+  it("renders the brand in its own element apart from the number", () => {
+    setup();
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
+    const brand = within(card).getByText("Mann");
+    const number = within(card).getByText("W 68/3");
+    expect(brand).not.toBe(number);
+    expect(brand.parentElement).not.toBe(number.parentElement);
+  });
+
+  it("colours the name, supplier and stock number with the link colour", () => {
+    setup();
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
+    expect(within(card).getByText("Росско")).toHaveClass("text-link");
+    expect(within(card).getByText("15 шт")).toHaveClass("text-link");
+    expect(within(card).getByText("Фильтр масляный")).toHaveClass("text-link");
+  });
+
+  it("omits the stock part when nothing is in stock", () => {
+    setup({ stockQty: () => 0 });
+    const card = screen.getByRole("button", { name: /MANN-FILTER/ });
+    expect(card).toHaveTextContent("Микадо · 41 аналог");
+    expect(card).not.toHaveTextContent("у вас");
+  });
+
+  it("omits «0 аналогов» from the summary", () => {
+    setup({ cards: [{ ...mikado, analogs: 0 }], stockQty: () => 0 });
+    const card = screen.getByRole("button", { name: /MANN-FILTER/ });
+    expect(within(card).getByText("Микадо")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("аналог");
+  });
+
+  it("shows a dash and dims a card without offers", () => {
+    setup({ cards: [empty] });
+    const card = screen.getByRole("button", { name: /MGA/ });
+    expect(card).toHaveClass("opacity-60");
+    expect(within(card).getByText("—")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("Нет в наличии");
+  });
+
+  it("says «варианты поставки» when only variants are offered", () => {
+    setup({ cards: [mikado] });
+    expect(
+      screen.getByRole("button", { name: /MANN-FILTER/ }),
+    ).toHaveTextContent("варианты поставки");
+  });
+
+  it("shows a skeleton for a supplier still answering", () => {
+    setup({ pending: [{ title: "Микадо" }] });
+    expect(screen.getByText("Микадо · ждём ответ…")).toBeInTheDocument();
+  });
+
+  it("shows a supplier error with retry", () => {
+    const retry = vi.fn();
+    setup({ errors: [{ title: "Микадо", message: "Лимит исчерпан", retry }] });
+    expect(screen.getByText("Лимит исчерпан").parentElement).toHaveClass(
+      "text-destructive",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
+    expect(retry).toHaveBeenCalled();
+  });
+
+  it("picks a card by supplier and key", () => {
+    const { onPick } = setup();
+    fireEvent.click(screen.getByRole("button", { name: /Mann W 68\/3/ }));
+    expect(onPick).toHaveBeenCalledWith("rossko", "MANN|W683");
   });
 });

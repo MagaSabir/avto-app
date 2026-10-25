@@ -70,3 +70,12 @@ async def test_search_no_store(client: AsyncClient) -> None:
     r = await client.get("/api/search", params={"q": "W683"})
     assert r.status_code == 200
     assert r.headers["cache-control"] == "no-store"
+
+
+async def test_search_item_brand_key(client: AsyncClient) -> None:
+    await _receive(client, "W 68/3", "Mann-Filter")
+    await _receive(client, "OIL1", "Meat & Doria")
+    r = await client.get("/api/search", params={"q": "W683"})
+    assert r.json()["items"][0]["brand_key"] == "MANN"
+    r = await client.get("/api/search", params={"q": "OIL1"})
+    assert r.json()["items"][0]["brand_key"] == "MEAT&DORIA"

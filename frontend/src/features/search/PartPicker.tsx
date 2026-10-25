@@ -1,103 +1,171 @@
-import { useId } from "react";
+import { ChevronRight } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/stock/format";
+import { cn } from "@/lib/utils";
 
-import { groupPartsByName, type PartChoice } from "./derive";
+import type { PartCard } from "./derive";
 import { formatDelivery, plural } from "./format";
+import { Skeleton } from "./Tag";
 
 type Props = {
-  parts: PartChoice[];
+  cards: PartCard[];
+  stockQty: (key: string) => number;
   now: Date;
-  onPick: (key: string) => void;
+  pending: { title: string }[];
+  errors: { title: string; message: string; retry: () => void }[];
+  onPick: (supplier: string, key: string) => void;
 };
 
-const COLS =
-  "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 md:grid-cols-[12rem_minmax(0,1fr)_auto]";
-
-function NameCard({ name, parts, now, onPick }: Props & { name: string }) {
-  const id = useId();
+function Card({
+  card,
+  qty,
+  now,
+  onPick,
+}: {
+  card: PartCard;
+  qty: number;
+  now: Date;
+  onPick: Props["onPick"];
+}) {
+  const { group, analogs, minPrice, fastest } = card;
+  const parts: ReactNode[] = [
+    <span key="s" className="text-link font-medium">
+      {card.title}
+    </span>,
+    // Parts without data are left out: no «0 аналогов».
+    ...(analogs > 0
+      ? [
+          <span key="a">
+            {`${String(analogs)} ${plural(analogs, "аналог", "аналога", "аналогов")}`}
+          </span>,
+        ]
+      : []),
+    ...(qty > 0
+      ? [
+          <span key="q">
+            {"у вас "}
+            <span className="font-semibold text-link">{`${String(qty)} шт`}</span>
+          </span>,
+        ]
+      : []),
+  ];
   return (
-    <section
-      aria-labelledby={id}
-      className="overflow-hidden rounded-lg border bg-card"
+    <button
+      type="button"
+      onClick={() => {
+        onPick(card.supplier, group.key);
+      }}
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-3 md:grid md:grid-cols-[140px_minmax(0,2fr)_minmax(0,1fr)_24px] md:gap-x-4 rounded-[10px] border bg-card px-5 py-[18px] text-left hover:border-border-active hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none",
+        minPrice === null && "opacity-60",
+      )}
     >
-      <h4 id={id} className="bg-muted px-3 py-2.5 text-[15px] font-semibold">
-        {name === "" ? "Без названия" : name}
-      </h4>
-      <div
-        aria-hidden="true"
-        className={`${COLS} border-b px-3 py-1.5 text-[12px] text-muted-foreground`}
-      >
-        <span className="hidden md:block">Бренд</span>
-        <span>Артикул / Наименование</span>
-        <span className="text-right">Цена</span>
-      </div>
-      <ul>
-        {parts.map((p) => (
-          <li key={p.key} className="border-b last:border-b-0">
-            <button
-              type="button"
-              onClick={() => {
-                onPick(p.key);
-              }}
-              className={`${COLS} min-h-14 w-full cursor-pointer items-center px-3 py-2 text-left hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset`}
-            >
-              <span className="col-span-2 text-[20px] leading-tight font-semibold [overflow-wrap:anywhere] text-muted-foreground md:col-span-1">
-                {p.brand}
-              </span>{" "}
-              <span className="flex min-w-0 flex-col">
-                <span className="font-mono [overflow-wrap:anywhere]">
-                  {p.number}
-                </span>{" "}
-                {p.name !== "" && (
-                  <span className="[overflow-wrap:anywhere]">{p.name}</span>
-                )}
-              </span>{" "}
-              <span className="flex flex-col items-end text-right">
-                {p.fastest === null ? (
-                  <>
-                    <span className="font-semibold">—</span>
-                    <span className="text-[12px] text-muted-foreground">
-                      нет в наличии
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold whitespace-nowrap tabular-nums">
-                      {formatPrice(p.fastest.purchase_price)} ₽
-                    </span>
-                    <span className="text-[12px] whitespace-nowrap">
-                      {formatDelivery(p.fastest, now)}
-                    </span>
-                  </>
-                )}
-                {p.analogs > 0 && (
-                  <span className="text-[12px] whitespace-nowrap text-muted-foreground">
-                    {`+ ${String(p.analogs)} ${plural(p.analogs, "аналог", "аналога", "аналогов")}`}
+      <span className="flex min-w-0 flex-1 flex-col gap-1 md:contents">
+        <span
+          className="truncate text-[17px] font-medium md:self-start text-soft-foreground"
+          title={group.brand}
+        >
+          {group.brand}
+        </span>{" "}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[17px] font-[650] text-foreground [overflow-wrap:anywhere]">
+            {group.number}
+          </span>
+          {group.name !== "" && (
+            <span className="text-[13px] text-link [overflow-wrap:anywhere]">
+              {group.name}
+            </span>
+          )}
+          <span className="flex flex-wrap items-center text-[13px] text-soft-foreground">
+            {parts.map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 && (
+                  <span aria-hidden="true" className="px-1">
+                    {" · "}
                   </span>
                 )}
+                {part}
+              </Fragment>
+            ))}
+          </span>
+        </span>
+        <span className="flex flex-col md:items-start md:self-start">
+          {minPrice === null ? (
+            <span className="text-[20px] font-bold">—</span>
+          ) : (
+            <>
+              <span className="whitespace-nowrap tabular-nums">
+                <span className="text-[13px]">от </span>
+                <span className="text-[20px] font-bold">{`${formatPrice(minPrice)} ₽`}</span>
               </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+              <span className="text-[13px] whitespace-nowrap text-soft-foreground">
+                {fastest === null
+                  ? "варианты поставки"
+                  : formatDelivery(fastest, now)}
+              </span>
+            </>
+          )}
+        </span>
+      </span>
+      <ChevronRight
+        aria-hidden="true"
+        className="size-5 shrink-0 text-link md:justify-self-end"
+      />
+    </button>
   );
 }
 
-// Step 1: one card per part name, a row per part; a row opens step 2.
-export function PartPicker({ parts, now, onPick }: Props) {
+// Step 1: a card per supplier's part; a card opens step 2.
+export function PartPicker({
+  cards,
+  stockQty,
+  now,
+  pending,
+  errors,
+  onPick,
+}: Props) {
+  const n = cards.length;
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-[20px] font-bold">Результаты поиска</h3>
-      {groupPartsByName(parts).map((card) => (
-        <NameCard
-          key={card.parts[0]?.key ?? card.name}
-          name={card.name}
-          parts={card.parts}
+      {n > 0 && (
+        <h2 className="text-[20px] font-bold">
+          {`Найдено ${String(n)} ${plural(n, "деталь", "детали", "деталей")}`}
+        </h2>
+      )}
+      {cards.map((card) => (
+        <Card
+          key={`${card.supplier}|${card.group.key}`}
+          card={card}
+          qty={stockQty(card.group.key)}
           now={now}
           onPick={onPick}
         />
+      ))}
+      {pending.map((p) => (
+        <div
+          key={p.title}
+          aria-busy="true"
+          className="flex flex-col gap-2 rounded-lg border bg-card p-3.5"
+        >
+          <span className="text-[13px] text-muted-foreground">
+            {`${p.title} · ждём ответ…`}
+          </span>
+          <Skeleton className="w-2/3" />
+          <Skeleton />
+        </div>
+      ))}
+      {errors.map((e) => (
+        <div key={e.title} className="flex flex-wrap items-center gap-3 py-1">
+          <p className="text-destructive [overflow-wrap:anywhere]">
+            <span className="font-medium">{e.title}: </span>
+            <span>{e.message}</span>
+          </p>
+          <Button type="button" onClick={e.retry}>
+            Повторить
+          </Button>
+        </div>
       ))}
     </div>
   );

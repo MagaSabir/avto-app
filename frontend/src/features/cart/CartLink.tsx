@@ -12,7 +12,7 @@ export function CartLink() {
       aria-label={`Корзина: ${String(count)}`}
       className="relative cursor-pointer rounded-lg px-2 py-1.5 text-muted-foreground hover:bg-selected"
     >
-      <ShoppingCart className="size-4" aria-hidden="true" />
+      <ShoppingCart className="size-[22px]" aria-hidden="true" />
       {count > 0 && (
         <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[11px] leading-4 text-primary-foreground">
           {count}

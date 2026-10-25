@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.brands import canonical_brand
 from app.domain.numbers import normalize_number
 from app.domain.pricing import sale_price
 from app.repositories import stock as stock_repository
@@ -28,6 +29,7 @@ async def _stock_items(session: AsyncSession, numbers: Collection[str]) -> list[
         result.append(
             StockSearchItem(
                 **StockItemOut.model_validate(item).model_dump(exclude={"status"}),
+                brand_key=canonical_brand(item.brand),
                 last_receipt_at=receipt_at,
                 last_receipt_supplier=supplier,
                 sold_30d=sold,

@@ -1,4 +1,4 @@
-import { LogOut, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { useState } from "react";
 
 // Opens on hover (and on click for touch and keyboard); holds only «Выход»
@@ -32,6 +32,7 @@ export function UserMenu({
       >
         <UserRound size={16} aria-hidden="true" />
         <span>{login}</span>
+        <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && (
         <div
