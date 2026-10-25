@@ -51,9 +51,12 @@ function Card({
       )}
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 md:flex-row md:items-baseline md:gap-3">
-        <span className="text-[17px] font-semibold text-soft-foreground [overflow-wrap:anywhere] md:w-[110px] md:shrink-0">
+        <span
+          className="text-[17px] font-semibold text-soft-foreground truncate md:w-[130px] md:shrink-0"
+          title={group.brand}
+        >
           {group.brand}
-        </span>{" "}
+        </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[17px] font-[650] [overflow-wrap:anywhere]">
             {group.number}

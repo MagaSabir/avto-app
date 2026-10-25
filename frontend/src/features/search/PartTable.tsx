@@ -92,7 +92,10 @@ export function PartTable({
           {HEADERS.map((h, i) => (
             <span
               key={h}
-              className={cn(i === HEADERS.length - 1 && "text-center")}
+              className={cn(
+                i === HEADERS.length - 1 &&
+                  "w-[112px] justify-self-end text-center",
+              )}
             >
               {h}
             </span>
