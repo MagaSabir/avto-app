@@ -483,7 +483,7 @@ describe("SearchPage", () => {
       ).not.toBeInTheDocument();
       expect(screen.queryByText("BOSCHMANN")).not.toBeInTheDocument();
       expect(
-        within(screen.getByRole("button", { name: /MGA.*W68\/3/ })).getByText(
+        within(screen.getByRole("button", { name: /MGA W68\/3/ })).getByText(
           "—",
         ),
       ).toBeInTheDocument();

@@ -56,7 +56,7 @@ function Card({
           title={group.brand}
         >
           {group.brand}
-        </span>
+        </span>{" "}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[17px] font-[650] [overflow-wrap:anywhere]">
             {group.number}
