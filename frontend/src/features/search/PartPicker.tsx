@@ -130,9 +130,9 @@ export function PartPicker({
   return (
     <div className="flex flex-col gap-3">
       {n > 0 && (
-        <h3 className="text-[20px] font-bold">
+        <h2 className="text-[20px] font-bold">
           {`Найдено ${String(n)} ${plural(n, "деталь", "детали", "деталей")}`}
-        </h3>
+        </h2>
       )}
       {cards.map((card) => (
         <Card
@@ -158,7 +158,7 @@ export function PartPicker({
       ))}
       {errors.map((e) => (
         <div key={e.title} className="flex flex-wrap items-center gap-3 py-1">
-          <p className="text-status-out [overflow-wrap:anywhere]">
+          <p className="text-destructive [overflow-wrap:anywhere]">
             <span className="font-medium">{e.title}: </span>
             <span>{e.message}</span>
           </p>

@@ -69,6 +69,8 @@ describe("FilterBar", () => {
     expect(button).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(button);
     expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).not.toHaveAttribute("aria-haspopup");
+    expect(screen.getByRole("group", { name: "Поставщики" })).toBeVisible();
     expect(screen.getByRole("checkbox", { name: "Росско" })).toBeChecked();
     fireEvent.click(screen.getByRole("checkbox", { name: "Микадо" }));
     expect(onChoose).toHaveBeenCalledWith(["rossko"]);

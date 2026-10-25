@@ -37,7 +37,7 @@ export function SearchForm({ initial, onSearch }: Props) {
       <div className="flex max-w-[940px] gap-2">
         <div
           className={`flex h-[50px] min-w-0 flex-1 items-center gap-3 rounded-[10px] border border-border-active bg-card px-[13px] focus-within:ring-[3px] focus-within:ring-ring ${
-            error ? "border-status-out!" : ""
+            error ? "border-destructive!" : ""
           }`}
         >
           <div className="flex min-w-0 flex-1 flex-col">
@@ -88,7 +88,7 @@ export function SearchForm({ initial, onSearch }: Props) {
         </Button>
       </div>
       {error && (
-        <p role="alert" className="text-[13px] text-status-out">
+        <p role="alert" className="text-[13px] text-destructive">
           Введите номер
         </p>
       )}

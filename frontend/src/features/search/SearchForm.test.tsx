@@ -27,7 +27,8 @@ describe("SearchForm", () => {
     render(<SearchForm initial="" onSearch={onSearch} />);
     fireEvent.change(field(), { target: { value: "-/." } });
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
-    expect(screen.getByText("Введите номер")).toBeInTheDocument();
+    expect(screen.getByText("Введите номер")).toHaveClass("text-destructive");
+    expect(field().closest(".border-destructive\\!")).not.toBeNull();
     expect(onSearch).not.toHaveBeenCalled();
     fireEvent.change(field(), { target: { value: "@abc" } });
     fireEvent.submit(field());

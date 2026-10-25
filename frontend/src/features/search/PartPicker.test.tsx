@@ -67,7 +67,7 @@ describe("PartPicker", () => {
   it("shows the count and a card per supplier part", () => {
     setup();
     expect(
-      screen.getByRole("heading", { name: "Найдено 2 детали" }),
+      screen.getByRole("heading", { level: 2, name: "Найдено 2 детали" }),
     ).toBeInTheDocument();
     const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
     expect(card).toHaveTextContent("Росско · 86 аналогов · у вас 15 шт");
@@ -130,7 +130,9 @@ describe("PartPicker", () => {
   it("shows a supplier error with retry", () => {
     const retry = vi.fn();
     setup({ errors: [{ title: "Микадо", message: "Лимит исчерпан", retry }] });
-    expect(screen.getByText("Лимит исчерпан")).toBeInTheDocument();
+    expect(screen.getByText("Лимит исчерпан").parentElement).toHaveClass(
+      "text-destructive",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
     expect(retry).toHaveBeenCalled();
   });

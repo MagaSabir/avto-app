@@ -54,7 +54,10 @@ export function OfferActions({
         i.supplier === supplier &&
         i.number_norm === group.number_norm &&
         normBrand(i.brand) === normBrand(group.brand) &&
-        i.stock_id === offer.stock_id,
+        i.stock_id === offer.stock_id &&
+        // Mikado variants may share a stock id: tell them apart.
+        i.warehouse === offer.warehouse &&
+        sameMoment(i.delivery_from, offer.delivery_from),
     )
     .reduce((sum, i) => sum + i.qty, 0);
 
@@ -192,4 +195,9 @@ export function OfferActions({
       )}
     </form>
   );
+}
+
+// The cart stores times in UTC, the supplier answers with its own offset.
+function sameMoment(a: string | null, b: string | null): boolean {
+  return a === null || b === null ? a === b : Date.parse(a) === Date.parse(b);
 }

@@ -194,6 +194,54 @@ describe("OfferActions", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not merge Mikado variants sharing a stock id", async () => {
+    const variant = (from: string, warehouse = "Склад №1004") =>
+      offer({
+        stock_id: "gto1#1",
+        kind: "order",
+        warehouse,
+        delivery_from: from,
+      });
+    mockApi({
+      "GET /api/cart": () => ({
+        items: [
+          // Stored in UTC: the same moment written differently still matches.
+          cartItem({
+            stock_id: "gto1#1",
+            warehouse: "Склад №1004",
+            delivery_from: "2026-10-25T03:00:00Z",
+          }),
+        ],
+        total: "0.00",
+      }),
+    });
+    const offers = [
+      variant("2026-10-25T10:00:00+07:00"),
+      variant("2026-10-26T10:00:00+07:00"),
+      variant("2026-10-25T10:00:00+07:00", "Склад №2"),
+    ];
+    renderWithProviders(
+      <>
+        {offers.map((o, i) => (
+          <OfferActions
+            key={i}
+            supplier="rossko"
+            group={partGroup()}
+            offer={o}
+            onToStock={vi.fn()}
+            disabled={false}
+          />
+        ))}
+      </>,
+    );
+    expect(
+      await screen.findAllByRole("button", { name: "В корзину, в корзине 4" }),
+    ).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "В корзину" })).toHaveLength(
+      2,
+    );
+  });
+
   it("matches the brand ignoring case and extra spaces", async () => {
     setup(offer(), [cartItem({ brand: "KYB  " })]);
     expect(

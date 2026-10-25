@@ -77,7 +77,6 @@ function SupplierPicker({
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-haspopup="true"
         aria-expanded={open}
         onClick={() => {
           setOpen(!open);
@@ -89,7 +88,11 @@ function SupplierPicker({
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute left-0 z-30 mt-1 min-w-44 rounded-[9px] border bg-card px-3 py-1 shadow-md">
+        <div
+          role="group"
+          aria-label="Поставщики"
+          className="absolute left-0 z-30 mt-1 min-w-44 rounded-[9px] border bg-card px-3 py-1 shadow-md"
+        >
           {suppliers.map((s) => {
             const on = chosen.includes(s.code);
             return (

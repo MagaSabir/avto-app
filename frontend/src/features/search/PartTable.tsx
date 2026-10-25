@@ -172,7 +172,7 @@ function PartRow({
             <span className="text-[14px] font-[650] [overflow-wrap:anywhere]">
               {group.number}
             </span>
-            {mine > 0 && <Tag tone="ok">{`у вас ${String(mine)} шт`}</Tag>}
+            {mine > 0 && <Tag>{`у вас ${String(mine)} шт`}</Tag>}
           </div>
           {group.name !== "" && (
             <div
