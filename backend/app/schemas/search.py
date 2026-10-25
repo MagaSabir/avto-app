@@ -37,6 +37,10 @@ class OfferOut(BaseModel):
     kind_code: str
     purchase_price: Money
     price: Money
+    qty_plus: bool = False
+    delivery_days_max: int | None = None
+    rating: int | None = None
+    order_code: str | None = None
 
 
 class PartGroupOut(BaseModel):
@@ -58,3 +62,12 @@ class SupplierSearchResult(BaseModel):
     markup: Percent
     groups: list[PartGroupOut]
     stock_matches: list[StockSearchItem]
+
+
+class SupplierVariantsOut(BaseModel):
+    code: str
+    title: str
+    status: Literal["ok", "error"]
+    message: str | None
+    markup: Percent
+    offers: list[OfferOut]

@@ -10,6 +10,7 @@ from app.schemas.search import (
     StockSearchResult,
     SupplierInfo,
     SupplierSearchResult,
+    SupplierVariantsOut,
 )
 from app.services import search as search_service
 from app.services.errors import SupplierNotFound
@@ -48,9 +49,23 @@ async def list_suppliers(suppliers: Suppliers) -> list[SupplierInfo]:
     responses={404: {"model": ErrorOut}, 422: {"model": ErrorOut}},
 )
 async def search_supplier(
-    code: str, q: str, session: Session, suppliers: Suppliers
+    code: str, q: str, session: Session, suppliers: Suppliers, with_orders: bool = False
 ) -> SupplierSearchResult:
     supplier = suppliers.get(code)
     if supplier is None:
         raise SupplierNotFound()
-    return await search_service.search_supplier(session, supplier, q)
+    return await search_service.search_supplier(session, supplier, q, with_orders)
+
+
+@router.get(
+    "/suppliers/{code}/variants",
+    response_model=SupplierVariantsOut,
+    responses={404: {"model": ErrorOut}, 422: {"model": ErrorOut}},
+)
+async def supplier_variants(
+    code: str, order_code: str, session: Session, suppliers: Suppliers
+) -> SupplierVariantsOut:
+    supplier = suppliers.get(code)
+    if supplier is None:
+        raise SupplierNotFound()
+    return await search_service.supplier_variants(session, supplier, order_code)

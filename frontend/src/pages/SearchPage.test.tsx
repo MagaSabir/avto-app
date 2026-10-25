@@ -181,6 +181,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "SLOWCHEAP",
               number_norm: "S1",
+              key: "SLOWCHEAP|S1",
               is_requested: false,
               analog_of: ["KYB|333114"],
               offers: [
@@ -194,6 +195,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "FASTDEAR",
               number_norm: "F1",
+              key: "FASTDEAR|F1",
               is_requested: false,
               analog_of: ["KYB|333114"],
               offers: [
@@ -238,6 +240,7 @@ describe("SearchPage", () => {
             partGroup({
               brand: "ANALOGBRAND",
               number_norm: "290074",
+              key: "ANALOGBRAND|290074",
               is_requested: false,
               analog_of: ["KYB|333114"],
             }),
@@ -600,12 +603,12 @@ describe("SearchPage", () => {
     const toggle = await screen.findByRole("button", {
       name: "Другие склады: 1",
     });
-    const row = toggle.closest("li") as HTMLElement;
-    expect(row).toHaveTextContent("500 ₽");
-    expect(row).not.toHaveTextContent("900 ₽");
+    // The best offer's price; the section header («от …») does not match.
+    const section = toggle.closest('[role="group"]') as HTMLElement;
+    const shown = () => within(section).getByText(/^\d+ ₽$/).textContent;
+    expect(shown()).toBe("500 ₽");
     fireEvent.click(screen.getByRole("button", { name: "Срок" }));
-    expect(row).toHaveTextContent("900 ₽");
-    expect(row).not.toHaveTextContent("500 ₽");
+    expect(shown()).toBe("900 ₽");
   });
 
   function renderApp(route: string) {
@@ -699,5 +702,55 @@ describe("SearchPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
     expect(link().get("q")).toBe("333114");
     expect(link().get("part")).toBeNull();
+  });
+});
+
+describe("SearchPage Mikado orders toggle", () => {
+  it("refetches only Mikado with with_orders", async () => {
+    const calls: string[] = [];
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [
+        { code: "rossko", title: "Росско" },
+        { code: "mikado", title: "Микадо" },
+      ],
+      "GET /api/search/suppliers/rossko": (_i, url) => {
+        calls.push(`rossko${url.search}`);
+        return supplierResult();
+      },
+      "GET /api/search/suppliers/mikado": (_i, url) => {
+        calls.push(`mikado${url.search}`);
+        return supplierResult({ code: "mikado", title: "Микадо" });
+      },
+      "GET /api/search/stock": () => [],
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    const box = await screen.findByRole("checkbox", {
+      name: "Микадо: наличие и заказ",
+    });
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+    fireEvent.click(box);
+    await waitFor(() => {
+      expect(calls).toHaveLength(3);
+    });
+    expect(calls[2]).toContain("mikado");
+    expect(calls[2]).toContain("with_orders=true");
+    expect(calls.filter((c) => c.startsWith("rossko"))).toHaveLength(1);
+  });
+
+  it("hides the toggle without Mikado", async () => {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => stock,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => supplierResult(),
+      "GET /api/search/stock": () => [],
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    await screen.findByRole("button", { name: "Аналоги" });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import type { Offer, PartGroup, SupplierSearchResult } from "@/api/search";
+import type { Offer, SupplierSearchResult } from "@/api/search";
 import {
   useAnalogStock,
   useStockSearch,
@@ -21,7 +21,10 @@ import { PartPicker } from "@/features/search/PartPicker";
 import { SearchForm } from "@/features/search/SearchForm";
 import { SummaryCards } from "@/features/search/SummaryCards";
 import { SuppliersBlock } from "@/features/search/SuppliersBlock";
-import { ToStockDialog } from "@/features/search/ToStockDialog";
+import {
+  ToStockDialog,
+  type ReceiptPart,
+} from "@/features/search/ToStockDialog";
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
@@ -36,11 +39,12 @@ export function SearchPage() {
   const [filters, setFilters] = useState<SearchFilters>({
     inStockOnly: false,
     showAnalogs: true,
+    mikadoOrders: false,
     sort: "price",
   });
 
   const [toStock, setToStock] = useState<{
-    group: PartGroup;
+    group: ReceiptPart;
     offer: Offer;
     supplierTitle: string;
   } | null>(null);
@@ -48,7 +52,9 @@ export function SearchPage() {
   const stock = useStockSearch(q);
   const suppliers = useSuppliers();
   const codes = suppliers.data?.map((s) => s.code) ?? [];
-  const searches = useSupplierSearches(codes, q);
+  const searches = useSupplierSearches(codes, q, {
+    mikado: filters.mikadoOrders,
+  });
 
   const onSearch = (next: string) => {
     if (next === q) {
@@ -115,6 +121,7 @@ export function SearchPage() {
         <>
           <FilterBar
             {...filters}
+            hasMikado={codes.includes("mikado")}
             onChange={(patch) => {
               setFilters((f) => ({ ...f, ...patch }));
             }}

@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<CodeBrandResult xmlns="http://mikado-parts.ru/service">
+  <Code_Search>W683</Code_Search>
+  <Brand_Search>MANN</Brand_Search>
+  <Message>Ok</Message>
+  <List>
+    <CodeBrandLine>
+      <OrderCode>xmn-w68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>95</StokID>
+      <StokName>Грозный</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>0</DeliveryDelay>
+    </CodeBrandLine>
+    <CodeBrandLine>
+      <OrderCode>xmn-w68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>5</StokID>
+      <StokName>Махачкала</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>0</DeliveryDelay>
+    </CodeBrandLine>
+    <CodeBrandLine>
+      <OrderCode>xmn-W68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>23</StokID>
+      <StokName>Краснодар</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>1</DeliveryDelay>
+    </CodeBrandLine>
+    <CodeBrandLine>
+      <OrderCode>xmn-w68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>7</StokID>
+      <StokName>Нальчик</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>1</DeliveryDelay>
+    </CodeBrandLine>
+    <CodeBrandLine>
+      <OrderCode>xmn-w68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>205</StokID>
+      <StokName>Дербент</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>1</DeliveryDelay>
+    </CodeBrandLine>
+    <CodeBrandLine>
+      <OrderCode>XMN-W68/3</OrderCode>
+      <PriceRUR>574.75</PriceRUR>
+      <Brand>MANN-FILTER</Brand>
+      <Name>Фильтр масляный Toyota, Peugeot</Name>
+      <StokID>126</StokID>
+      <StokName>Ставрополь</StokName>
+      <StockQTY>1</StockQTY>
+      <MinZakazQTY>1</MinZakazQTY>
+      <DeliveryDelay>2</DeliveryDelay>
+    </CodeBrandLine>
+  </List>
+  <Certificate>
+    <Nomer>ЕАЭС RU С-DE.НА90.В.01074/26</Nomer>
+    <Url>https://pub.fsa.gov.ru/rss/certificate/view/3703695/product</Url>
+    <TypeCertificateString>Сертификат</TypeCertificateString>
+    <TypeCertificate>Certificate</TypeCertificate>
+  </Certificate>
+</CodeBrandResult>

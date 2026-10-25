@@ -32,7 +32,7 @@ describe("useSupplierSearches", () => {
       },
     });
     const { result } = renderHook(
-      () => useSupplierSearches(["rossko"], "W683"),
+      () => useSupplierSearches(["rossko"], "W683", {}),
       {
         wrapper: wrapper(),
       },
@@ -41,6 +41,27 @@ describe("useSupplierSearches", () => {
       expect(result.current[0]?.isSuccess).toBe(true);
     });
     expect(seen).toBe("?q=W683");
+  });
+
+  it("asks for orders only from suppliers that are switched on", async () => {
+    const seen: Record<string, string> = {};
+    const answer = (code: string) => (_init: unknown, url: URL) => {
+      seen[code] = url.search;
+      return { code, groups: [] };
+    };
+    mockApi({
+      "GET /api/search/suppliers/rossko": answer("rossko"),
+      "GET /api/search/suppliers/mikado": answer("mikado"),
+    });
+    const { result } = renderHook(
+      () => useSupplierSearches(["rossko", "mikado"], "W683", { mikado: true }),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => {
+      expect(result.current.every((r) => r.isSuccess)).toBe(true);
+    });
+    expect(seen["rossko"]).toBe("?q=W683");
+    expect(seen["mikado"]).toBe("?q=W683&with_orders=true");
   });
 
   it("does not retry errors", async () => {
@@ -52,7 +73,7 @@ describe("useSupplierSearches", () => {
       },
     });
     const { result } = renderHook(
-      () => useSupplierSearches(["rossko"], "W683"),
+      () => useSupplierSearches(["rossko"], "W683", {}),
       {
         wrapper: wrapper(),
       },
@@ -72,7 +93,7 @@ describe("useSupplierSearches", () => {
       },
     });
     const { result } = renderHook(
-      () => useSupplierSearches(["rossko"], "W683"),
+      () => useSupplierSearches(["rossko"], "W683", {}),
       { wrapper: wrapper() },
     );
     await waitFor(() => {

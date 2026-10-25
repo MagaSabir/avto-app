@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Codes build_suppliers() in app/suppliers knows how to build.
-KNOWN_SUPPLIERS = ("rossko",)
+KNOWN_SUPPLIERS = ("rossko", "mikado")
 
 
 class Settings(BaseSettings):
@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     rossko_key2: str = Field(default="", repr=False)
     rossko_delivery_id: str = "000000001"
     rossko_address_id: str = ""
+    mikado_client_id: str = ""
+    mikado_password: str = Field(default="", repr=False)
+    mikado_fake: bool = False
     api_docs: bool = False
 
     @field_validator("suppliers", mode="before")

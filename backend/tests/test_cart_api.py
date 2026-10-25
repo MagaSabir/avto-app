@@ -19,7 +19,7 @@ class FakeSupplier:
     code = "rossko"
     title = "Росско"
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         return SupplierResult(groups=[], message=None)
 
 
@@ -172,3 +172,33 @@ async def test_add_rejects_empty_brand_or_number(env: Env) -> None:
     for field_name in ("brand", "number"):
         r = await env.client.post("/api/cart/items", json=_body(**{field_name: ""}))
         assert r.status_code == 422, field_name
+
+
+async def test_add_with_order_code(env: Env) -> None:
+    r = await env.client.post(
+        "/api/cart/items", json=_body(stock_id="xmn-w68/3#13", order_code="xmn-w68/3")
+    )
+    assert r.status_code == 201
+    assert r.json()["order_code"] == "xmn-w68/3"
+    assert (await env.client.get("/api/cart")).json()["items"][0]["order_code"] == "xmn-w68/3"
+
+
+async def test_order_code_defaults_to_null(env: Env) -> None:
+    r = await env.client.post("/api/cart/items", json=_body())
+    assert r.json()["order_code"] is None
+
+
+async def test_add_rejects_variants_kind(env: Env) -> None:
+    r = await env.client.post("/api/cart/items", json=_body(kind="variants"))
+    assert r.status_code == 422
+    assert r.json()["message"] == "Выберите вариант поставки"
+
+
+async def test_add_under_order_line_allows_up_to_order_max(env: Env) -> None:
+    body = _body(kind="order", available=0, qty=999)
+    r = await env.client.post("/api/cart/items", json=body)
+    assert r.status_code == 201
+    assert r.json()["available"] == 999
+    assert r.json()["qty"] == 999
+    r = await env.client.post("/api/cart/items", json=_body(kind="order", available=0, qty=1000))
+    assert r.status_code == 422

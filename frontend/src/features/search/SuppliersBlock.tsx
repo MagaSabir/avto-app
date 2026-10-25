@@ -2,19 +2,21 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-import type {
-  Offer,
-  PartGroup,
-  SupplierInfo,
-  SupplierSearchResult,
-} from "@/api/search";
+import type { Offer, SupplierInfo, SupplierSearchResult } from "@/api/search";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { arrangeGroups, requestedParts, type SortMode } from "./derive";
+import {
+  arrangeGroups,
+  mergeGroups,
+  requestedParts,
+  type MergedGroup,
+  type SortMode,
+} from "./derive";
 import { plural } from "./format";
 import { PART_COLS, PartRow } from "./PartRow";
 import { Skeleton } from "./Tag";
+import type { ReceiptPart } from "./ToStockDialog";
 
 type Props = {
   suppliers: SupplierInfo[];
@@ -28,7 +30,7 @@ type Props = {
   picker?: ReactNode;
   // Link back to the part list, when there are several parts.
   backTo?: string;
-  onToStock: (group: PartGroup, offer: Offer, supplierTitle: string) => void;
+  onToStock: (group: ReceiptPart, offer: Offer, supplierTitle: string) => void;
 };
 
 type State =
@@ -73,20 +75,13 @@ const HEADERS: { label: string; right?: boolean }[] = [
 ];
 
 type ListProps = {
-  supplier: string;
-  groups: PartGroup[];
+  groups: MergedGroup[];
   stockNumbers: Map<string, number>;
   now: Date;
-  onToStock: (group: PartGroup, offer: Offer) => void;
+  onToStock: (group: ReceiptPart, offer: Offer, supplierTitle: string) => void;
 };
 
-function PartList({
-  supplier,
-  groups,
-  stockNumbers,
-  now,
-  onToStock,
-}: ListProps) {
+function PartList({ groups, stockNumbers, now, onToStock }: ListProps) {
   return (
     <div className="text-[13.5px]">
       <div
@@ -106,7 +101,6 @@ function PartList({
         {groups.map((g) => (
           <PartRow
             key={g.key}
-            supplier={supplier}
             onToStock={onToStock}
             group={g}
             stockQty={stockNumbers.get(g.number_norm)}
@@ -152,16 +146,22 @@ export function SuppliersBlock({
       results.find((r) => r.code === s.code),
     );
     const result = state.kind === "ok" ? state.result : null;
-    const groups = result === null ? [] : arrangeGroups(result.groups, opts);
-    // Step 1 counts requested parts, step 2 the groups shown.
+    // Step 1 counts requested parts, step 2 the parts shown.
     const count =
       result === null
         ? 0
         : picker !== undefined
           ? requestedParts([result], opts.now).length
-          : groups.length;
-    return { supplier: s, query, state, groups, count };
+          : result.groups.filter((g) => opts.showAnalogs || g.is_requested)
+              .length;
+    return { supplier: s, query, state, result, count };
   });
+  // Step 2: one row per part, each supplier's offers inside it.
+  const answered = entries.flatMap((e) =>
+    e.result === null ? [] : [e.result],
+  );
+  const groups = arrangeGroups(mergeGroups(answered), opts);
+  const settled = entries.every((e) => e.state.kind !== "wait");
 
   return (
     <section className="rounded-lg border bg-card p-3.5 text-card-foreground">
@@ -190,7 +190,7 @@ export function SuppliersBlock({
         </Link>
       )}
       <div className="flex flex-col gap-3">
-        {entries.map(({ supplier, query, state, groups }) => (
+        {entries.map(({ supplier, query, state }) => (
           <div
             key={supplier.code}
             aria-busy={state.kind === "wait"}
@@ -223,27 +223,24 @@ export function SuppliersBlock({
                 {state.result.message}
               </p>
             )}
-            {state.kind === "ok" && picker === undefined && (
-              <>
-                {groups.length === 0 ? (
-                  <p className="py-4 text-center text-muted-foreground">
-                    Ничего не найдено
-                  </p>
-                ) : (
-                  <Parts
-                    supplier={supplier.code}
-                    onToStock={(group, offer) => {
-                      onToStock(group, offer, supplier.title);
-                    }}
-                    groups={groups}
-                    stockNumbers={stockNumbers}
-                    now={opts.now}
-                  />
-                )}
-              </>
-            )}
           </div>
         ))}
+        {picker === undefined &&
+          (groups.length > 0 ? (
+            <Parts
+              groups={groups}
+              stockNumbers={stockNumbers}
+              now={opts.now}
+              onToStock={onToStock}
+            />
+          ) : (
+            settled &&
+            answered.length > 0 && (
+              <p className="py-4 text-center text-muted-foreground">
+                Ничего не найдено
+              </p>
+            )
+          ))}
         {picker}
       </div>
     </section>

@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -5,6 +6,7 @@ from typing import Any
 
 import httpx
 import pytest
+import respx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user
@@ -13,7 +15,10 @@ from app.main import create_app
 from app.models.auth import User
 from app.repositories import users as users_repository
 from app.suppliers import get_suppliers
-from app.suppliers.base import Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.base import CartLine, Offer, PartGroup, SupplierError, SupplierResult
+from app.suppliers.mikado import URL, DailyLimit, MikadoSupplier
+from app.suppliers.rossko import check_lines, parse_search
+from tests.suppliers.test_mikado_client import FIXTURES
 from tests.test_cart_api import _body
 
 
@@ -56,7 +61,10 @@ class FakeSupplier:
     calls: list[str] = field(default_factory=list)
     on_search: Callable[[str], Awaitable[None]] | None = None
 
-    async def search(self, number: str) -> SupplierResult:
+    async def check_offers(self, lines: list[CartLine]) -> dict[str, Offer | None]:
+        return await check_lines(self.search, lines)
+
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         self.calls.append(number)
         if self.on_search is not None:
             await self.on_search(number)
@@ -227,3 +235,80 @@ async def test_refresh_survives_cart_cleared_meanwhile(env: Env) -> None:
     body = await _refresh(env)
     assert body["items"] == []
     assert (await env.client.get("/api/cart")).json()["items"] == []
+
+
+@respx.mock
+async def test_refresh_mikado_line_updates_price(env: Env) -> None:
+    env.supplier_map["mikado"] = MikadoSupplier("C", "P")  # type: ignore[assignment]
+    respx.post(URL.format(method="CodeBrandStockInfo")).respond(
+        200, content=(FIXTURES / "mikado_cbsi.xml").read_bytes()
+    )
+    await _add(
+        env,
+        supplier="mikado",
+        stock_id="xmn-w68/3|95",
+        brand="MANN",
+        order_code="xmn-w68/3",
+        price="500.00",
+    )
+    body = await _refresh(env)
+    item = body["items"][0]
+    assert item["state"] == "ok"
+    assert item["previous_price"] == "500.00"
+    assert item["price"] == "574.75"
+
+
+@respx.mock
+async def test_refresh_mikado_error_keeps_line_unknown(env: Env) -> None:
+    env.supplier_map["mikado"] = MikadoSupplier("C", "P", daily=DailyLimit(0))  # type: ignore[assignment]
+    await _add(
+        env,
+        supplier="mikado",
+        stock_id="xmn-w68/3#13",
+        brand="MANN",
+        order_code="xmn-w68/3",
+        kind="order",
+    )
+    body = await _refresh(env)
+    assert body["status"] == "error"
+    assert body["message"] == "Лимит запросов к Микадо на сегодня исчерпан"
+    assert body["items"][0]["state"] == "unknown"
+
+
+async def test_refresh_keeps_order_max_for_under_order_line(env: Env) -> None:
+    await _add(env, kind="order", available=0, qty=3)
+    order_offer = Offer(
+        warehouse="Под заказ",
+        stock_id="HST1",
+        qty=0,
+        multiplicity=1,
+        delivery_days=7,
+        delivery_from=None,
+        delivery_to=None,
+        kind="order",
+        kind_code="",
+        purchase_price=Decimal("450.00"),
+    )
+    env.supplier.responses["W 68/3"] = _result(order_offer)
+    item = (await _refresh(env))["items"][0]
+    assert item["state"] == "ok"
+    assert item["available"] == 999
+    assert (await env.client.get("/api/cart")).json()["items"][0]["available"] == 999
+
+
+async def test_refresh_same_number_other_brands_same_warehouse_id(env: Env) -> None:
+    parsed = parse_search((FIXTURES.parent / "fixtures" / "rossko_search_w683.xml").read_bytes())
+    mann = next(g for g in parsed.groups if g.key == "MANN|W683")
+    mga = next(g for g in parsed.groups if g.key == "MGA|W683")
+    shared = "HST1525131288"
+    mann_offer = next(o for o in mann.offers if o.stock_id == shared)
+    mga_offer = dataclasses.replace(mann_offer, purchase_price=Decimal("111.00"))
+    mga_group = dataclasses.replace(mga, offers=[*mga.offers, mga_offer])
+    mann_group = dataclasses.replace(mann, offers=[mann_offer])
+    env.supplier.responses["W683"] = SupplierResult(groups=[mga_group, mann_group], message=None)
+    a = await _add(env, brand="MGA", number="W683", stock_id=shared)
+    b = await _add(env, brand="MANN", number="W683", stock_id=shared)
+    body = await _refresh(env)
+    by_id = {i["id"]: i for i in body["items"]}
+    assert by_id[a["id"]]["price"] == "111.00"
+    assert by_id[b["id"]]["price"] == str(mann_offer.purchase_price.quantize(Decimal("0.01")))

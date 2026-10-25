@@ -5,13 +5,16 @@ import type { Offer, PartGroup } from "@/api/search";
 import { Modal } from "@/components/ui/modal";
 import { ReceiptForm } from "@/features/stock/ReceiptForm";
 
+// The part as shown in the search (merged across suppliers).
+export type ReceiptPart = Pick<PartGroup, "key" | "brand" | "number" | "name">;
+
 export function ToStockDialog({
   supplierTitle,
   target,
   onClose,
 }: {
   supplierTitle: string;
-  target: { group: PartGroup; offer: Offer } | null;
+  target: { group: ReceiptPart; offer: Offer } | null;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();

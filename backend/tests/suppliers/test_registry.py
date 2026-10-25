@@ -15,3 +15,14 @@ def test_unknown_code_raises() -> None:
     settings = Settings.model_construct(suppliers=["nope"])
     with pytest.raises(ValueError):
         build_suppliers(settings)
+
+
+def test_builds_mikado() -> None:
+    from app.suppliers.mikado import MikadoSupplier
+
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None, database_url="x", suppliers="rossko,mikado", mikado_fake=True
+    )
+    suppliers = build_suppliers(settings)
+    assert list(suppliers) == ["rossko", "mikado"]
+    assert isinstance(suppliers["mikado"], MikadoSupplier)

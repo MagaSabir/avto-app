@@ -22,6 +22,7 @@ class CartItemIn(BaseModel):
     kind_code: str
     price: Money = Field(gt=0)
     qty: int
+    order_code: str | None = None
 
 
 class CartItemOut(BaseModel):
@@ -43,6 +44,7 @@ class CartItemOut(BaseModel):
     kind_code: str
     price: Money
     sum: Money
+    order_code: str | None
 
 
 class CartOut(BaseModel):

@@ -18,6 +18,7 @@ import {
   requestedParts,
   selectPart,
   type PartChoice,
+  mergeGroups,
   stockSummary,
   visibleStock,
 } from "./derive";
@@ -37,6 +38,7 @@ function offer(price: string, over: Partial<Offer> = {}): Offer {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    qty_plus: false,
     purchase_price: price,
     // Price with markup is not used on screen; a constant proves it.
     price: "1.00",
@@ -118,6 +120,17 @@ describe("deliveryRank", () => {
   });
 });
 
+// Sorting works on parts merged across suppliers; one supplier here.
+function arrange(
+  groups: PartGroup[],
+  opts: { showAnalogs: boolean; sort: "price" | "time"; now: Date },
+) {
+  return arrangeGroups(mergeGroups([result("a", groups)]), opts).map((g) => ({
+    number_norm: g.number_norm,
+    offers: g.suppliers[0]?.offers ?? [],
+  }));
+}
+
 describe("arrangeGroups", () => {
   const requested = group("REQ", true, [offer("5000.00"), offer("100.00")]);
   const analogs = [
@@ -127,7 +140,7 @@ describe("arrangeGroups", () => {
   ];
 
   it("keeps requested first and sorts analogs by price", () => {
-    const out = arrangeGroups([...analogs, requested], {
+    const out = arrange([...analogs, requested], {
       showAnalogs: true,
       sort: "price",
       now,
@@ -146,7 +159,7 @@ describe("arrangeGroups", () => {
       group("LATE", false, [offer("1.00", { delivery_from: at(25) })]),
       group("SOON", false, [offer("9.00", { delivery_from: at(23) })]),
     ];
-    const out = arrangeGroups(groups, {
+    const out = arrange(groups, {
       showAnalogs: true,
       sort: "time",
       now,
@@ -164,7 +177,7 @@ describe("arrangeGroups", () => {
       offer("9.00", { delivery_from: at(23) }),
       offer("5.00", { delivery_from: at(23) }),
     ]);
-    const out = arrangeGroups([g], { showAnalogs: true, sort: "time", now });
+    const out = arrange([g], { showAnalogs: true, sort: "time", now });
     expect(out[0]?.offers.map((o) => o.purchase_price)).toEqual([
       "5.00",
       "9.00",
@@ -178,7 +191,7 @@ describe("arrangeGroups", () => {
       offer("300.00", { warehouse: "г. Грозный" }),
       offer("200.00", { warehouse: "Краснодар" }),
     ]);
-    const out = arrangeGroups([g], { showAnalogs: true, sort: "price", now });
+    const out = arrange([g], { showAnalogs: true, sort: "price", now });
     expect(out[0]?.offers.map((o) => o.purchase_price)).toEqual([
       "200.00",
       "300.00",
@@ -188,7 +201,7 @@ describe("arrangeGroups", () => {
 
   it("ranks analogs with own stock above partner-only analogs", () => {
     const partner = "Партнерский склад";
-    const out = arrangeGroups(
+    const out = arrange(
       [
         group("P", false, [offer("10.00", { warehouse: partner })]),
         group("O", false, [offer("90.00", { warehouse: "Пятигорск" })]),
@@ -209,12 +222,36 @@ describe("arrangeGroups", () => {
   });
 
   it("hides analogs", () => {
-    const out = arrangeGroups([...analogs, requested], {
+    const out = arrange([...analogs, requested], {
       showAnalogs: false,
       sort: "price",
       now,
     });
     expect(out.map((g) => g.number_norm)).toEqual(["REQ"]);
+  });
+
+  it("sorts each supplier's offers and ranks analogs by the best of them", () => {
+    const out = arrangeGroups(
+      mergeGroups([
+        result("a", [
+          group("REQ", true, [offer("30.00"), offer("10.00")]),
+          group("A1", false, [offer("500.00")]),
+          group("A2", false, [offer("300.00")]),
+        ]),
+        result("b", [
+          group("REQ", true, [offer("40.00"), offer("20.00")]),
+          group("A1", false, [offer("100.00")]),
+        ]),
+      ]),
+      { showAnalogs: true, sort: "price", now },
+    );
+    expect(out.map((g) => g.number_norm)).toEqual(["REQ", "A1", "A2"]);
+    expect(
+      out[0]?.suppliers.map((s) => s.offers.map((o) => o.purchase_price)),
+    ).toEqual([
+      ["10.00", "30.00"],
+      ["20.00", "40.00"],
+    ]);
   });
 });
 
@@ -502,5 +539,121 @@ describe("selectPart", () => {
   it("keeps a part without offers and its analogs", () => {
     const [a] = selectPart(twoParts(), MGA);
     expect(a.groups.map((g) => g.key)).toEqual([MGA, "LUZAR|LP01"]);
+  });
+});
+
+describe("two suppliers by canonical key", () => {
+  const KEY = "MANN|W683";
+  const rossko = fx.supplierResult({
+    code: "rossko",
+    title: "Росско",
+    groups: [
+      fx.partGroup({
+        brand: "Mann",
+        number: "W 68/3",
+        number_norm: "W683",
+        name: "",
+        key: KEY,
+        analog_of: [],
+        offers: [fx.offer({ purchase_price: "800.00", delivery_days: 3 })],
+      }),
+      fx.partGroup({
+        brand: "BOSCH",
+        number_norm: "F026",
+        key: "BOSCH|F026",
+        is_requested: false,
+        analog_of: [KEY],
+        offers: [],
+      }),
+    ],
+  });
+  const mikado = fx.supplierResult({
+    code: "mikado",
+    title: "Микадо",
+    groups: [
+      fx.partGroup({
+        brand: "MANN-FILTER",
+        number: "W683",
+        number_norm: "W683",
+        name: "Фильтр масляный",
+        key: KEY,
+        analog_of: [],
+        offers: [
+          fx.offer({ purchase_price: "700.00", delivery_days: 2 }),
+          fx.offer({
+            kind: "variants",
+            purchase_price: "0.00",
+            delivery_days: 0,
+            order_code: "X1",
+          }),
+        ],
+      }),
+      fx.partGroup({
+        brand: "BOSCH",
+        number_norm: "F026",
+        key: "BOSCH|F026",
+        is_requested: false,
+        analog_of: [KEY, "OTHER|1"],
+        offers: [],
+      }),
+    ],
+  });
+
+  it("merges parts of two suppliers by key", () => {
+    const merged = mergeGroups([rossko, mikado]);
+    expect(merged).toHaveLength(2);
+    const g = merged[0];
+    expect(g.key).toBe(KEY);
+    expect(g.brand).toBe("Mann");
+    expect(g.number).toBe("W 68/3");
+    expect(g.name).toBe("Фильтр масляный");
+    expect(g.is_requested).toBe(true);
+    expect(g.suppliers.map((s) => s.code)).toEqual(["rossko", "mikado"]);
+    expect(g.suppliers[1].title).toBe("Микадо");
+    expect(g.suppliers[1].offers).toHaveLength(2);
+    expect(g.suppliers[1].group.brand).toBe("MANN-FILTER");
+    expect(merged[1].analog_of).toEqual([KEY, "OTHER|1"]);
+  });
+
+  it("requestedParts takes the minimum over both suppliers", () => {
+    const [p] = requestedParts([rossko, mikado], now);
+    expect(p.minPrice).toBe("700.00");
+    expect(p.offers).toBe(2);
+    expect(p.fastest?.purchase_price).toBe("700.00");
+  });
+
+  it("summary picks the cheapest across suppliers, never variants", () => {
+    const pick = cheapest([rossko, mikado], false);
+    expect(pick?.supplier).toBe("mikado");
+    expect(pick?.offer.purchase_price).toBe("700.00");
+    const quick = fastest([rossko, mikado], false, now);
+    expect(quick?.supplier).toBe("mikado");
+    expect(quick?.offer.purchase_price).toBe("700.00");
+    expect(bestPriceFor([rossko, mikado], "W683")).toBe("700.00");
+  });
+
+  it("keeps order offers eligible for cheapest and fastest", () => {
+    const order = fx.supplierResult({
+      code: "mikado",
+      title: "Микадо",
+      groups: [
+        fx.partGroup({
+          key: KEY,
+          offers: [
+            fx.offer({
+              kind: "order",
+              qty: 0,
+              purchase_price: "650.00",
+              delivery_days: 1,
+              order_code: "v1004-w683",
+            }),
+          ],
+        }),
+      ],
+    });
+    const pick = cheapest([rossko, order], false);
+    expect(pick?.offer.kind).toBe("order");
+    expect(pick?.offer.purchase_price).toBe("650.00");
+    expect(fastest([rossko, order], false, now)?.offer.kind).toBe("order");
   });
 });

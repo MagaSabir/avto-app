@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Code_Info_Block xmlns="http://mikado-parts.ru/service">
+  <Code>gto90915yzzm3</Code>
+  <Brand>Toyota</Brand>
+  <Name>Фильтр масляный </Name>
+  <Supplier>Наш склад СПб</Supplier>
+  <Country>Япония</Country>
+  <CodeType>OEM</CodeType>
+  <Message />
+  <Certificate>
+    <Nomer>ЕАЭС RU С-JP.НВ07.В.00796/23</Nomer>
+    <Url>https://pub.fsa.gov.ru/rss/certificate/view/3221477/product</Url>
+    <TypeCertificateString>Сертификат</TypeCertificateString>
+    <TypeCertificate>Certificate</TypeCertificate>
+  </Certificate>
+  <TnVed>8421230000</TnVed>
+  <Prices>
+    <Code_PriceInfo>
+      <PriceRUR>504</PriceRUR>
+      <OnStocks>
+        <StockLine>
+          <StokName>С.-Петербург 3дн. (при заказе до 20:00 МСК)</StokName>
+          <StokID>1</StokID>
+          <StockQTY>5</StockQTY>
+          <DeliveryDelay>3</DeliveryDelay>
+        </StockLine>
+      </OnStocks>
+      <Srock>0</Srock>
+      <SrockMax>4</SrockMax>
+      <Comment />
+      <DeliveryType>13</DeliveryType>
+      <Rating>100</Rating>
+    </Code_PriceInfo>
+    <Code_PriceInfo>
+      <PriceRUR>583.2</PriceRUR>
+      <OnStocks />
+      <Srock>5</Srock>
+      <SrockMax>8</SrockMax>
+      <Comment />
+      <DeliveryType>96</DeliveryType>
+      <Rating>92</Rating>
+    </Code_PriceInfo>
+    <Code_PriceInfo>
+      <PriceRUR>587.09</PriceRUR>
+      <OnStocks />
+      <Srock>8</Srock>
+      <SrockMax>13</SrockMax>
+      <Comment />
+      <DeliveryType>199</DeliveryType>
+      <Rating>96</Rating>
+    </Code_PriceInfo>
+  </Prices>
+</Code_Info_Block>

@@ -45,6 +45,7 @@ function item(id: number, over: Partial<CartItem> = {}): CartItem {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    order_code: null,
     price: "412.00",
     sum: "412.00",
     ...over,
@@ -173,6 +174,17 @@ describe("CartPage", () => {
       expect(screen.getByText("412").tagName).toBe("S");
     });
     expect(screen.queryByText("проверяем цены…")).not.toBeInTheDocument();
+  });
+
+  it("labels each line with its supplier", async () => {
+    setup({
+      items: [
+        item(1),
+        item(2, { supplier: "mikado", stock_id: "gto90915yzzm3#1" }),
+      ],
+    });
+    expect(await screen.findByText("Микадо")).toBeInTheDocument();
+    expect(screen.getByText("Росско")).toBeInTheDocument();
   });
 
   it("refreshes once per mount", async () => {

@@ -28,6 +28,7 @@ function cartItem(id: number): CartItem {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    order_code: null,
     price: "2940.00",
     sum: "2940.00",
   };

@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal, Protocol, runtime_checkable
 
-OfferKind = Literal["normal", "sale", "defect", "air", "other"]
+OfferKind = Literal["normal", "sale", "defect", "air", "other", "order", "variants"]
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,10 @@ class Offer:
     kind: OfferKind
     kind_code: str
     purchase_price: Decimal
+    qty_plus: bool = False
+    delivery_days_max: int | None = None
+    rating: int | None = None
+    order_code: str | None = None
 
 
 @dataclass
@@ -48,7 +52,31 @@ class Supplier(Protocol):
     code: str
     title: str
 
-    async def search(self, number: str) -> SupplierResult: ...
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult: ...
+
+
+@dataclass(frozen=True)
+class SupplierVariants:
+    offers: list[Offer]
+    message: str | None
+
+
+@runtime_checkable
+class VariantsSupplier(Supplier, Protocol):
+    async def variants(self, order_code: str) -> SupplierVariants: ...
+
+
+@dataclass(frozen=True)
+class CartLine:
+    stock_id: str
+    brand: str
+    number: str
+    order_code: str | None
+
+
+@runtime_checkable
+class CartCheckSupplier(Supplier, Protocol):
+    async def check_offers(self, lines: list[CartLine]) -> dict[CartLine, Offer | None]: ...
 
 
 @dataclass(frozen=True)

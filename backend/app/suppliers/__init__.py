@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from app.core.config import Settings, get_settings
 from app.suppliers.base import Supplier
+from app.suppliers.mikado import MikadoSupplier
 from app.suppliers.rossko import RosskoSupplier
 
 
@@ -14,6 +15,10 @@ def build_suppliers(settings: Settings) -> dict[str, Supplier]:
                 settings.rossko_key2,
                 settings.rossko_delivery_id,
                 settings.rossko_address_id,
+            )
+        elif code == "mikado":
+            suppliers[code] = MikadoSupplier(
+                settings.mikado_client_id, settings.mikado_password, fake=settings.mikado_fake
             )
         else:
             raise ValueError(f"Unknown supplier: {code}")

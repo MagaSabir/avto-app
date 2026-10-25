@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree
@@ -7,8 +9,10 @@ from xml.sax.saxutils import escape
 
 import httpx
 
-from app.domain.numbers import normalize_brand, normalize_number
+from app.domain.brands import canonical_brand, part_key
+from app.domain.numbers import normalize_number
 from app.suppliers.base import (
+    CartLine,
     Offer,
     Order,
     OrderPart,
@@ -106,7 +110,7 @@ def _add(
 ) -> None:
     brand = _text(el, "brand")
     number = _text(el, "partnumber")
-    key = (normalize_brand(brand), normalize_number(number))
+    key = (canonical_brand(brand), normalize_number(number))
     group = groups.get(key)
     if group is None:
         group = PartGroup(
@@ -116,7 +120,7 @@ def _add(
             name=_text(el, "name"),
             is_requested=requested,
             offers=[],
-            key=f"{key[0]}|{key[1]}",
+            key=part_key(brand, key[1]),
             analog_of=[],
         )
         groups[key] = group
@@ -151,8 +155,7 @@ def parse_search(xml: bytes) -> SupplierResult:
         for top in tops:
             _add(groups, seen, top, requested=True)
         for top in tops:
-            brand = normalize_brand(_text(top, "brand"))
-            parent = f"{brand}|{normalize_number(_text(top, 'partnumber'))}"
+            parent = part_key(_text(top, "brand"), normalize_number(_text(top, "partnumber")))
             for cross in top.findall(f"{_Q}crosses/{_Q}Part"):
                 _add(groups, seen, cross, requested=False, parent=parent)
         return SupplierResult(groups=list(groups.values()), message=message)
@@ -307,6 +310,29 @@ def parse_orders(xml: bytes) -> list[Order]:
         raise SupplierError(BAD_RESPONSE) from exc
 
 
+def _find_offer(result: SupplierResult, line: CartLine) -> Offer | None:
+    brand = canonical_brand(line.brand)
+    number_norm = normalize_number(line.number)
+    for group in result.groups:
+        if canonical_brand(group.brand) == brand and group.number_norm == number_norm:
+            for offer in group.offers:
+                if offer.stock_id == line.stock_id:
+                    return offer
+    return None
+
+
+async def check_lines(
+    search: Callable[[str], Awaitable[SupplierResult]], lines: list[CartLine]
+) -> dict[CartLine, Offer | None]:
+    """One search per unique number; match each line by brand, number and stock id."""
+    by_number: dict[str, list[CartLine]] = {}
+    for line in lines:
+        by_number.setdefault(normalize_number(line.number), []).append(line)
+    groups = list(by_number.values())
+    results = await asyncio.gather(*(search(g[0].number) for g in groups))
+    return {line: _find_offer(r, line) for g, r in zip(groups, results, strict=True) for line in g}
+
+
 class RosskoSupplier:
     code = "rossko"
     title = "Росско"
@@ -325,7 +351,7 @@ class RosskoSupplier:
         self._address_id = address_id
         self._limiter = limiter or RateLimiter(300, 60)
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
         started = time.monotonic()
         try:
             result = await self._search(number)
@@ -334,6 +360,9 @@ class RosskoSupplier:
             raise
         self._log(number, "ok", started)
         return result
+
+    async def check_offers(self, lines: list[CartLine]) -> dict[CartLine, Offer | None]:
+        return await check_lines(self.search, lines)
 
     async def settlements(
         self,

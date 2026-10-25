@@ -74,6 +74,11 @@ function Price({
   );
 }
 
+const SUPPLIER_TITLES: Record<string, string> = {
+  rossko: "Росско",
+  mikado: "Микадо",
+};
+
 function Row({
   item,
   info,
@@ -119,6 +124,9 @@ function Row({
         )}
       </div>
       <div className="min-w-0 md:order-4">
+        <div className="text-[12px] text-muted-foreground">
+          {SUPPLIER_TITLES[item.supplier] ?? item.supplier}
+        </div>
         <div className="whitespace-nowrap">{formatDelivery(item, now)}</div>
         <div
           title={where}

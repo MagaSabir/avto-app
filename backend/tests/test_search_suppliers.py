@@ -23,8 +23,10 @@ class FakeSupplier:
 
     def __init__(self, result: SupplierResult | SupplierError) -> None:
         self.result = result
+        self.with_orders_seen: list[bool] = []
 
-    async def search(self, number: str) -> SupplierResult:
+    async def search(self, number: str, with_orders: bool = False) -> SupplierResult:
+        self.with_orders_seen.append(with_orders)
         if isinstance(self.result, SupplierError):
             raise self.result
         return self.result
@@ -191,3 +193,21 @@ async def test_group_key_and_analog_of_in_api(make_client: Any) -> None:
     groups = {g["key"]: g for g in response.json()["groups"]}
     assert groups["MANN|W683"]["analog_of"] == []
     assert groups["METELLI|240683"]["analog_of"] == ["MANN|W683"]
+
+
+async def test_with_orders_reaches_supplier(make_client: Any) -> None:
+    supplier = FakeSupplier(_result())
+    c = make_client(supplier)
+    await c.get("/api/search/suppliers/fake", params={"q": "W68/3"})
+    await c.get("/api/search/suppliers/fake", params={"q": "W68/3", "with_orders": "true"})
+    assert supplier.with_orders_seen == [False, True]
+
+
+async def test_offer_has_new_fields_with_defaults(make_client: Any) -> None:
+    c = make_client(FakeSupplier(_result()))
+    r = await c.get("/api/search/suppliers/fake", params={"q": "W68/3"})
+    offer = r.json()["groups"][0]["offers"][0]
+    assert offer["qty_plus"] is False
+    assert offer["delivery_days_max"] is None
+    assert offer["rating"] is None
+    assert offer["order_code"] is None

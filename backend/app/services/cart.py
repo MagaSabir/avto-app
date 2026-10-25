@@ -4,7 +4,7 @@ from typing import cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.cart import cap_qty, valid_qty
+from app.domain.cart import cap_qty, offer_available, valid_qty
 from app.domain.numbers import normalize_brand, normalize_number
 from app.models.cart import CartItem
 from app.repositories import cart as cart_repository
@@ -15,8 +15,15 @@ from app.schemas.cart import (
     CartRefreshItem,
     CartRefreshOut,
 )
-from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier
-from app.suppliers.base import Offer, OfferKind, Supplier, SupplierError, SupplierResult
+from app.services.errors import CartItemNotFound, InvalidCartQty, UnknownSupplier, VariantNotChosen
+from app.suppliers.base import (
+    CartCheckSupplier,
+    CartLine,
+    Offer,
+    OfferKind,
+    Supplier,
+    SupplierError,
+)
 
 
 def to_out(item: CartItem) -> CartItemOut:
@@ -39,6 +46,7 @@ def to_out(item: CartItem) -> CartItemOut:
         kind_code=item.kind_code,
         price=item.price,
         sum=item.price * item.qty,
+        order_code=item.order_code,
     )
 
 
@@ -52,8 +60,11 @@ async def add_item(
 ) -> CartItemOut:
     if data.supplier not in suppliers:
         raise UnknownSupplier()
-    if not valid_qty(data.qty, data.multiplicity, data.available):
-        raise InvalidCartQty(data.multiplicity, data.available)
+    if data.kind == "variants":
+        raise VariantNotChosen()
+    available = offer_available(data.kind, data.available)
+    if not valid_qty(data.qty, data.multiplicity, available):
+        raise InvalidCartQty(data.multiplicity, available)
     number_norm = normalize_number(data.number)
     brand = normalize_brand(data.brand)
     item = await cart_repository.find_for_update(
@@ -70,21 +81,22 @@ async def add_item(
         )
         session.add(item)
     else:
-        qty = cap_qty(item.qty + data.qty, data.multiplicity, data.available)
+        qty = cap_qty(item.qty + data.qty, data.multiplicity, available)
         if qty == 0:
-            raise InvalidCartQty(data.multiplicity, data.available)
+            raise InvalidCartQty(data.multiplicity, available)
     item.number_raw = data.number.strip()
     item.name = data.name
     item.warehouse = data.warehouse
     item.multiplicity = data.multiplicity
     item.qty = qty
-    item.available = data.available
+    item.available = available
     item.delivery_days = data.delivery_days
     item.delivery_from = data.delivery_from
     item.delivery_to = data.delivery_to
     item.kind = data.kind
     item.kind_code = data.kind_code
     item.price = data.price
+    item.order_code = data.order_code
     await session.commit()
     await session.refresh(item)
     return to_out(item)
@@ -121,15 +133,6 @@ async def clear(session: AsyncSession, user_id: int) -> None:
 _REFRESH_CONCURRENCY = 3
 
 
-def _find_offer(result: SupplierResult, item: CartItem) -> Offer | None:
-    for group in result.groups:
-        if normalize_brand(group.brand) == item.brand and group.number_norm == item.number_norm:
-            for offer in group.offers:
-                if offer.stock_id == item.stock_id:
-                    return offer
-    return None
-
-
 async def refresh(
     session: AsyncSession, user_id: int, suppliers: dict[str, Supplier]
 ) -> CartRefreshOut:
@@ -137,27 +140,34 @@ async def refresh(
     # plain snapshot: the transaction ends before the slow supplier calls
     ids = [item.id for item in items]
     groups: dict[tuple[str, str], list[int]] = {}
-    raw_numbers: dict[tuple[str, str], str] = {}
+    lines: dict[tuple[str, str], list[CartLine]] = {}
+    line_of: dict[int, CartLine] = {}
     for item in items:
         key = (item.supplier, item.number_norm)
         groups.setdefault(key, []).append(item.id)
-        raw_numbers.setdefault(key, item.number_raw)
+        line = CartLine(item.stock_id, item.brand, item.number_raw, item.order_code)
+        line_of[item.id] = line
+        lines.setdefault(key, []).append(line)
     await session.commit()
 
     semaphore = asyncio.Semaphore(_REFRESH_CONCURRENCY)
 
-    async def query(supplier_code: str, number: str) -> SupplierResult | SupplierError:
+    async def query(
+        supplier_code: str, group: list[CartLine]
+    ) -> dict[CartLine, Offer | None] | SupplierError:
         supplier = suppliers.get(supplier_code)
         if supplier is None:
             return SupplierError(UnknownSupplier().message)
+        if not isinstance(supplier, CartCheckSupplier):
+            return SupplierError("Поставщик не поддерживает проверку цен")
         async with semaphore:
             try:
-                return await supplier.search(number)
+                return await supplier.check_offers(group)
             except SupplierError as e:
                 return e
 
     keys = list(groups)
-    responses = await asyncio.gather(*(query(k[0], raw_numbers[k]) for k in keys))
+    responses = await asyncio.gather(*(query(k[0], lines[k]) for k in keys))
 
     # rows may have been removed meanwhile: lock and update only those still present
     current = {
@@ -165,17 +175,14 @@ async def refresh(
     }
     out: dict[int, CartRefreshItem] = {}
     error: str | None = None
-    message: str | None = None
     for key, response in zip(keys, responses, strict=True):
         if isinstance(response, SupplierError):
             error = error or response.message
-        else:
-            message = response.message
         for item_id in groups[key]:
             row = current.get(item_id)
             if row is None:
                 continue
-            offer = None if isinstance(response, SupplierError) else _find_offer(response, row)
+            offer = None if isinstance(response, SupplierError) else response.get(line_of[row.id])
             if offer is None:
                 out[row.id] = CartRefreshItem(
                     id=row.id,
@@ -187,7 +194,8 @@ async def refresh(
                 continue
             previous = row.price if row.price != offer.purchase_price else None
             row.price = offer.purchase_price
-            row.available = offer.qty
+            available = offer_available(offer.kind, offer.qty)
+            row.available = available
             row.warehouse = offer.warehouse
             row.delivery_days = offer.delivery_days
             row.delivery_from = offer.delivery_from
@@ -200,11 +208,11 @@ async def refresh(
                 state="ok",
                 price=offer.purchase_price,
                 previous_price=previous,
-                available=offer.qty,
+                available=available,
             )
     await session.commit()
     return CartRefreshOut(
         status="error" if error is not None else "ok",
-        message=error if error is not None else message,
+        message=error,
         items=[out[i] for i in ids if i in out],
     )

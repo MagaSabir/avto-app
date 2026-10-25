@@ -25,6 +25,7 @@ function cartItem(over: Partial<CartItem> = {}): CartItem {
     delivery_to: null,
     kind: "normal",
     kind_code: "0",
+    order_code: null,
     price: "2449.85",
     sum: "9799.40",
     ...over,
@@ -124,5 +125,43 @@ describe("OfferActions", () => {
     const { onToStock, group, o } = setup();
     fireEvent.click(screen.getByRole("button", { name: "Принять на склад" }));
     expect(onToStock).toHaveBeenCalledWith(group, o);
+  });
+
+  it("adds an order offer regardless of stock, with its order code", async () => {
+    const { posts } = setup(
+      offer({ kind: "order", qty: 0, order_code: "v1004-w683" }),
+    );
+    const input = screen.getByLabelText("Количество");
+    fireEvent.change(input, { target: { value: "5" } });
+    expect(input).toHaveAttribute("aria-invalid", "false");
+    fireEvent.click(screen.getByRole("button", { name: "В корзину" }));
+    await waitFor(() => {
+      expect(posts).toHaveLength(1);
+    });
+    expect(posts[0]).toMatchObject({
+      kind: "order",
+      qty: 5,
+      order_code: "v1004-w683",
+    });
+  });
+
+  it("sends a null order code for Rossko offers", async () => {
+    const { posts } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "В корзину" }));
+    await waitFor(() => {
+      expect(posts).toHaveLength(1);
+    });
+    expect(posts[0]).toMatchObject({ order_code: null });
+  });
+
+  it("offers delivery variants instead of the cart", () => {
+    setup(offer({ kind: "variants", qty: 0, order_code: "gto90915yzzm3" }));
+    expect(
+      screen.getByRole("button", { name: "варианты поставки ▾" }),
+    ).toBeEnabled();
+    expect(screen.queryByLabelText("Количество")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "В корзину" }),
+    ).not.toBeInTheDocument();
   });
 });
