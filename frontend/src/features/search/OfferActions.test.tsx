@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CartItem } from "@/api/cart";
 import { mockApi, renderWithProviders } from "@/test/mockApi";
@@ -59,10 +60,14 @@ function setup(
   return { posts, onToStock, group, o };
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("OfferActions", () => {
   it("adds offer with default multiplicity", async () => {
     const { posts } = setup();
-    expect(screen.getByLabelText("Количество")).toHaveValue(2);
+    expect(screen.getByLabelText("Количество")).toHaveValue("2");
     fireEvent.click(screen.getByRole("button", { name: "В корзину" }));
     await waitFor(() => {
       expect(posts).toHaveLength(1);
@@ -77,7 +82,53 @@ describe("OfferActions", () => {
       multiplicity: 2,
       price: "2449.85",
     });
-    expect(await screen.findByText("Добавлено")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "В корзину" })).toHaveAttribute(
+        "data-state",
+        "added",
+      );
+    });
+    expect(screen.queryByText("Добавлено")).not.toBeInTheDocument();
+  });
+
+  it("returns the cart button to normal after about a second", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setup();
+    const btn = screen.getByRole("button", { name: "В корзину" });
+    expect(btn).not.toHaveAttribute("data-state");
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(btn).toHaveAttribute("data-state", "added");
+    });
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(btn).not.toHaveAttribute("data-state");
+  });
+
+  it("never fills the cart button", async () => {
+    setup(offer({ multiplicity: 2, qty: 10 }), [cartItem()]);
+    const btn = await screen.findByRole("button", {
+      name: "В корзину, в корзине 4",
+    });
+    expect(btn).not.toHaveClass("bg-primary");
+  });
+
+  it("uses a text input without browser spin arrows", () => {
+    setup();
+    const input = screen.getByLabelText("Количество");
+    expect(input).toHaveAttribute("type", "text");
+    expect(input).toHaveAttribute("inputmode", "numeric");
+  });
+
+  it("shows the hint in an absolutely positioned line", () => {
+    setup(offer({ multiplicity: 4, qty: 6 }));
+    fireEvent.change(screen.getByLabelText("Количество"), {
+      target: { value: "5" },
+    });
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("кратно 4, не больше 6");
+    expect(status).toHaveClass("absolute");
   });
 
   it("adds on Enter in the quantity field", async () => {
@@ -190,15 +241,15 @@ describe("OfferActions", () => {
   it("steps the quantity by multiplicity", () => {
     setup(offer({ multiplicity: 2, qty: 10 }));
     fireEvent.click(screen.getByRole("button", { name: "Увеличить" }));
-    expect(screen.getByLabelText("Количество")).toHaveValue(4);
+    expect(screen.getByLabelText("Количество")).toHaveValue("4");
     fireEvent.click(screen.getByRole("button", { name: "Уменьшить" }));
     fireEvent.click(screen.getByRole("button", { name: "Уменьшить" }));
-    expect(screen.getByLabelText("Количество")).toHaveValue(2);
+    expect(screen.getByLabelText("Количество")).toHaveValue("2");
   });
 
   it("keeps the quantity within multiplicity and stock", () => {
     setup(offer({ multiplicity: 4, qty: 6 }));
-    expect(screen.getByLabelText("Количество")).toHaveValue(4);
+    expect(screen.getByLabelText("Количество")).toHaveValue("4");
     expect(screen.getByRole("button", { name: "Уменьшить" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Увеличить" })).toBeDisabled();
   });

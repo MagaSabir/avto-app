@@ -503,6 +503,11 @@ describe("SearchPage", () => {
       expect(
         screen.getByRole("heading", { name: /Mann W 68\/3.*Росско/ }),
       ).toBeInTheDocument();
+      expect(
+        within(screen.getByRole("heading", { name: /Mann W 68\/3/ })).getByText(
+          "Росско",
+        ),
+      ).toHaveClass("bg-info-bg");
       fireEvent.click(screen.getByRole("link", { name: "← Другие детали" }));
       expect(await screen.findByText("Найдено 2 детали")).toBeInTheDocument();
       expect(screen.getByLabelText("where")).not.toHaveTextContent("part=");

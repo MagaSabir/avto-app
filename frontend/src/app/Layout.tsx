@@ -49,7 +49,7 @@ export function Layout() {
 
   return (
     <>
-      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-card px-4 sm:px-7">
+      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-background px-4 sm:px-7">
         <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
           <Logo className="h-7 w-auto" />
         </NavLink>

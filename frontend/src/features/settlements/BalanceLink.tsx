@@ -23,7 +23,7 @@ export function BalanceLink() {
       ) : (
         <span
           className={cn(
-            "font-mono text-foreground",
+            "font-[650] text-foreground",
             balance.startsWith("-") && "text-destructive",
           )}
         >

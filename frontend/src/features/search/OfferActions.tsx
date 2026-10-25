@@ -1,4 +1,5 @@
 import {
+  Check,
   GitCompareArrows,
   Minus,
   PackagePlus,
@@ -9,7 +10,6 @@ import { useState, type SyntheticEvent } from "react";
 
 import { useAddToCart, useCart } from "@/api/cart";
 import type { Offer, PartGroup } from "@/api/search";
-import { Input } from "@/components/ui/input";
 import { normBrand } from "@/lib/brand";
 import { useFlash } from "@/features/stock/useFlash";
 
@@ -24,7 +24,7 @@ type Props = {
 const ICON_BTN =
   "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
 const STEP_BTN =
-  "inline-flex h-8 w-7 cursor-pointer items-center justify-center rounded-[7px] border bg-card text-foreground enabled:hover:bg-selected disabled:cursor-default disabled:opacity-50";
+  "inline-flex h-8 w-7 cursor-pointer items-center justify-center bg-card text-foreground enabled:hover:bg-selected disabled:cursor-default disabled:opacity-50";
 
 // Order offers have no stock of their own: any quantity up to this.
 const ORDER_MAX = 999; // mirrors ORDER_MAX in backend/app/domain/cart.py
@@ -37,7 +37,7 @@ export function OfferActions({
   disabled = false,
 }: Props) {
   const [value, setValue] = useState(String(offer.multiplicity));
-  const [flash, showFlash] = useFlash(2500);
+  const [flash, showFlash] = useFlash(1000);
   const cart = useCart();
   const add = useAddToCart();
 
@@ -79,9 +79,8 @@ export function OfferActions({
     </span>
   ) : add.isError ? (
     <span className="text-destructive">{add.error.message}</span>
-  ) : flash !== null ? (
-    <span className="text-status-ok">{flash}</span>
   ) : null;
+  const added = flash !== null;
 
   function submit(e: SyntheticEvent) {
     e.preventDefault();
@@ -107,7 +106,7 @@ export function OfferActions({
       },
       {
         onSuccess: () => {
-          showFlash("Добавлено");
+          showFlash("added");
         },
       },
     );
@@ -116,62 +115,65 @@ export function OfferActions({
   return (
     <form
       onSubmit={submit}
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 md:justify-end"
+      className="relative flex flex-wrap items-center gap-x-2 gap-y-1 md:justify-end"
     >
-      <button
-        type="button"
-        aria-label="Уменьшить"
-        disabled={disabled || downDisabled}
-        onClick={() => {
-          step(-1);
-        }}
-        className={STEP_BTN}
-      >
-        <Minus aria-hidden="true" className="size-3.5" />
-      </button>
-      <Input
-        type="number"
-        inputMode="numeric"
-        aria-label="Количество"
-        aria-invalid={!disabled && !valid}
-        min={offer.multiplicity}
-        step={offer.multiplicity}
-        max={max}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => {
-          setValue(e.target.value);
-          add.reset();
-        }}
-        className="h-8 w-14 px-2 text-center tabular-nums aria-invalid:border-destructive"
-      />
-      <button
-        type="button"
-        aria-label="Увеличить"
-        disabled={disabled || upDisabled}
-        onClick={() => {
-          step(1);
-        }}
-        className={STEP_BTN}
-      >
-        <Plus aria-hidden="true" className="size-3.5" />
-      </button>
+      <div className="inline-flex h-8 items-stretch overflow-hidden rounded-[7px] border bg-card focus-within:ring-[3px] focus-within:ring-ring has-[input[aria-invalid=true]]:border-destructive">
+        <button
+          type="button"
+          aria-label="Уменьшить"
+          disabled={disabled || downDisabled}
+          onClick={() => {
+            step(-1);
+          }}
+          className={STEP_BTN}
+        >
+          <Minus aria-hidden="true" className="size-3.5" />
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label="Количество"
+          aria-invalid={!disabled && !valid}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => {
+            setValue(e.target.value);
+            add.reset();
+          }}
+          className="h-full w-[2.5em] min-w-0 bg-card px-0 text-center tabular-nums outline-none disabled:opacity-50 aria-invalid:text-destructive"
+        />
+        <button
+          type="button"
+          aria-label="Увеличить"
+          disabled={disabled || upDisabled}
+          onClick={() => {
+            step(1);
+          }}
+          className={STEP_BTN}
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+        </button>
+      </div>
       <button
         type="submit"
         aria-label={
           inCart > 0 ? `В корзину, в корзине ${String(inCart)}` : "В корзину"
         }
         title="В корзину"
+        data-state={added ? "added" : undefined}
         disabled={disabled || offer.stock_id === "" || add.isPending}
-        className={`${ICON_BTN} ${
-          inCart > 0
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-primary text-link"
-        }`}
+        className={`${ICON_BTN} border-primary text-link motion-safe:data-[state=added]:animate-cart-pulse`}
       >
-        <ShoppingCart aria-hidden="true" className="size-4" />
+        {added ? (
+          <Check aria-hidden="true" className="size-4 text-status-ok" />
+        ) : (
+          <ShoppingCart aria-hidden="true" className="size-4" />
+        )}
         {inCart > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full border-2 border-card bg-primary px-1 text-center text-[10.5px] leading-3 text-primary-foreground">
+          <span
+            key={inCart}
+            className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full border-2 border-card bg-primary px-1 text-center text-[10.5px] leading-3 text-primary-foreground motion-safe:animate-badge-in"
+          >
             {inCart}
           </span>
         )}
@@ -200,7 +202,7 @@ export function OfferActions({
       {status !== null && (
         <div
           role="status"
-          className="basis-full text-[12px] text-muted-foreground md:text-right"
+          className="absolute right-0 top-full z-10 mt-0.5 whitespace-nowrap text-[12px] leading-4 text-muted-foreground"
         >
           {status}
         </div>

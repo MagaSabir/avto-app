@@ -1,3 +1,4 @@
+import { Truck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -335,7 +336,8 @@ function BackLink({ q }: { q: string }) {
 
 function SupplierPlaque({ title }: { title: string }) {
   return (
-    <span className="ml-1 inline-block rounded-full bg-muted px-2.5 py-0.5 align-middle text-[12.5px] font-normal text-soft-foreground">
+    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-info-bg px-2.5 py-[3px] align-middle text-[13px] font-semibold text-info">
+      <Truck size={14} aria-hidden="true" />
       {title}
     </span>
   );
