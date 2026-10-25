@@ -21,6 +21,8 @@ type Props = {
 
 const ICON_BTN =
   "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
+const FILLED_BTN =
+  "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] bg-primary text-primary-foreground enabled:hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
 const STEP_BTN =
   "inline-flex h-8 w-7 cursor-pointer items-center justify-center bg-card text-foreground enabled:hover:bg-selected disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50";
 
@@ -150,7 +152,7 @@ export function OfferActions({
         }
         title="В корзину"
         disabled={disabled || offer.stock_id === "" || add.isPending}
-        className={`${ICON_BTN} border-primary text-foreground`}
+        className={FILLED_BTN}
       >
         <ShoppingCart aria-hidden="true" className="size-4" />
         {inCart > 0 && (
@@ -164,7 +166,7 @@ export function OfferActions({
         aria-label="Принять на склад"
         title="Принять на склад"
         disabled={disabled}
-        className={`${ICON_BTN} border-primary text-foreground`}
+        className={FILLED_BTN}
         onClick={() => {
           onToStock(group, offer);
         }}

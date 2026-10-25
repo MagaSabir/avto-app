@@ -99,11 +99,11 @@ describe("OfferActions", () => {
     expect(btn.className).not.toMatch(/animate/);
   });
 
-  it("draws the cart and stock buttons with a primary border", () => {
+  it("draws the cart and stock buttons filled with primary", () => {
     setup();
     for (const name of ["В корзину", "Принять на склад"]) {
       const btn = screen.getByRole("button", { name });
-      expect(btn).toHaveClass("text-foreground", "border-primary");
+      expect(btn).toHaveClass("bg-primary", "text-primary-foreground");
       expect(btn).not.toHaveClass("border-foreground");
       expect(btn.className).not.toMatch(/animate/);
     }
@@ -130,12 +130,12 @@ describe("OfferActions", () => {
     expect(down).toHaveClass("disabled:cursor-not-allowed");
   });
 
-  it("never fills the cart button", async () => {
+  it("keeps the cart button filled with a count", async () => {
     setup(offer({ multiplicity: 2, qty: 10 }), [cartItem()]);
     const btn = await screen.findByRole("button", {
       name: "В корзину, в корзине 4",
     });
-    expect(btn).not.toHaveClass("bg-primary");
+    expect(btn).toHaveClass("bg-primary", "text-primary-foreground");
   });
 
   it("uses a text input without browser spin arrows", () => {
