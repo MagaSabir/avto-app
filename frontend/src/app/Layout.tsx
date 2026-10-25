@@ -49,34 +49,36 @@ export function Layout() {
 
   return (
     <>
-      <header className="flex flex-wrap items-center gap-x-8 gap-y-1 border-b bg-background px-4 sm:px-7">
-        <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
-          <Logo className="h-7 w-auto" />
-        </NavLink>
-        <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-16 sm:w-auto">
-          <NavLink to={`/${search}`} end className={navClass}>
-            Поиск
+      <header className="border-b bg-background">
+        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-8 gap-y-1 px-4 sm:px-7">
+          <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
+            <Logo className="h-7 w-auto" />
           </NavLink>
-          <NavLink to="/stock" className={navClass}>
-            Склад
-          </NavLink>
-          <NavLink to="/orders" className={navClass}>
-            Заказы
-          </NavLink>
-          <NavLink to="/settlements" className={navClass}>
-            Взаиморасчёты
-          </NavLink>
-        </nav>
-        <div className="ml-auto flex items-center gap-3 py-2">
-          <ThemeToggle />
-          <BalanceLink />
-          <CartLink />
-          <UserMenu
-            login={me?.login ?? ""}
-            onLogout={() => {
-              setConfirming(true);
-            }}
-          />
+          <nav className="order-last flex h-11 w-full gap-6 self-stretch sm:order-none sm:h-16 sm:w-auto">
+            <NavLink to={`/${search}`} end className={navClass}>
+              Поиск
+            </NavLink>
+            <NavLink to="/stock" className={navClass}>
+              Склад
+            </NavLink>
+            <NavLink to="/orders" className={navClass}>
+              Заказы
+            </NavLink>
+            <NavLink to="/settlements" className={navClass}>
+              Взаиморасчёты
+            </NavLink>
+          </nav>
+          <div className="ml-auto flex items-center gap-3 py-2">
+            <ThemeToggle />
+            <BalanceLink />
+            <CartLink />
+            <UserMenu
+              login={me?.login ?? ""}
+              onLogout={() => {
+                setConfirming(true);
+              }}
+            />
+          </div>
         </div>
       </header>
       <Modal
@@ -105,7 +107,7 @@ export function Layout() {
         </div>
       </Modal>
       <ServerStatus />
-      <main className="p-4">
+      <main className="mx-auto w-full max-w-[1280px] p-4">
         <Outlet />
       </main>
     </>

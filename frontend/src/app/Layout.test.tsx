@@ -77,6 +77,15 @@ async function openLogout() {
 }
 
 describe("Layout", () => {
+  it("limits header and main content to 1280px", async () => {
+    setup();
+
+    await screen.findByText("sabir");
+    const nav = screen.getByRole("navigation");
+    expect(nav.parentElement).toHaveClass("max-w-[1280px]");
+    expect(screen.getByRole("main")).toHaveClass("max-w-[1280px]");
+  });
+
   it("renders logo, navigation, login and the stock page", async () => {
     setup();
 
