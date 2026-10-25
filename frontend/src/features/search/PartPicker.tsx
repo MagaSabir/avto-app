@@ -58,13 +58,13 @@ function Card({
         onPick(card.supplier, group.key);
       }}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-3 rounded-[10px] border bg-card px-5 py-[18px] text-left hover:border-border-active hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none",
+        "flex w-full cursor-pointer items-center gap-3 md:grid md:grid-cols-[140px_minmax(0,2fr)_minmax(0,1fr)_24px] md:gap-x-4 rounded-[10px] border bg-card px-5 py-[18px] text-left hover:border-border-active hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none",
         minPrice === null && "opacity-60",
       )}
     >
-      <span className="grid min-w-0 flex-1 gap-x-4 gap-y-1 md:grid-cols-[110px_1fr_220px] md:items-center">
+      <span className="flex min-w-0 flex-1 flex-col gap-1 md:contents">
         <span
-          className="truncate text-[17px] font-medium text-soft-foreground"
+          className="truncate text-[17px] font-medium md:self-start text-soft-foreground"
           title={group.brand}
         >
           {group.brand}
@@ -91,7 +91,7 @@ function Card({
             ))}
           </span>
         </span>
-        <span className="flex flex-col md:items-start">
+        <span className="flex flex-col md:items-start md:self-start">
           {minPrice === null ? (
             <span className="text-[20px] font-bold">—</span>
           ) : (
@@ -111,7 +111,7 @@ function Card({
       </span>
       <ChevronRight
         aria-hidden="true"
-        className="size-5 shrink-0 text-muted-foreground"
+        className="size-5 shrink-0 text-link md:justify-self-end"
       />
     </button>
   );

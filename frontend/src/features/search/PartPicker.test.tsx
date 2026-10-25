@@ -69,7 +69,7 @@ describe("PartPicker", () => {
     expect(
       screen.getByRole("heading", { name: "Найдено 2 детали" }),
     ).toBeInTheDocument();
-    const card = screen.getByRole("button", { name: /Mann.*W 68\/3/ });
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
     expect(card).toHaveTextContent("Росско · 86 аналогов · у вас 15 шт");
     expect(card).toHaveTextContent("от 126 ₽");
     expect(card).toHaveTextContent("сегодня 18:00");
@@ -78,7 +78,7 @@ describe("PartPicker", () => {
 
   it("renders the brand in its own element apart from the number", () => {
     setup();
-    const card = screen.getByRole("button", { name: /Mann.*W 68\/3/ });
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
     const brand = within(card).getByText("Mann");
     const number = within(card).getByText("W 68/3");
     expect(brand).not.toBe(number);
@@ -87,7 +87,7 @@ describe("PartPicker", () => {
 
   it("colours the name, supplier and stock number with the link colour", () => {
     setup();
-    const card = screen.getByRole("button", { name: /Mann.*W 68\/3/ });
+    const card = screen.getByRole("button", { name: /Mann W 68\/3/ });
     expect(within(card).getByText("Росско")).toHaveClass("text-link");
     expect(within(card).getByText("15 шт")).toHaveClass("text-link");
     expect(within(card).getByText("Фильтр масляный")).toHaveClass("text-link");
@@ -137,7 +137,7 @@ describe("PartPicker", () => {
 
   it("picks a card by supplier and key", () => {
     const { onPick } = setup();
-    fireEvent.click(screen.getByRole("button", { name: /Mann.*W 68\/3/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Mann W 68\/3/ }));
     expect(onPick).toHaveBeenCalledWith("rossko", "MANN|W683");
   });
 });

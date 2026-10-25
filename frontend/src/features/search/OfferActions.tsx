@@ -20,7 +20,7 @@ type Props = {
 };
 
 const ICON_BTN =
-  "inline-flex h-8 min-w-[34px] gap-1 px-1.5 cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
+  "relative inline-flex h-8 w-[34px] cursor-pointer items-center justify-center rounded-[7px] border bg-card disabled:cursor-default disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none";
 const STEP_BTN =
   "inline-flex h-8 w-7 cursor-pointer items-center justify-center bg-card text-foreground enabled:hover:bg-selected disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-50";
 
@@ -154,7 +154,7 @@ export function OfferActions({
       >
         <ShoppingCart aria-hidden="true" className="size-4" />
         {inCart > 0 && (
-          <span className="text-[12px] font-semibold text-foreground">
+          <span className="absolute -top-2 -right-1.5 text-[12px] leading-none font-semibold text-foreground">
             {inCart}
           </span>
         )}
