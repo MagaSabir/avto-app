@@ -85,6 +85,14 @@ describe("PartPicker", () => {
     expect(brand.parentElement).not.toBe(number.parentElement);
   });
 
+  it("colours the name, supplier and stock number with the link colour", () => {
+    setup();
+    const card = screen.getByRole("button", { name: /Mann.*W 68\/3/ });
+    expect(within(card).getByText("Росско")).toHaveClass("text-link");
+    expect(within(card).getByText("15 шт")).toHaveClass("text-link");
+    expect(within(card).getByText("Фильтр масляный")).toHaveClass("text-link");
+  });
+
   it("omits the stock part when nothing is in stock", () => {
     setup({ stockQty: () => 0 });
     const card = screen.getByRole("button", { name: /MANN-FILTER/ });
@@ -104,6 +112,7 @@ describe("PartPicker", () => {
     const card = screen.getByRole("button", { name: /MGA/ });
     expect(card).toHaveClass("opacity-60");
     expect(within(card).getByText("—")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("Нет в наличии");
   });
 
   it("says «варианты поставки» when only variants are offered", () => {

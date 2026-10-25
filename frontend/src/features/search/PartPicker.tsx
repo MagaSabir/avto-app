@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/features/stock/format";
@@ -29,16 +30,27 @@ function Card({
   onPick: Props["onPick"];
 }) {
   const { group, analogs, minPrice, fastest } = card;
-  const summary = [
-    card.title,
+  const parts: ReactNode[] = [
+    <span key="s" className="text-link font-medium">
+      {card.title}
+    </span>,
     // Parts without data are left out: no «0 аналогов».
     ...(analogs > 0
       ? [
-          `${String(analogs)} ${plural(analogs, "аналог", "аналога", "аналогов")}`,
+          <span key="a">
+            {`${String(analogs)} ${plural(analogs, "аналог", "аналога", "аналогов")}`}
+          </span>,
         ]
       : []),
-    ...(qty > 0 ? [`у вас ${String(qty)} шт`] : []),
-  ].join(" · ");
+    ...(qty > 0
+      ? [
+          <span key="q">
+            {"у вас "}
+            <span className="font-semibold text-link">{`${String(qty)} шт`}</span>
+          </span>,
+        ]
+      : []),
+  ];
   return (
     <button
       type="button"
@@ -46,44 +58,56 @@ function Card({
         onPick(card.supplier, group.key);
       }}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3.5 text-left hover:border-border-active hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none",
+        "flex w-full cursor-pointer items-center gap-3 rounded-[10px] border bg-card px-5 py-[18px] text-left hover:border-border-active hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none",
         minPrice === null && "opacity-60",
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5 md:flex-row md:items-baseline md:gap-3">
+      <span className="grid min-w-0 flex-1 gap-x-4 gap-y-1 md:grid-cols-[110px_1fr_220px] md:items-center">
         <span
-          className="text-[17px] font-semibold text-soft-foreground truncate md:w-[130px] md:shrink-0"
+          className="truncate text-[17px] font-medium text-soft-foreground"
           title={group.brand}
         >
           {group.brand}
         </span>{" "}
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[17px] font-[650] [overflow-wrap:anywhere]">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[17px] font-[650] text-foreground [overflow-wrap:anywhere]">
             {group.number}
           </span>
           {group.name !== "" && (
-            <span className="text-[13px] text-soft-foreground [overflow-wrap:anywhere]">
+            <span className="text-[13px] text-link [overflow-wrap:anywhere]">
               {group.name}
             </span>
           )}
-          <span className="text-[13px] text-link">{summary}</span>
+          <span className="flex flex-wrap items-center text-[13px] text-soft-foreground">
+            {parts.map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 && (
+                  <span aria-hidden="true" className="px-1">
+                    {" · "}
+                  </span>
+                )}
+                {part}
+              </Fragment>
+            ))}
+          </span>
         </span>
-      </span>
-      <span className="flex shrink-0 flex-col items-end text-right">
-        {minPrice === null ? (
-          <span className="text-[18px] font-bold">—</span>
-        ) : (
-          <>
-            <span className="text-[18px] font-bold whitespace-nowrap tabular-nums">
-              {`от ${formatPrice(minPrice)} ₽`}
-            </span>
-            <span className="text-[13px] whitespace-nowrap text-soft-foreground">
-              {fastest === null
-                ? "варианты поставки"
-                : formatDelivery(fastest, now)}
-            </span>
-          </>
-        )}
+        <span className="flex flex-col md:items-start">
+          {minPrice === null ? (
+            <span className="text-[20px] font-bold">—</span>
+          ) : (
+            <>
+              <span className="whitespace-nowrap tabular-nums">
+                <span className="text-[13px]">от </span>
+                <span className="text-[20px] font-bold">{`${formatPrice(minPrice)} ₽`}</span>
+              </span>
+              <span className="text-[13px] whitespace-nowrap text-soft-foreground">
+                {fastest === null
+                  ? "варианты поставки"
+                  : formatDelivery(fastest, now)}
+              </span>
+            </>
+          )}
+        </span>
       </span>
       <ChevronRight
         aria-hidden="true"

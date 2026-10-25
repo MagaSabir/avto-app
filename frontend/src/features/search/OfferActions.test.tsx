@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CartItem } from "@/api/cart";
@@ -99,23 +99,24 @@ describe("OfferActions", () => {
     expect(btn.className).not.toMatch(/animate/);
   });
 
-  it("draws the cart and stock buttons in the foreground colour", () => {
+  it("draws the cart and stock buttons with a primary border", () => {
     setup();
     for (const name of ["В корзину", "Принять на склад"]) {
       const btn = screen.getByRole("button", { name });
-      expect(btn).toHaveClass("text-foreground", "border-foreground");
-      expect(btn).not.toHaveClass("text-link");
-      expect(btn).not.toHaveClass("border-primary");
+      expect(btn).toHaveClass("text-foreground", "border-primary");
+      expect(btn).not.toHaveClass("border-foreground");
+      expect(btn.className).not.toMatch(/animate/);
     }
   });
 
-  it("makes the cart badge green", async () => {
+  it("shows the cart count as plain text inside the button", async () => {
     setup(offer({ multiplicity: 2, qty: 10 }), [cartItem()]);
     const btn = await screen.findByRole("button", {
       name: "В корзину, в корзине 4",
     });
-    expect(screen.getByText("4")).toHaveClass("bg-status-ok");
-    expect(btn).toBeInTheDocument();
+    const count = within(btn).getByText("4");
+    expect(count.className).not.toMatch(/rounded-full|bg-/);
+    expect(count).toHaveClass("text-foreground");
   });
 
   it("colours enabled steppers and mutes disabled ones", () => {
