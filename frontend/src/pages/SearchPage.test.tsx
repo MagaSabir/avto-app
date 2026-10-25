@@ -1007,3 +1007,111 @@ describe("SearchPage supplier choice", () => {
     );
   });
 });
+
+describe("SearchPage no supplier cards", () => {
+  const w683 = {
+    ...stock,
+    items: [
+      stockItem(1, {
+        number_raw: "W 68/3",
+        number_norm: "W683",
+        brand: "MANN",
+        brand_key: "MANN",
+        qty: 15,
+        cell: "B-1",
+      }),
+    ],
+  };
+
+  it("shows my stock above «У поставщиков ничего не найдено»", async () => {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => w683,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => supplierResult({ groups: [] }),
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
+    const mine = await screen.findByRole("region", { name: "Мой склад" });
+    expect(await within(mine).findByText("15 шт")).toBeInTheDocument();
+    expect(within(mine).getByText("B-1")).toHaveClass("font-mono");
+    expect(
+      within(mine).getByRole("link", { name: "Открыть на складе →" }),
+    ).toHaveAttribute("href", "/stock?item=1");
+    const none = await screen.findByText("У поставщиков ничего не найдено");
+    expect(isBefore(mine, none)).toBe(true);
+    expect(screen.queryByText("Ничего не найдено")).not.toBeInTheDocument();
+  });
+
+  it("shows my stock above the supplier errors with «Повторить»", async () => {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => w683,
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () =>
+        supplierResult({
+          status: "error",
+          message: "Росско не отвечает",
+          groups: [],
+        }),
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
+    const error = await screen.findByText("Росско не отвечает");
+    const mine = screen.getByRole("region", { name: "Мой склад" });
+    expect(await within(mine).findByText("15 шт")).toBeInTheDocument();
+    expect(isBefore(mine, error)).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Повторить" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("У поставщиков ничего не найдено"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says «Ничего не найдено» when my stock is empty too", async () => {
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => supplierResult({ groups: [] }),
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=W68/3" });
+    expect(await screen.findByText("Ничего не найдено")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Мой склад" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchPage analog stock lookup", () => {
+  it("asks for at most 200 analog numbers", async () => {
+    const asked: string[][] = [];
+    const analogs = Array.from({ length: 250 }, (_, i) =>
+      partGroup({
+        brand: "AN",
+        number: `A${String(i)}`,
+        number_norm: `A${String(i)}`,
+        key: `AN|A${String(i)}`,
+        is_requested: false,
+        analog_of: ["KYB|333114"],
+      }),
+    );
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/stock": (_init, url) => {
+        asked.push(url.searchParams.getAll("numbers"));
+        return [];
+      },
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () =>
+        supplierResult({ groups: [partGroup(), ...analogs] }),
+    });
+    renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+    await waitFor(() => {
+      expect(asked.length).toBeGreaterThan(0);
+    });
+    expect(asked[0]).toHaveLength(200);
+    expect(asked[0]).toContain("A0");
+    expect(asked[0]).not.toContain("A249");
+  });
+});

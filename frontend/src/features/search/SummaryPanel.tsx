@@ -71,6 +71,70 @@ function Block({
 
 const partName = (b: Best) => `${b.group.brand} ${b.group.number}`;
 
+type StockProps = {
+  stock: StockSearchItem[] | undefined;
+  stockError: boolean;
+  // Without a part (no supplier cards) every item of the number is shown.
+  partKey?: string;
+};
+
+function MyStock({ stock, stockError, partKey }: StockProps) {
+  const exact =
+    stock === undefined || partKey === undefined
+      ? []
+      : stockForPart(stock, partKey);
+  // Same number under a brand we do not know as this one: show it anyway.
+  const mine = exact.length > 0 ? exact : (stock ?? []);
+  const qty = mine.reduce((sum, it) => sum + it.qty, 0);
+  const cells = [
+    ...new Set(mine.flatMap((it) => (it.cell ? [it.cell] : []))),
+  ].join(", ");
+  const first = mine.at(0);
+  return (
+    <Block
+      icon={Warehouse}
+      title="Мой склад"
+      busy={stock === undefined && !stockError}
+      value={
+        stockError ? (
+          <span className="text-destructive">Склад недоступен</span>
+        ) : first === undefined ? (
+          "—"
+        ) : (
+          `${String(qty)} шт`
+        )
+      }
+      sub={
+        !stockError && first !== undefined ? (
+          <>
+            {cells !== "" && (
+              <>
+                <span className="font-mono">{cells}</span>
+                {" · "}
+              </>
+            )}
+            <Link
+              to={`/stock?item=${String(first.id)}`}
+              className="rounded-sm text-link hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+            >
+              Открыть на складе →
+            </Link>
+          </>
+        ) : undefined
+      }
+    />
+  );
+}
+
+// «Мой склад» alone: shown when no supplier has a card for the number.
+export function MyStockBlock(props: StockProps) {
+  return (
+    <div className="rounded-[10px] border bg-card text-card-foreground">
+      <MyStock {...props} />
+    </div>
+  );
+}
+
 // Step 2: my stock of the part, the cheapest and the fastest offer of the
 // chosen supplier.
 export function SummaryPanel({
@@ -81,51 +145,11 @@ export function SummaryPanel({
   pending,
   now,
 }: Props) {
-  const exact = stock === undefined ? [] : stockForPart(stock, partKey);
-  // Same number under a brand we do not know as this one: show it anyway.
-  const mine = exact.length > 0 ? exact : (stock ?? []);
-  const qty = mine.reduce((sum, it) => sum + it.qty, 0);
-  const cells = [
-    ...new Set(mine.flatMap((it) => (it.cell ? [it.cell] : []))),
-  ].join(", ");
-  const first = mine.at(0);
-
   const { cheapest, fastest } = best;
 
   return (
     <div className="grid rounded-[10px] border bg-card text-card-foreground md:grid-cols-3 md:divide-x max-md:divide-y">
-      <Block
-        icon={Warehouse}
-        title="Мой склад"
-        busy={stock === undefined && !stockError}
-        value={
-          stockError ? (
-            <span className="text-destructive">Склад недоступен</span>
-          ) : first === undefined ? (
-            "—"
-          ) : (
-            `${String(qty)} шт`
-          )
-        }
-        sub={
-          !stockError && first !== undefined ? (
-            <>
-              {cells !== "" && (
-                <>
-                  <span className="font-mono">{cells}</span>
-                  {" · "}
-                </>
-              )}
-              <Link
-                to={`/stock?item=${String(first.id)}`}
-                className="rounded-sm text-link hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-              >
-                Открыть на складе →
-              </Link>
-            </>
-          ) : undefined
-        }
-      />
+      <MyStock stock={stock} stockError={stockError} partKey={partKey} />
       <Block
         icon={Truck}
         title="Дешевле всего"

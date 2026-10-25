@@ -27,7 +27,7 @@ import {
   saveSupplierChoice,
   selectedSuppliers,
 } from "@/features/search/supplierChoice";
-import { SummaryPanel } from "@/features/search/SummaryPanel";
+import { MyStockBlock, SummaryPanel } from "@/features/search/SummaryPanel";
 import {
   ToStockDialog,
   type ReceiptPart,
@@ -151,12 +151,14 @@ export function SearchPage() {
   // Analog stock is its own local query, so it can be refreshed after a
   // receipt without asking suppliers again. Analogs belong to a part, so none
   // are looked up before one is chosen.
+  // The endpoint takes up to 200 numbers; analogs are ordered, so the first
+  // ones are kept.
   const analogNumbers =
     part === undefined
       ? []
-      : [...new Set(part.analogs.map((g) => g.number_norm))].filter(
-          (n) => n !== stock.data?.number_norm,
-        );
+      : [...new Set(part.analogs.map((g) => g.number_norm))]
+          .filter((n) => n !== stock.data?.number_norm)
+          .slice(0, 200);
   const matches = useAnalogStock(analogNumbers).data ?? [];
   const myItems = [...(stock.data?.items ?? []), ...matches];
 
@@ -177,11 +179,12 @@ export function SearchPage() {
     setToStock({ group, offer, supplierTitle });
   };
 
-  const nothing =
-    cards.length === 0 &&
-    waitingTitles.length === 0 &&
-    errors.length === 0 &&
-    !suppliers.isPending;
+  const noCards =
+    cards.length === 0 && waitingTitles.length === 0 && !suppliers.isPending;
+  // No supplier has the number, but my stock may: show it anyway.
+  const stockOnly =
+    noCards &&
+    (stock.isPending || stock.isError || stock.data.items.length > 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -235,6 +238,12 @@ export function SearchPage() {
                     </p>
                   ),
               )}
+              {stockOnly && (
+                <MyStockBlock
+                  stock={stock.data?.items}
+                  stockError={stock.isError}
+                />
+              )}
               <PartPicker
                 cards={cards}
                 stockQty={(key) => stockQty(stock.data?.items ?? [], key)}
@@ -245,9 +254,11 @@ export function SearchPage() {
                   setParams({ q, supplier, part: key });
                 }}
               />
-              {nothing && (
+              {noCards && errors.length === 0 && (
                 <p className="py-4 text-center text-muted-foreground">
-                  Ничего не найдено
+                  {stockOnly
+                    ? "У поставщиков ничего не найдено"
+                    : "Ничего не найдено"}
                 </p>
               )}
             </div>
