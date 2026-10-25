@@ -50,7 +50,7 @@ export function Layout() {
   return (
     <>
       <header className="border-b bg-background">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-8 gap-y-1 px-4 sm:px-7">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-8 gap-y-1 px-4 sm:px-7">
           <NavLink to={`/${search}`} aria-label="Поиск" end className="py-2">
             <Logo className="h-7 w-auto" />
           </NavLink>
@@ -107,7 +107,7 @@ export function Layout() {
         </div>
       </Modal>
       <ServerStatus />
-      <main className="mx-auto w-full max-w-[1280px] p-4">
+      <main className="mx-auto w-full max-w-[1440px] p-4">
         <Outlet />
       </main>
     </>

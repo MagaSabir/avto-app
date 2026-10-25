@@ -77,13 +77,13 @@ async function openLogout() {
 }
 
 describe("Layout", () => {
-  it("limits header and main content to 1280px", async () => {
+  it("limits header and main content to 1440px", async () => {
     setup();
 
     await screen.findByText("sabir");
     const nav = screen.getByRole("navigation");
-    expect(nav.parentElement).toHaveClass("max-w-[1280px]");
-    expect(screen.getByRole("main")).toHaveClass("max-w-[1280px]");
+    expect(nav.parentElement).toHaveClass("max-w-[1440px]");
+    expect(screen.getByRole("main")).toHaveClass("max-w-[1440px]");
   });
 
   it("renders logo, navigation, login and the stock page", async () => {

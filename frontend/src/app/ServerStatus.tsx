@@ -16,7 +16,7 @@ export function ServerStatus() {
   if (!error) return null;
   return (
     <div role="alert" className="bg-status-out-bg font-medium text-status-out">
-      <div className="mx-auto w-full max-w-[1280px] px-4 py-2">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-2">
         {statusMessage(error)}
       </div>
     </div>
