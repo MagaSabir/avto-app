@@ -31,6 +31,7 @@ function Harness(props: { partKey?: string; picking?: boolean }) {
       results={props.partKey === undefined ? ok : selectPart(ok, props.partKey)}
       opts={opts}
       stockNumbers={new Map([["290074", 1]])}
+      onToStock={vi.fn()}
       picker={props.picking === true ? <p>PICKER</p> : undefined}
     />
   );
@@ -52,6 +53,7 @@ const twoParts = supplierResult({
 function answer(result: object | Response) {
   let calls = 0;
   mockApi({
+    "GET /api/cart": () => ({ items: [], total: "0.00" }),
     "GET /api/search/suppliers/rossko": () => {
       calls += 1;
       return result;

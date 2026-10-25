@@ -9,6 +9,7 @@ OfferKind = Literal["normal", "sale", "defect", "air", "other"]
 @dataclass(frozen=True)
 class Offer:
     warehouse: str
+    stock_id: str
     qty: int
     multiplicity: int
     delivery_days: int | None

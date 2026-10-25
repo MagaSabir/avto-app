@@ -1,5 +1,6 @@
 import { createBrowserRouter, type RouteObject } from "react-router";
 
+import { CartPage } from "@/pages/CartPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { SearchPage } from "@/pages/SearchPage";
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
           { path: "/stock", element: <StockPage /> },
           { path: "/orders", element: <OrdersPage /> },
           { path: "/settlements", element: <SettlementsPage /> },
+          { path: "/cart", element: <CartPage /> },
         ],
       },
     ],

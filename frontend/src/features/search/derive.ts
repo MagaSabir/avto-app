@@ -237,16 +237,7 @@ export function selectPart(
     const groups = r.groups.filter(
       (g) => g.key === key || g.analog_of.includes(key),
     );
-    const numbers = new Set(
-      groups.filter((g) => !g.is_requested).map((g) => g.number_norm),
-    );
-    return {
-      ...r,
-      groups,
-      stock_matches: r.stock_matches.filter((it) =>
-        numbers.has(it.number_norm),
-      ),
-    };
+    return { ...r, groups };
   });
 }
 

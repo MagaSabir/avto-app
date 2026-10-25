@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 
+import { CartLink } from "@/features/cart/CartLink";
 import { getLastSearch } from "@/features/search/lastSearch";
 import { BalanceLink } from "@/features/settlements/BalanceLink";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ export function Layout() {
         <div className="ml-auto flex items-center gap-3 py-2">
           <ThemeToggle />
           <BalanceLink />
+          <CartLink />
           <UserMenu
             login={me?.login ?? ""}
             onLogout={() => {

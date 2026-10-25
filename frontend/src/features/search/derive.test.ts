@@ -29,6 +29,7 @@ const at = (d: number, h = 9) => new Date(2026, 9, d, h, 0).toISOString();
 function offer(price: string, over: Partial<Offer> = {}): Offer {
   return {
     warehouse: "W",
+    stock_id: "s1",
     qty: 1,
     multiplicity: 1,
     delivery_days: null,
@@ -488,10 +489,9 @@ describe("requestedParts", () => {
 });
 
 describe("selectPart", () => {
-  it("keeps only the part, its analogs and their stock matches", () => {
+  it("keeps only the part and its analogs", () => {
     const [a, b] = selectPart(twoParts(), MANN);
     expect(a.groups.map((g) => g.key)).toEqual([MANN, "BOSCH|F026"]);
-    expect(a.stock_matches.map((it) => it.id)).toEqual([5]);
     expect(b.groups.map((g) => g.key)).toEqual([
       MANN,
       "BOSCH|F026",
@@ -502,6 +502,5 @@ describe("selectPart", () => {
   it("keeps a part without offers and its analogs", () => {
     const [a] = selectPart(twoParts(), MGA);
     expect(a.groups.map((g) => g.key)).toEqual([MGA, "LUZAR|LP01"]);
-    expect(a.stock_matches.map((it) => it.id)).toEqual([6]);
   });
 });

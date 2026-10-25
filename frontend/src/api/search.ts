@@ -35,6 +35,24 @@ export function useStockSearch(q: string): UseQueryResult<StockSearchResult> {
   });
 }
 
+// My stock for analog numbers: a local query under the ["search","stock"]
+// prefix, so a receipt refreshes it without asking suppliers again.
+export function useAnalogStock(
+  numbers: string[],
+): UseQueryResult<StockSearchItem[]> {
+  const sorted = [...new Set(numbers)].sort();
+  return useQuery({
+    queryKey: ["search", "stock", "analogs", ...sorted],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      for (const n of sorted) params.append("numbers", n);
+      return apiFetch<StockSearchItem[]>(`/api/search/stock?${params}`);
+    },
+    enabled: sorted.length > 0,
+    gcTime: KEEP_MS,
+  });
+}
+
 export function useSuppliers(): UseQueryResult<SupplierInfo[]> {
   return useQuery({
     queryKey: ["search", "suppliers"],

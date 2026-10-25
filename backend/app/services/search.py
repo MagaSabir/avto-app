@@ -15,7 +15,7 @@ from app.schemas.search import (
 )
 from app.schemas.stock import StockItemOut
 from app.services import settings as settings_service
-from app.services.errors import EmptyNumber
+from app.services.errors import EmptyNumber, TooManyNumbers
 from app.suppliers.base import Supplier, SupplierError
 
 
@@ -40,6 +40,16 @@ async def search_stock(session: AsyncSession, q: str) -> StockSearchResult:
         raise EmptyNumber()
     items = await _stock_items(session, [number_norm])
     return StockSearchResult(query=q, number_norm=number_norm, items=items)
+
+
+MAX_STOCK_NUMBERS = 200
+
+
+async def search_stock_numbers(session: AsyncSession, numbers: list[str]) -> list[StockSearchItem]:
+    if len(numbers) > MAX_STOCK_NUMBERS:
+        raise TooManyNumbers()
+    normalized = {n for n in map(normalize_number, numbers) if n}
+    return await _stock_items(session, normalized) if normalized else []
 
 
 def list_suppliers(suppliers: dict[str, Supplier]) -> list[SupplierInfo]:

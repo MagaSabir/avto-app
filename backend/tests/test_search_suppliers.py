@@ -33,6 +33,7 @@ class FakeSupplier:
 def _offer(price: str = "412.00") -> Offer:
     return Offer(
         warehouse="Склад",
+        stock_id="HST1",
         qty=5,
         multiplicity=1,
         delivery_days=2,
@@ -121,6 +122,7 @@ async def test_prices_use_global_markup(make_client: Any) -> None:
     assert data["status"] == "ok"
     assert data["markup"] == "30.00"
     offer = data["groups"][0]["offers"][0]
+    assert offer["stock_id"] == "HST1"
     assert offer["purchase_price"] == "412.00"
     assert offer["price"] == "540.00"
     assert r.headers["cache-control"] == "no-store"

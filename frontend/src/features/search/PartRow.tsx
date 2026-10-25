@@ -1,20 +1,23 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { Offer, PartGroup } from "@/api/search";
 import { formatPrice } from "@/features/stock/format";
 import { cn } from "@/lib/utils";
 
 import { formatDelivery, kindLabel, warehouseLabel } from "./format";
+import { OfferActions } from "./OfferActions";
 import { Tag } from "./Tag";
 
-// Brand · Number · Name · Delivery · Qty · Price. Shared with the header row.
+// Brand · Number · Name · Delivery · Qty · Price · Actions. Shared with the header row.
 export const PART_COLS =
-  "md:grid-cols-[8rem_9rem_minmax(0,1fr)_13rem_5rem_8rem] md:gap-x-3";
+  "md:grid-cols-[8rem_9rem_minmax(0,1fr)_13rem_5rem_8rem_13rem] md:gap-x-3";
 
 // On phones the three offer cells share one line.
 const OFFER_LINE = "grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3";
 
 type Props = {
+  supplier: string;
+  onToStock: (group: PartGroup, offer: Offer) => void;
   // Offers already sorted: the first one is the best for the current sort.
   group: PartGroup;
   stockQty: number | undefined;
@@ -22,13 +25,22 @@ type Props = {
 };
 
 function OfferCells({
+  supplier,
+  group,
   offer,
   now,
   first,
+  aside,
+  onToStock,
 }: {
+  supplier: string;
+  group: PartGroup;
   offer: Offer;
   now: Date;
   first?: string;
+  // Phone: sits on the right of the actions row; desktop: its own grid cell.
+  aside?: ReactNode;
+  onToStock: (group: PartGroup, offer: Offer) => void;
 }) {
   const where = warehouseLabel(offer);
   return (
@@ -60,11 +72,22 @@ function OfferCells({
           </div>
         )}
       </div>
+      <div className="col-span-3 flex items-start gap-x-2 md:contents">
+        <div className="min-w-0 flex-1 md:col-span-1">
+          <OfferActions
+            supplier={supplier}
+            group={group}
+            offer={offer}
+            onToStock={onToStock}
+          />
+        </div>
+        {aside}
+      </div>
     </>
   );
 }
 
-export function PartRow({ group, stockQty, now }: Props) {
+export function PartRow({ supplier, group, stockQty, now, onToStock }: Props) {
   const [open, setOpen] = useState(false);
   const best = group.offers.at(0);
   const rest = group.offers.slice(1);
@@ -101,24 +124,32 @@ export function PartRow({ group, stockQty, now }: Props) {
           </div>
         ) : (
           <div className={cn(OFFER_LINE, "md:contents")}>
-            <OfferCells offer={best} now={now} />
-            {rest.length > 0 && (
-              <div className="col-span-3 md:col-span-2 md:col-start-4 md:text-right">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-label={`Другие склады: ${String(rest.length)}`}
-                  onClick={() => {
-                    setOpen((v) => !v);
-                  }}
-                  className="cursor-pointer rounded-sm text-[12px] text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  {open
-                    ? "скрыть"
-                    : `показать др. склады (${String(rest.length)})`}
-                </button>
-              </div>
-            )}
+            <OfferCells
+              supplier={supplier}
+              group={group}
+              offer={best}
+              now={now}
+              onToStock={onToStock}
+              aside={
+                rest.length > 0 && (
+                  <div className="ml-auto flex h-8 shrink-0 items-center md:col-span-2 md:col-start-4 md:ml-0 md:block md:h-auto md:text-right">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-label={`Другие склады: ${String(rest.length)}`}
+                      onClick={() => {
+                        setOpen((v) => !v);
+                      }}
+                      className="cursor-pointer rounded-sm text-[12px] text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      {open
+                        ? "скрыть"
+                        : `показать др. склады (${String(rest.length)})`}
+                    </button>
+                  </div>
+                )
+              }
+            />
           </div>
         )}
       </div>
@@ -133,7 +164,14 @@ export function PartRow({ group, stockQty, now }: Props) {
                 PART_COLS,
               )}
             >
-              <OfferCells offer={o} now={now} first="md:col-start-4" />
+              <OfferCells
+                supplier={supplier}
+                group={group}
+                offer={o}
+                now={now}
+                first="md:col-start-4"
+                onToStock={onToStock}
+              />
             </li>
           ))}
         </ul>

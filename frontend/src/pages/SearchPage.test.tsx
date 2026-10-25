@@ -96,6 +96,7 @@ describe("SearchPage", () => {
 
   it("shows my stock while the supplier is still answering", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => stock,
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
     });
@@ -117,6 +118,7 @@ describe("SearchPage", () => {
 
   it("hides zero stock with «В наличии»", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => stock,
       "GET /api/search/suppliers": () => [],
     });
@@ -134,6 +136,7 @@ describe("SearchPage", () => {
   it("re-requests the supplier and shows loading again on the same number", async () => {
     let lists = 0;
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => stock,
       "GET /api/search/suppliers": () => {
         lists += 1;
@@ -168,6 +171,7 @@ describe("SearchPage", () => {
     const now = new Date();
     const soon = new Date(now.getTime() + 3_600_000).toISOString();
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [] }),
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
       "GET /api/search/suppliers/rossko": () =>
@@ -214,7 +218,18 @@ describe("SearchPage", () => {
 
   it("hides analogs in my stock and at the supplier with «Аналоги»", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [stockItem(1)] }),
+      "GET /api/search/stock": (_init, url) => {
+        expect(url.searchParams.getAll("numbers")).toEqual(["290074"]);
+        return [
+          stockItem(9, {
+            number_raw: "290 074",
+            number_norm: "290074",
+            brand: "SACHS",
+          }),
+        ];
+      },
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
       "GET /api/search/suppliers/rossko": () =>
         supplierResult({
@@ -227,25 +242,102 @@ describe("SearchPage", () => {
               analog_of: ["KYB|333114"],
             }),
           ],
-          stock_matches: [
-            stockItem(9, {
-              number_raw: "290 074",
-              number_norm: "290074",
-              brand: "SACHS",
-            }),
-          ],
         }),
     });
     renderWithProviders(<SearchPage />, { route: "/?q=333114" });
     expect(await screen.findByText("ANALOGBRAND")).toBeInTheDocument();
-    expect(screen.getAllByText("290 074").length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("290 074")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Аналоги" }));
     expect(screen.queryByText("ANALOGBRAND")).not.toBeInTheDocument();
     expect(screen.queryByText("290 074")).not.toBeInTheDocument();
   });
 
+  it("refreshes analog stock after a receipt without asking Rossko again", async () => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const { showModal: realShowModal, close: realClose } =
+      HTMLDialogElement.prototype;
+    HTMLDialogElement.prototype.showModal = vi.fn(function (
+      this: HTMLDialogElement,
+    ) {
+      this.setAttribute("open", "");
+    });
+    HTMLDialogElement.prototype.close = vi.fn(function (
+      this: HTMLDialogElement,
+    ) {
+      this.removeAttribute("open");
+    });
+    let received = false;
+    let analogCalls = 0;
+    let rosskoCalls = 0;
+    mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
+      "GET /api/search": () => ({ ...stock, items: [] }),
+      "GET /api/search/stock": () => {
+        analogCalls += 1;
+        return received
+          ? [stockItem(9, { number_norm: "290074", qty: 5, brand: "SACHS" })]
+          : [];
+      },
+      "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
+      "GET /api/search/suppliers/rossko": () => {
+        rosskoCalls += 1;
+        return supplierResult({
+          groups: [
+            partGroup(),
+            partGroup({
+              brand: "SACHS",
+              number: "290074",
+              number_norm: "290074",
+              is_requested: false,
+              key: "SACHS|290074",
+              analog_of: ["KYB|333114"],
+            }),
+          ],
+        });
+      },
+      "GET /api/stock/lookup": () => [],
+      "GET /api/stock/brands": () => ["SACHS"],
+      "GET /api/stock/suppliers": () => ["Росско"],
+      "GET /api/settings": () => ({ default_markup: "25.00" }),
+      "POST /api/stock/receipts": () => {
+        received = true;
+        return new Response(JSON.stringify({ item: { id: 9 }, move: {} }), {
+          status: 201,
+        });
+      },
+    });
+    try {
+      renderWithProviders(<SearchPage />, { route: "/?q=333114" });
+      await screen.findByText("SACHS");
+      await waitFor(() => {
+        expect(analogCalls).toBe(1);
+      });
+      expect(screen.queryByText("у вас 5 шт")).not.toBeInTheDocument();
+      const buttons = screen.getAllByRole("button", {
+        name: "Принять на склад",
+      });
+      fireEvent.click(buttons[buttons.length - 1]);
+      fireEvent.change(await screen.findByLabelText("Кол-во"), {
+        target: { value: "5" },
+      });
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText<HTMLInputElement>("Наценка, %").value,
+        ).toBe("25");
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Принять" }));
+      expect(await screen.findByText("у вас 5 шт")).toBeInTheDocument();
+      expect(analogCalls).toBe(2);
+      expect(rosskoCalls).toBe(1);
+    } finally {
+      HTMLDialogElement.prototype.showModal = realShowModal;
+      HTMLDialogElement.prototype.close = realClose;
+    }
+  });
+
   it("never shows a stale supplier answer for an older number", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [] }),
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
     });
@@ -279,6 +371,7 @@ describe("SearchPage", () => {
 
   it("requests the supplier again when a number is searched anew via «Найти»", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [] }),
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
     });
@@ -308,6 +401,7 @@ describe("SearchPage", () => {
 
   it("shows the stock error instead of endless loading", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () =>
         new Response(JSON.stringify({ detail: "Ошибка базы" }), {
           status: 500,
@@ -463,6 +557,7 @@ describe("SearchPage", () => {
 
   it("goes straight to the offers with a single part", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [] }),
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
       "GET /api/search/suppliers/rossko": () => supplierResult(),
@@ -478,6 +573,7 @@ describe("SearchPage", () => {
     const now = new Date();
     const soon = new Date(now.getTime() + 3_600_000).toISOString();
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/search": () => ({ ...stock, items: [] }),
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],
       "GET /api/search/suppliers/rossko": () =>
@@ -536,6 +632,7 @@ describe("SearchPage", () => {
     let calls = 0;
     let stockCalls = 0;
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/health": () => ({ status: "ok", database: "ok" }),
       "GET /api/search": () => {
         stockCalls += 1;
@@ -572,6 +669,7 @@ describe("SearchPage", () => {
 
   it("points the «Поиск» link at the current search right away", async () => {
     mockApi({
+      "GET /api/cart": () => ({ items: [], total: "0.00" }),
       "GET /api/health": () => ({ status: "ok", database: "ok" }),
       "GET /api/search": () => stock,
       "GET /api/search/suppliers": () => [{ code: "rossko", title: "Росско" }],

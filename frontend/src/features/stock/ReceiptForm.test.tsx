@@ -97,6 +97,52 @@ describe("ReceiptForm", () => {
     expect(input("Продажа").value).toBe("530.00");
   });
 
+  it("prefills from props", async () => {
+    mockApi(handlers([]));
+    renderWithProviders(
+      <ReceiptForm
+        onAccepted={vi.fn()}
+        prefill={{
+          number: "W 68/3",
+          brand: "MANN-FILTER",
+          name: "Фильтр масляный",
+          purchase: "412",
+          supplier: "Росско",
+        }}
+      />,
+    );
+    expect(input("Номер").value).toBe("W 68/3");
+    expect(input("Бренд").value).toBe("MANN-FILTER");
+    expect(input("Название").value).toBe("Фильтр масляный");
+    expect(input("Закупка").value).toBe("412");
+    expect(input("Поставщик").value).toBe("Росско");
+    await waitFor(() => {
+      expect(input("Наценка, %").value).toBe("25");
+    });
+    expect(input("Продажа").value).toBe("520.00");
+  });
+
+  it("keeps prefill purchase when item exists", async () => {
+    mockApi(handlers([{ ...MANN, purchase_price: "300.00", markup: "40.00" }]));
+    renderWithProviders(
+      <ReceiptForm
+        onAccepted={vi.fn()}
+        prefill={{
+          number: "W 68/3",
+          brand: "MANN-FILTER",
+          name: "Фильтр масляный",
+          purchase: "412",
+          supplier: "Росско",
+        }}
+      />,
+    );
+    await screen.findByText("Позиция есть на складе: данные подставлены");
+    expect(input("Закупка").value).toBe("412");
+    expect(input("Наценка, %").value).toBe("40");
+    expect(input("Продажа").value).toBe("580.00");
+    expect(input("Ячейка").value).toBe("A-12");
+  });
+
   it("new item uses default markup", async () => {
     mockApi(handlers([]));
     renderWithProviders(<ReceiptForm onAccepted={vi.fn()} />);
