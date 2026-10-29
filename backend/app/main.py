@@ -19,6 +19,7 @@ from app.api import stock as stock_api
 from app.api.deps import current_user
 from app.core.config import get_settings
 from app.core.db import engine
+from app.core.logging import install_access_log_filter
 from app.core.login_limiter import LoginLimiter
 from app.core.middleware import JsonOnlyMiddleware, NoStoreMiddleware
 from app.services.errors import DomainError
@@ -34,6 +35,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    install_access_log_filter()
     settings = get_settings()
     app = FastAPI(
         title="avto_app",
