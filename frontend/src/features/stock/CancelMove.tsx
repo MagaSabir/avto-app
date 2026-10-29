@@ -52,7 +52,11 @@ export function CancelMove({
   };
 
   return (
-    <>
+    <span
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+    >
       <Button
         className="h-[26px] px-2 text-[12px]"
         onClick={(event) => {
@@ -68,12 +72,7 @@ export function CancelMove({
         title="Отмена операции"
         className="max-w-[460px]"
       >
-        <div
-          className="flex flex-col gap-3 p-4"
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-        >
+        <div className="flex flex-col gap-3 p-4">
           <p>
             {`Отменить ${ACCUSATIVE[move.type]} ${String(Math.abs(move.qty_delta))} шт? Остаток станет ${String(item.qty - move.qty_delta)}`}
           </p>
@@ -96,6 +95,6 @@ export function CancelMove({
           </div>
         </div>
       </Modal>
-    </>
+    </span>
   );
 }

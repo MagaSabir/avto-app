@@ -74,6 +74,22 @@ describe("CancelMove", () => {
     expect(onRow).not.toHaveBeenCalled();
   });
 
+  it("keeps dialog clicks out of the parent row", () => {
+    const onRow = vi.fn();
+    renderWithProviders(
+      <div onClick={onRow}>
+        <CancelMove move={MOVE} item={ITEM} onDone={() => undefined} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Отменить" }));
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
+    fireEvent.click(screen.getByRole("button", { name: "Отменить" }));
+    fireEvent.click(screen.getByRole("dialog"));
+    fireEvent.click(screen.getByRole("button", { name: "Отменить" }));
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(onRow).not.toHaveBeenCalled();
+  });
+
   it("posts once on a double click and reports the new stock", async () => {
     let calls = 0;
     mockApi({
