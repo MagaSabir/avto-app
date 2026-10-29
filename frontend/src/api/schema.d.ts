@@ -520,6 +520,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/customers/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count Customers */
+        get: operations["count_customers_api_customers_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/customers/{customer_id}": {
         parameters: {
             query?: never;
@@ -861,6 +878,15 @@ export interface components {
             phones: string[];
             /** Cars */
             cars: components["schemas"]["CarBrief"][];
+            /** Last Purchase At */
+            last_purchase_at?: string | null;
+            /** Last Car Id */
+            last_car_id?: number | null;
+        };
+        /** CustomerCount */
+        CustomerCount: {
+            /** Total */
+            total: number;
         };
         /** CustomerHistoryRow */
         CustomerHistoryRow: {
@@ -2878,6 +2904,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    count_customers_api_customers_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerCount"];
                 };
             };
         };

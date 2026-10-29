@@ -22,6 +22,14 @@ export type CarIn = Schemas["CarIn"];
 export type CarPatch = Schemas["CarPatch"];
 export type HistoryRow = Schemas["CustomerHistoryRow"];
 
+export function useCustomerCount(): UseQueryResult<number> {
+  return useQuery({
+    queryKey: ["customers", "count"],
+    queryFn: async () =>
+      (await apiFetch<{ total: number }>("/api/customers/count")).total,
+  });
+}
+
 export function useCustomers(
   q: string,
   enabled = true,

@@ -35,6 +35,21 @@ const ivan: CustomerBrief = {
   name: "Иван Тест",
   phones: ["79000000001"],
   cars: [{ id: 1, make: "Test", model: "X1", plate: "A000AA" }],
+  last_purchase_at: null,
+  last_car_id: null,
+};
+
+const petr: CustomerBrief = {
+  id: 6,
+  name: "Пётр Тест",
+  phones: [],
+  cars: [
+    { id: 2, make: "Demo", model: "A", plate: null },
+    { id: 3, make: "Demo", model: "B", plate: "А123ВС77" },
+    { id: 4, make: "Demo", model: "C", plate: null },
+  ],
+  last_purchase_at: "2026-10-28T09:00:00Z",
+  last_car_id: 3,
 };
 
 function Where() {
@@ -50,6 +65,7 @@ function Where() {
 function setup(list: (q: string) => CustomerBrief[], extra = {}) {
   const queries: string[] = [];
   mockApi({
+    "GET /api/customers/count": () => ({ total: 128 }),
     "GET /api/customers": (_init, url) => {
       const q = url.searchParams.get("q") ?? "";
       queries.push(q);
@@ -88,12 +104,41 @@ describe("CustomersPage", () => {
     await flush();
     expect(screen.getByText("Клиент")).toBeInTheDocument();
     expect(screen.getByText("Телефоны")).toBeInTheDocument();
-    expect(screen.getByText("Машины")).toBeInTheDocument();
+    expect(screen.getByText("Машина")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /Иван Тест/ });
     expect(within(link).getByText("Test")).toHaveClass("bg-info-bg");
     expect(
       within(link).getByText("A000AA").closest("[data-plate]"),
     ).not.toBeNull();
+  });
+
+  it("numbers the rows and shows the total", async () => {
+    setup(() => [ivan, petr]);
+    await flush();
+    expect(screen.getByText("всего 128")).toBeInTheDocument();
+    const rows = screen.getAllByRole("link", { name: /Тест/ });
+    expect(within(rows[0]).getByText("1")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("2")).toBeInTheDocument();
+  });
+
+  it("shows only the car of the last purchase and how many more", async () => {
+    setup(() => [petr]);
+    await flush();
+    const row = screen.getByRole("link", { name: /Пётр Тест/ });
+    expect(row).toHaveTextContent("Demo B");
+    expect(row).not.toHaveTextContent("Demo A");
+    expect(row).toHaveTextContent("+2");
+    expect(within(row).getByText("28.10.2026")).toBeInTheDocument();
+  });
+
+  it("falls back to the first car and a dash without purchases", async () => {
+    setup(() => [ivan]);
+    await flush();
+    const row = screen.getByRole("link", { name: /Иван Тест/ });
+    expect(row).toHaveTextContent("Test X1");
+    expect(within(row).queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+    expect(screen.getByText("Последняя покупка")).toBeInTheDocument();
+    expect(within(row).getAllByText("—").length).toBe(1);
   });
 
   it("shows the empty state", async () => {
