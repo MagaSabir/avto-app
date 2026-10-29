@@ -122,12 +122,17 @@ describe("CustomerPage header", () => {
       await screen.findByRole("heading", { name: "Иван Тест" }),
     ).toBeInTheDocument();
     const tel = screen.getByRole("link", { name: "+7 900 000-00-01" });
-    expect(tel).toHaveAttribute("href", "tel:79000000001");
+    expect(tel).toHaveAttribute("href", "tel:+79000000001");
     expect(screen.getByRole("link", { name: "123" })).toHaveAttribute(
       "href",
       "tel:123",
     );
     expect(screen.getByText("тестовый комментарий")).toBeInTheDocument();
+  });
+
+  it("shows not found for a non-numeric id", () => {
+    setup({}, "/customers/abc");
+    expect(screen.getByText("Клиент не найден")).toBeInTheDocument();
   });
 
   it("shows not found for an unknown customer", async () => {

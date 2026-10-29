@@ -200,7 +200,11 @@ function CustomerCard({
           <div className="flex flex-col gap-1">
             <p className="flex flex-wrap gap-x-4 font-mono text-[14px]">
               {customer.phones.map((p) => (
-                <a key={p} href={`tel:${p}`} className="hover:underline">
+                <a
+                  key={p}
+                  href={`tel:${telNumber(p)}`}
+                  className="hover:underline"
+                >
                   {formatPhone(p)}
                 </a>
               ))}
@@ -278,6 +282,10 @@ function warningsFromState(state: unknown): string[] {
   return Array.isArray(w) ? w.filter((x) => typeof x === "string") : [];
 }
 
+function telNumber(phone: string): string {
+  return /^7\d{10}$/.test(phone) ? `+${phone}` : phone;
+}
+
 export function CustomerPage() {
   const id = Number(useParams().id);
   const location = useLocation();
@@ -293,10 +301,16 @@ export function CustomerPage() {
       });
     }
   }, [location.state, location.pathname, location.search, navigate]);
-  const { data, isPending, isError, error } = useCustomer(
-    Number.isInteger(id) ? id : null,
-  );
+  const validId = Number.isInteger(id) && id > 0;
+  const { data, isPending, isError, error } = useCustomer(validId ? id : null);
 
+  if (!validId) {
+    return (
+      <p role="alert" className="text-destructive">
+        Клиент не найден
+      </p>
+    );
+  }
   if (isPending) {
     return <p className="py-6 text-center text-muted-foreground">Загрузка…</p>;
   }
