@@ -9,6 +9,7 @@ from app.schemas.customers import (
     CarOut,
     CarPatch,
     CustomerBrief,
+    CustomerCount,
     CustomerHistoryRow,
     CustomerIn,
     CustomerOut,
@@ -119,15 +120,22 @@ async def list_customers(session: AsyncSession, q: str) -> list[CustomerBrief]:
     ids = [c.id for c in customers]
     phones = await repo.phones_by_customer(session, ids)
     cars = await repo.cars_by_customer(session, ids)
+    sales = await repo.last_sales(session, ids)
     return [
         CustomerBrief(
             id=c.id,
             name=c.name,
             phones=phones.get(c.id, []),
             cars=[CarBrief.model_validate(car) for car in cars.get(c.id, [])],
+            last_purchase_at=sales[c.id][0] if c.id in sales else None,
+            last_car_id=sales[c.id][1] if c.id in sales else None,
         )
         for c in customers
     ]
+
+
+async def count(session: AsyncSession) -> CustomerCount:
+    return CustomerCount(total=await repo.count(session))
 
 
 async def create(session: AsyncSession, data: CustomerIn) -> CustomerSaved:

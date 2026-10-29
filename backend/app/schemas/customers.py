@@ -78,6 +78,13 @@ class CustomerBrief(BaseModel):
     name: str
     phones: list[str]
     cars: list[CarBrief]
+    # Last non-cancelled sale, and the car of the last such sale that had one.
+    last_purchase_at: datetime | None = None
+    last_car_id: int | None = None
+
+
+class CustomerCount(BaseModel):
+    total: int
 
 
 class CustomerHistoryRow(BaseModel):

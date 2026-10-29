@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import ColumnElement, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,6 +98,37 @@ async def get_car(session: AsyncSession, customer_id: int, car_id: int) -> Custo
 async def delete_car(session: AsyncSession, car: CustomerCar) -> None:
     await session.delete(car)
     await session.flush()
+
+
+async def count(session: AsyncSession) -> int:
+    return int(await session.scalar(select(func.count()).select_from(Customer)) or 0)
+
+
+async def last_sales(
+    session: AsyncSession, customer_ids: list[int]
+) -> dict[int, tuple[datetime, int | None]]:
+    """Per customer: date of the last non-cancelled sale and the car of the last sale with a car."""
+    if not customer_ids:
+        return {}
+    cancelled = select(StockMove.cancels_move_id).where(StockMove.cancels_move_id.is_not(None))
+    rows = await session.execute(
+        select(StockMove.customer_id, StockMove.created_at, StockMove.car_id)
+        .where(
+            StockMove.customer_id.in_(customer_ids),
+            StockMove.type == "sale",
+            StockMove.id.not_in(cancelled),
+        )
+        .order_by(StockMove.id.desc())
+    )
+    dates: dict[int, datetime] = {}
+    cars: dict[int, int] = {}
+    for customer_id, created_at, car_id in rows:
+        if customer_id is None:
+            continue
+        dates.setdefault(customer_id, created_at)
+        if car_id is not None:
+            cars.setdefault(customer_id, car_id)
+    return {cid: (at, cars.get(cid)) for cid, at in dates.items()}
 
 
 async def search(session: AsyncSession, q: str) -> list[Customer]:
