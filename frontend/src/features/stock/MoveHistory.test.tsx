@@ -92,9 +92,9 @@ describe("MoveHistory", () => {
     expect(screen.getByText("+4")).toHaveClass("line-through");
   });
 
-  it("shows the author next to the badge", () => {
+  it("does not show the author in the compact list", () => {
     render(<MoveHistory moves={[{ ...base, user: "ivan" }]} />);
-    expect(screen.getByText("· ivan")).toBeInTheDocument();
+    expect(screen.queryByText(/ivan/)).not.toBeInTheDocument();
   });
 
   it("renders the action slot", () => {

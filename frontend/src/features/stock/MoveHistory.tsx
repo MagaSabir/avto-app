@@ -76,13 +76,8 @@ export function MoveHistory({
                 <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
                   {formatShortDateTime(m.created_at)}
                 </span>
-                <span className="flex min-w-0 items-center gap-x-1 justify-self-start">
+                <span className="justify-self-start">
                   <MoveTypeBadge type={m.type} />
-                  {m.user && (
-                    <span className="truncate text-[12px] text-muted-foreground">
-                      {`· ${m.user}`}
-                    </span>
-                  )}
                 </span>
                 <span className={`text-right font-mono tabular-nums ${strike}`}>
                   {qtyText(m)}
