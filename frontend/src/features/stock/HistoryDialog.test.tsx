@@ -184,7 +184,11 @@ describe("HistoryDialog", () => {
     );
     expect(screen.getByText("Кто")).toBeInTheDocument();
     expect(screen.getByText("ivan")).toBeInTheDocument();
-    expect(screen.getByText("−2").closest("tr")).toHaveClass("line-through");
+    expect(screen.getByText("ivan")).toHaveClass("line-through");
+    expect(screen.getByText("−2")).not.toHaveClass("line-through");
+    expect(screen.getByText("−2").closest("tr")).not.toHaveClass(
+      "line-through",
+    );
   });
 
   it("explains a cancel row with the original move", () => {

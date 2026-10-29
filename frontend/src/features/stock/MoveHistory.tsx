@@ -60,7 +60,8 @@ export function MoveHistory({
   return (
     <ul className="flex max-h-72 flex-col divide-y overflow-y-auto text-[13px]">
       {moves.map((m) => {
-        const strike = m.cancelled ? "line-through text-muted-foreground" : "";
+        // Cancelled rows are struck through, but the qty stays readable.
+        const strike = m.cancelled ? "line-through" : "";
         return (
           <li
             key={m.id}
@@ -71,18 +72,22 @@ export function MoveHistory({
           >
             <div className="flex items-center gap-x-2">
               <div
-                className={`grid min-w-0 flex-1 grid-cols-[5.5rem_minmax(0,1fr)_2.5rem_5rem] items-center gap-x-2 ${strike}`}
+                className={`grid min-w-0 flex-1 grid-cols-[5.5rem_minmax(0,1fr)_2.5rem_5rem] items-center gap-x-2 ${m.cancelled ? "text-muted-foreground" : ""}`}
               >
-                <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
+                <span
+                  className={`font-mono text-[12px] whitespace-nowrap text-muted-foreground ${strike}`}
+                >
                   {formatShortDateTime(m.created_at)}
                 </span>
-                <span className="justify-self-start">
+                <span className={`justify-self-start ${strike}`}>
                   <MoveTypeBadge type={m.type} />
                 </span>
-                <span className={`text-right font-mono tabular-nums ${strike}`}>
+                <span className="text-right font-mono tabular-nums">
                   {qtyText(m)}
                 </span>
-                <span className="text-right whitespace-nowrap tabular-nums">
+                <span
+                  className={`text-right whitespace-nowrap tabular-nums ${strike}`}
+                >
                   {priceText(m)}
                 </span>
               </div>

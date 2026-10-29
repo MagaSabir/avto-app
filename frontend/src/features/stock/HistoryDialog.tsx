@@ -46,47 +46,53 @@ export function HistoryDialog({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {moves.map((m) => (
-                <tr
-                  key={m.id}
-                  onClick={() => {
-                    setSelected(m);
-                  }}
-                  className={`cursor-pointer hover:bg-muted ${m.cancelled ? "line-through text-muted-foreground" : ""}`}
-                >
-                  <td
-                    className={`${TD} font-mono whitespace-nowrap text-muted-foreground`}
+              {moves.map((m) => {
+                // Cancelled rows are struck through, but the qty stays readable.
+                const strike = m.cancelled ? "line-through" : "";
+                return (
+                  <tr
+                    key={m.id}
+                    onClick={() => {
+                      setSelected(m);
+                    }}
+                    className={`cursor-pointer hover:bg-muted ${m.cancelled ? "text-muted-foreground" : ""}`}
                   >
-                    {formatDateTime(m.created_at)}
-                  </td>
-                  <td className={TD}>
-                    <MoveTypeBadge type={m.type} />
-                  </td>
-                  <td
-                    className={`${TD} text-right font-mono font-semibold whitespace-nowrap`}
-                  >
-                    {qtyText(m)}
-                  </td>
-                  <td
-                    className={`${TD} text-right whitespace-nowrap tabular-nums`}
-                  >
-                    {priceText(m)}
-                  </td>
-                  <td
-                    className={`${TD} text-right whitespace-nowrap tabular-nums`}
-                  >
-                    {String(m.qty_after)}
-                  </td>
-                  <td className={`${TD} truncate text-muted-foreground`}>
-                    {m.user ?? "—"}
-                  </td>
-                  <td className={`${TD} text-muted-foreground`}>
-                    <span className="line-clamp-2 [overflow-wrap:anywhere]">
-                      {explanation(m, moves) || "—"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                    <td
+                      className={`${TD} font-mono whitespace-nowrap text-muted-foreground ${strike}`}
+                    >
+                      {formatDateTime(m.created_at)}
+                    </td>
+                    <td className={`${TD} ${strike}`}>
+                      <MoveTypeBadge type={m.type} />
+                    </td>
+                    <td
+                      className={`${TD} text-right font-mono font-semibold whitespace-nowrap`}
+                    >
+                      {qtyText(m)}
+                    </td>
+                    <td
+                      className={`${TD} text-right whitespace-nowrap tabular-nums ${strike}`}
+                    >
+                      {priceText(m)}
+                    </td>
+                    <td
+                      className={`${TD} text-right whitespace-nowrap tabular-nums ${strike}`}
+                    >
+                      {String(m.qty_after)}
+                    </td>
+                    <td
+                      className={`${TD} truncate text-muted-foreground ${strike}`}
+                    >
+                      {m.user ?? "—"}
+                    </td>
+                    <td className={`${TD} text-muted-foreground ${strike}`}>
+                      <span className="line-clamp-2 [overflow-wrap:anywhere]">
+                        {explanation(m, moves) || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

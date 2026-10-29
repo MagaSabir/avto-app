@@ -87,9 +87,15 @@ describe("MoveHistory", () => {
     expect(onSelect).toHaveBeenCalledWith(base);
   });
 
-  it("strikes through a cancelled row", () => {
+  it("strikes through a cancelled row but keeps the qty readable", () => {
     render(<MoveHistory moves={[{ ...base, cancelled: true }]} />);
-    expect(screen.getByText("+4")).toHaveClass("line-through");
+    expect(screen.getByText("Приход").parentElement).toHaveClass(
+      "line-through",
+    );
+    expect(screen.getByText("+4")).not.toHaveClass("line-through");
+    expect(screen.getByText("+4").parentElement).not.toHaveClass(
+      "line-through",
+    );
   });
 
   it("does not show the author in the compact list", () => {
