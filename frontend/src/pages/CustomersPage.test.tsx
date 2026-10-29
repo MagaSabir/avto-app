@@ -141,6 +141,48 @@ describe("CustomersPage", () => {
     expect(within(row).getAllByText("—").length).toBe(1);
   });
 
+  it("loads more customers and keeps numbering", async () => {
+    const many: CustomerBrief[] = Array.from({ length: 53 }, (_, i) => ({
+      ...ivan,
+      id: 100 + i,
+      name: `Клиент Тест ${String(i + 1)}`,
+    }));
+    const offsets: string[] = [];
+    mockApi({
+      "GET /api/customers/count": (_init, url) => ({
+        total: url.searchParams.get("q") ? 53 : 128,
+      }),
+      "GET /api/customers": (_init, url) => {
+        const offset = Number(url.searchParams.get("offset") ?? "0");
+        offsets.push(String(offset));
+        return many.slice(offset, offset + 50);
+      },
+    });
+    renderWithProviders(<CustomersPage />, { route: "/customers" });
+    await flush();
+    expect(screen.getAllByRole("link", { name: /Клиент Тест/ })).toHaveLength(
+      50,
+    );
+    expect(screen.getByText("показано 50 из 128")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Показать ещё" }));
+    await flush();
+    const rows = screen.getAllByRole("link", { name: /Клиент Тест/ });
+    expect(rows).toHaveLength(53);
+    expect(within(rows[50]).getByText("51")).toBeInTheDocument();
+    expect(offsets).toEqual(["0", "50"]);
+    expect(
+      screen.queryByRole("button", { name: "Показать ещё" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not offer more when everything fits", async () => {
+    setup(() => [ivan]);
+    await flush();
+    expect(
+      screen.queryByRole("button", { name: "Показать ещё" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the empty state", async () => {
     setup(() => []);
     await flush();

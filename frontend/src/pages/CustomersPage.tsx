@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router";
 
 import {
   useCustomerCount,
-  useCustomers,
+  useCustomerPages,
   type CarBrief,
   type CustomerBrief,
 } from "@/api/customers";
@@ -103,8 +103,11 @@ export function CustomersPage() {
     };
   }, [text]);
 
-  const { data, isPending, isError, error } = useCustomers(q);
+  const pages = useCustomerPages(q);
+  const { isPending, isError, error } = pages;
+  const data = pages.data?.pages.flat() ?? [];
   const total = useCustomerCount().data;
+  const matched = useCustomerCount(q).data;
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,6 +176,24 @@ export function CustomersPage() {
                 </li>
               ))}
             </ul>
+            {matched !== undefined && matched > data.length && (
+              <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+                <span className="text-muted-foreground tabular-nums">
+                  {`показано ${String(data.length)} из ${String(matched)}`}
+                </span>
+                {pages.hasNextPage && (
+                  <Button
+                    className="h-[34px]"
+                    disabled={pages.isFetchingNextPage}
+                    onClick={() => {
+                      void pages.fetchNextPage();
+                    }}
+                  >
+                    Показать ещё
+                  </Button>
+                )}
+              </div>
+            )}
           </>
         )}
       </Card>

@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -22,11 +23,34 @@ export type CarIn = Schemas["CarIn"];
 export type CarPatch = Schemas["CarPatch"];
 export type HistoryRow = Schemas["CustomerHistoryRow"];
 
-export function useCustomerCount(): UseQueryResult<number> {
+// The list endpoint returns at most this many customers per request.
+export const CUSTOMERS_PAGE = 50;
+
+export function useCustomerCount(q = ""): UseQueryResult<number> {
   return useQuery({
-    queryKey: ["customers", "count"],
-    queryFn: async () =>
-      (await apiFetch<{ total: number }>("/api/customers/count")).total,
+    queryKey: ["customers", "count", q],
+    queryFn: async () => {
+      const params = q ? `?${new URLSearchParams({ q }).toString()}` : "";
+      return (
+        await apiFetch<{ total: number }>(`/api/customers/count${params}`)
+      ).total;
+    },
+  });
+}
+
+export function useCustomerPages(q: string) {
+  return useInfiniteQuery({
+    queryKey: ["customers", "pages", q],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ q, offset: String(pageParam) });
+      return apiFetch<CustomerBrief[]>(`/api/customers?${params.toString()}`);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) =>
+      last.length === CUSTOMERS_PAGE
+        ? pages.reduce((n, p) => n + p.length, 0)
+        : undefined,
+    placeholderData: keepPreviousData,
   });
 }
 

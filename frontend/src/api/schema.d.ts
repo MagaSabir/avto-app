@@ -2839,6 +2839,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -2910,7 +2911,9 @@ export interface operations {
     };
     count_customers_api_customers_count_get: {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2924,6 +2927,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerCount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
