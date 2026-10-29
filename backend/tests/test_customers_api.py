@@ -151,20 +151,20 @@ async def _ids(client: AsyncClient, q: str) -> list[str]:
 
 async def test_search(client: AsyncClient) -> None:
     a = await _customer(client, name="Иван Тест", phones=["+7 900 123-40-01"])
-    await _car(client, a["id"], make="Тест", plate="А123ВС77", vin="XTT00000000000001")
+    await _car(client, a["id"], make="Тест", plate="А777ВС77", vin="XTT00000000000001")
     await _customer(client, name="Пётр Пример", phones=["+7 916 555-00-02"])
 
     assert await _ids(client, "иван") == ["Иван Тест"]
     assert await _ids(client, "1234") == ["Иван Тест"]
     assert await _ids(client, "+7 916") == ["Пётр Пример"]
-    assert await _ids(client, "a123bc") == ["Иван Тест"]
+    assert await _ids(client, "a777bc") == ["Иван Тест"]
     assert await _ids(client, "xtt0000") == ["Иван Тест"]
     assert await _ids(client, "несуществует") == []
     r = await client.get("/api/customers", params={"q": "иван"})
     brief = r.json()[0]
     assert brief["phones"] == ["79001234001"]
     assert [{k: v for k, v in car.items() if k != "id"} for car in brief["cars"]] == [
-        {"make": "Тест", "model": None, "plate": "А123ВС77"}
+        {"make": "Тест", "model": None, "plate": "А777ВС77"}
     ]
 
 
@@ -223,3 +223,42 @@ async def test_delete_car_keeps_moves(client: AsyncClient, db_session: AsyncSess
     c, car, move_id = await _linked_sale(client, db_session)
     assert (await _delete(client, f"/api/customers/{c['id']}/cars/{car['id']}")).status_code == 204
     assert tuple(await _move(db_session, move_id)) == (c["id"], None)
+
+
+async def test_car_year_out_of_range(client: AsyncClient) -> None:
+    c = await _customer(client)
+    r = await client.post(f"/api/customers/{c['id']}/cars", json={"make": "Тест", "year": 1900})
+    assert r.status_code == 422
+    assert r.json() == {"message": "Неверный год"}
+    car = await _car(client, c["id"], make="Тест", year=2010)
+    r = await client.patch(f"/api/customers/{c['id']}/cars/{car['id']}", json={"year": 2101})
+    assert r.status_code == 422
+    assert r.json() == {"message": "Неверный год"}
+
+
+async def test_car_changes_touch_customer(client: AsyncClient, db_session: AsyncSession) -> None:
+    a = await _customer(client, name="Аня Тест")
+    b = await _customer(client, name="Борис Тест")
+    car = await _car(client, a["id"], make="Тест")
+
+    async def reset() -> None:
+        # One test transaction means one now(); spread the timestamps explicitly.
+        for cid, minutes in ((a["id"], 60), (b["id"], 30)):
+            await db_session.execute(
+                text(
+                    "UPDATE customers SET updated_at = now() - make_interval(mins => :m)"
+                    " WHERE id = :i"
+                ),
+                {"m": minutes, "i": cid},
+            )
+        assert await _ids(client, "") == ["Борис Тест", "Аня Тест"]
+
+    await reset()
+    await _car(client, a["id"], make="Тест2")
+    assert await _ids(client, "") == ["Аня Тест", "Борис Тест"]
+    await reset()
+    await client.patch(f"/api/customers/{a['id']}/cars/{car['id']}", json={"model": "М1"})
+    assert await _ids(client, "") == ["Аня Тест", "Борис Тест"]
+    await reset()
+    await _delete(client, f"/api/customers/{a['id']}/cars/{car['id']}")
+    assert await _ids(client, "") == ["Аня Тест", "Борис Тест"]

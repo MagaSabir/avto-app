@@ -21,7 +21,11 @@ from app.services.errors import (
     EmptyCustomerName,
     InvalidPhone,
     InvalidVin,
+    InvalidYear,
 )
+
+MIN_YEAR = 1950
+MAX_YEAR = 2100
 
 
 def format_phone(phone: str) -> str:
@@ -60,6 +64,8 @@ def _car_fields(data: CarIn | CarPatch) -> dict[str, object]:
     for key in data.model_fields_set:
         value = getattr(data, key)
         if key == "year":
+            if value is not None and not MIN_YEAR <= value <= MAX_YEAR:
+                raise InvalidYear()
             fields[key] = value
         elif key == "vin":
             try:
@@ -165,34 +171,39 @@ async def add_car(session: AsyncSession, customer_id: int, data: CarIn) -> CarOu
     fields = _car_fields(data)
     _require_identity(fields)
     car = await repo.add_car(session, customer.id, **fields)
+    await repo.touch(session, customer)
     await session.commit()
     return CarOut.model_validate(car)
 
 
-async def _get_car(session: AsyncSession, customer_id: int, car_id: int) -> CustomerCar:
-    await _get(session, customer_id)
+async def _get_car(
+    session: AsyncSession, customer_id: int, car_id: int
+) -> tuple[Customer, CustomerCar]:
+    customer = await _get(session, customer_id)
     car = await repo.get_car(session, customer_id, car_id)
     if car is None:
         raise CarNotFound()
-    return car
+    return customer, car
 
 
 async def update_car(
     session: AsyncSession, customer_id: int, car_id: int, data: CarPatch
 ) -> CarOut:
-    car = await _get_car(session, customer_id, car_id)
+    customer, car = await _get_car(session, customer_id, car_id)
     fields = _car_fields(data)
     merged = {k: getattr(car, k) for k in ("make", "vin", "plate")} | fields
     _require_identity(merged)
     for key, value in fields.items():
         setattr(car, key, value)
     await session.flush()
+    await repo.touch(session, customer)
     result = CarOut.model_validate(car)
     await session.commit()
     return result
 
 
 async def delete_car(session: AsyncSession, customer_id: int, car_id: int) -> None:
-    car = await _get_car(session, customer_id, car_id)
+    customer, car = await _get_car(session, customer_id, car_id)
     await repo.delete_car(session, car)
+    await repo.touch(session, customer)
     await session.commit()
