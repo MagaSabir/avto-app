@@ -48,7 +48,9 @@ async def test_search_strips_supplier_code(client: AsyncClient) -> None:
 
 async def test_search_item_summary(client: AsyncClient) -> None:
     item = await _receive(client, "W 68/3", qty=3, supplier="Росско")
-    s = await client.post(f"/api/stock/items/{item['id']}/sales", json={"qty": 1, "price": "540"})
+    s = await client.post(
+        f"/api/stock/items/{item['id']}/sales", json={"qty": 1, "price": "540", "payment": "cash"}
+    )
     assert s.status_code == 201
     r = await client.get("/api/search", params={"q": "W683"})
     (found,) = r.json()["items"]

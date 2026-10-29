@@ -7,7 +7,9 @@ from sqlalchemy import ColumnElement, and_, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.numbers import normalize_number
-from app.models.stock import MoveType, StockItem, StockMove
+from app.models.auth import User
+from app.models.customers import Customer, CustomerCar
+from app.models.stock import MoveType, Payment, StockItem, StockMove
 
 
 async def get_item_for_update(session: AsyncSession, item_id: int) -> StockItem | None:
@@ -18,6 +20,24 @@ async def get_item_for_update(session: AsyncSession, item_id: int) -> StockItem 
         .execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
+
+
+async def get_move(session: AsyncSession, move_id: int) -> StockMove | None:
+    return await session.get(StockMove, move_id)
+
+
+async def last_move(session: AsyncSession, item_id: int) -> StockMove | None:
+    result = await session.execute(
+        select(StockMove).where(StockMove.item_id == item_id).order_by(StockMove.id.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def is_cancelled(session: AsyncSession, move_id: int) -> bool:
+    found = await session.scalar(
+        select(StockMove.id).where(StockMove.cancels_move_id == move_id).limit(1)
+    )
+    return found is not None
 
 
 async def find_item_for_update(
@@ -40,6 +60,16 @@ async def add_move(
     price: Decimal | None = None,
     supplier: str | None = None,
     comment: str | None = None,
+    *,
+    user_id: int | None = None,
+    cost: Decimal | None = None,
+    payment: Payment | None = None,
+    cancels_move_id: int | None = None,
+    customer_id: int | None = None,
+    car_id: int | None = None,
+    prev_purchase_price: Decimal | None = None,
+    prev_markup: Decimal | None = None,
+    prev_sale_price: Decimal | None = None,
 ) -> StockMove:
     item.qty = item.qty + qty_delta
     move = StockMove(
@@ -50,6 +80,15 @@ async def add_move(
         price=price,
         supplier=supplier,
         comment=comment,
+        user_id=user_id,
+        cost=cost,
+        payment=payment,
+        cancels_move_id=cancels_move_id,
+        customer_id=customer_id,
+        car_id=car_id,
+        prev_purchase_price=prev_purchase_price,
+        prev_markup=prev_markup,
+        prev_sale_price=prev_sale_price,
     )
     session.add(move)
     await session.flush()
@@ -108,23 +147,27 @@ async def get_item(session: AsyncSession, item_id: int) -> StockItem | None:
 async def get_summary(
     session: AsyncSession, item_id: int
 ) -> tuple[datetime | None, str | None, datetime | None, int]:
+    live = StockMove.id.not_in(
+        select(StockMove.cancels_move_id).where(StockMove.cancels_move_id.is_not(None))
+    )
     receipt = (
         await session.execute(
             select(StockMove.created_at, StockMove.supplier)
-            .where(StockMove.item_id == item_id, StockMove.type == "receipt")
-            .order_by(StockMove.created_at.desc(), StockMove.id.desc())
+            .where(StockMove.item_id == item_id, StockMove.type == "receipt", live)
+            .order_by(StockMove.id.desc())
             .limit(1)
         )
     ).first()
     last_sale = await session.scalar(
         select(func.max(StockMove.created_at)).where(
-            StockMove.item_id == item_id, StockMove.type == "sale"
+            StockMove.item_id == item_id, StockMove.type == "sale", live
         )
     )
     net = await session.scalar(
         select(func.coalesce(func.sum(StockMove.qty_delta), 0)).where(
             StockMove.item_id == item_id,
             StockMove.type.in_(("sale", "return")),
+            live,
             StockMove.created_at >= func.now() - text("interval '30 days'"),
         )
     )
@@ -137,13 +180,18 @@ async def get_summary(
     )
 
 
-async def list_moves(session: AsyncSession, item_id: int) -> list[StockMove]:
+async def list_moves(
+    session: AsyncSession, item_id: int
+) -> list[tuple[StockMove, str | None, Customer | None, CustomerCar | None]]:
     result = await session.execute(
-        select(StockMove)
+        select(StockMove, User.login, Customer, CustomerCar)
+        .outerjoin(User, User.id == StockMove.user_id)
+        .outerjoin(Customer, Customer.id == StockMove.customer_id)
+        .outerjoin(CustomerCar, CustomerCar.id == StockMove.car_id)
         .where(StockMove.item_id == item_id)
-        .order_by(StockMove.created_at.desc(), StockMove.id.desc())
+        .order_by(StockMove.id.desc())
     )
-    return list(result.scalars())
+    return [(move, login, customer, car) for move, login, customer, car in result.all()]
 
 
 async def delete_item_with_moves(session: AsyncSession, item: StockItem) -> None:

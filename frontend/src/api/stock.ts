@@ -15,6 +15,7 @@ export type StockItem = Schemas["StockItemOut"];
 export type StockItemDetail = Schemas["StockItemDetail"];
 export type StockItemList = Schemas["StockItemList"];
 export type StockMove = Schemas["StockMoveOut"];
+export type Payment = NonNullable<StockMove["payment"]>;
 export type OperationResult = Schemas["OperationResult"];
 export type ReceiptIn = Schemas["ReceiptIn"];
 export type SaleIn = Schemas["SaleIn"];
@@ -133,6 +134,22 @@ export function useAdjustment(id: number | null) {
     itemPath(id, "adjustments"),
     "POST",
   );
+}
+
+export function useCancelMove(): UseMutationResult<
+  OperationResult,
+  Error,
+  number
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<OperationResult>(`/api/stock/moves/${String(id)}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["stock"] }),
+  });
 }
 
 export function usePatchItem(id: number | null) {

@@ -32,7 +32,9 @@ async def _receive(
 
 
 async def _op(client: AsyncClient, item: dict[str, Any], op: str, qty: int) -> None:
-    r = await client.post(f"/api/stock/items/{item['id']}/{op}", json={"qty": qty, "price": "540"})
+    r = await client.post(
+        f"/api/stock/items/{item['id']}/{op}", json={"qty": qty, "price": "540", "payment": "cash"}
+    )
     assert r.status_code == 201
 
 
@@ -137,3 +139,13 @@ async def test_patch_negative_markup(client: AsyncClient) -> None:
     r = await client.patch(f"/api/stock/items/{item['id']}", json={"markup": "-10"})
     assert r.status_code == 200
     assert r.json()["markup"] == "-10.00"
+
+
+async def test_moves_cancellable_only_newest(client: AsyncClient) -> None:
+    item = await _receive(client)
+    await _op(client, item, "sales", 1)
+    await _op(client, item, "returns", 1)
+    moves = (await client.get(f"/api/stock/items/{item['id']}/moves")).json()
+    assert [m["cancellable"] for m in moves] == [True, False, False]
+    assert all(m["user"] == "test" for m in moves)
+    assert all(m["cancelled"] is False for m in moves)

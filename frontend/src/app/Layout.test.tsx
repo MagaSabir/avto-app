@@ -125,7 +125,7 @@ describe("Layout", () => {
     expect(link.querySelector(".font-mono")).toBeNull();
   });
 
-  it("puts «Заказы» between «Склад» and «Взаиморасчёты»", async () => {
+  it("orders the navigation: Поиск, Склад, Касса, Клиенты, Заказы, Взаиморасчёты", async () => {
     setup();
     await screen.findByText("sabir");
     expect(screen.getByRole("link", { name: "Заказы" })).toHaveAttribute(
@@ -135,7 +135,18 @@ describe("Layout", () => {
     const names = within(screen.getByRole("navigation"))
       .getAllByRole("link")
       .map((l) => l.textContent);
-    expect(names).toEqual(["Поиск", "Склад", "Заказы", "Взаиморасчёты"]);
+    expect(names).toEqual([
+      "Поиск",
+      "Склад",
+      "Касса",
+      "Клиенты",
+      "Заказы",
+      "Взаиморасчёты",
+    ]);
+    expect(screen.getByRole("link", { name: "Касса" })).toHaveAttribute(
+      "href",
+      "/cash",
+    );
   });
 
   it("opens the user menu on hover and closes it on leave", async () => {

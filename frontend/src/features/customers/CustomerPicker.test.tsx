@@ -1,0 +1,253 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { CustomerBrief } from "@/api/customers";
+import { mockApi, renderWithProviders } from "@/test/mockApi";
+
+import { CustomerPicker, type PickerValue } from "./CustomerPicker";
+
+const IVAN: CustomerBrief = {
+  id: 1,
+  name: "Иван Тест",
+  phones: ["79000000001"],
+  cars: [{ id: 11, make: "Lada", model: "Vesta", plate: "A001AA" }],
+};
+const PETR: CustomerBrief = {
+  id: 2,
+  name: "Петр Тест",
+  phones: [],
+  cars: [
+    { id: 21, make: "Kia", model: "Rio", plate: "B002BB" },
+    { id: 22, make: "Ford", model: "Focus", plate: "C003CC" },
+  ],
+};
+
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { showModal: realShowModal, close: realClose } =
+  HTMLDialogElement.prototype;
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (
+    this: HTMLDialogElement,
+  ) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
+});
+afterEach(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+  vi.unstubAllGlobals();
+});
+
+function Harness({
+  onSubmit,
+  onValue,
+}: {
+  onSubmit: () => void;
+  onValue: (v: PickerValue) => void;
+}) {
+  const [value, setValue] = useState<PickerValue>({
+    customer: null,
+    carId: null,
+  });
+  const [incomplete, setIncomplete] = useState(false);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!incomplete) onSubmit();
+      }}
+    >
+      <CustomerPicker
+        onIncompleteChange={setIncomplete}
+        value={value}
+        onChange={(v) => {
+          setValue(v);
+          onValue(v);
+        }}
+      />
+      <button type="submit">go</button>
+    </form>
+  );
+}
+
+function setup(list: CustomerBrief[] = [IVAN, PETR]) {
+  const requests: string[] = [];
+  mockApi({
+    "GET /api/customers": (_init, url) => {
+      requests.push(url.searchParams.get("q") ?? "");
+      return list;
+    },
+  });
+  const onSubmit = vi.fn();
+  const onValue = vi.fn();
+  renderWithProviders(<Harness onSubmit={onSubmit} onValue={onValue} />);
+  return { onSubmit, onValue, requests };
+}
+
+const box = () => screen.getByRole("combobox", { name: "Клиент" });
+
+async function typeQuery(text: string) {
+  fireEvent.change(box(), { target: { value: text } });
+  await screen.findAllByRole("option");
+}
+
+describe("CustomerPicker", () => {
+  it("does not query for fewer than 2 characters", async () => {
+    const { requests } = setup();
+    fireEvent.change(box(), { target: { value: "И" } });
+    await new Promise((r) => setTimeout(r, 400));
+    expect(requests).not.toContain("И");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("shows options with name, phone and plate", async () => {
+    setup();
+    await typeQuery("Те");
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(2);
+    expect(options[0]).toHaveTextContent(
+      "Иван Тест · +7 900 000-00-01 · A001AA",
+    );
+    expect(options[1]).toHaveTextContent("Петр Тест · B002BB");
+    expect(box()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("selects with arrows and Enter without submitting the form", async () => {
+    const { onSubmit, onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "ArrowDown" });
+    expect(box().getAttribute("aria-activedescendant")).toBe(
+      screen.getAllByRole("option")[1]?.id,
+    );
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onValue).toHaveBeenLastCalledWith({ customer: PETR, carId: null });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Enter selects the first option by default", async () => {
+    const { onSubmit, onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: 11 });
+  });
+
+  it("hides options while the text differs from the loaded query", async () => {
+    const { onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.change(box(), { target: { value: "Пе" } });
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onValue).not.toHaveBeenCalled();
+  });
+
+  it("submits with the list closed only when the text is empty or a customer is selected", async () => {
+    const { onSubmit } = setup();
+    const form = box().closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Escape" });
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Очистить клиента" }));
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Enter" });
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(3);
+  });
+
+  it("Escape closes the list", async () => {
+    setup();
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("shows the car select preselected for the only car and allows no car", async () => {
+    const { onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.click(screen.getAllByRole("option")[0]);
+    expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: 11 });
+    const select = screen.getByLabelText<HTMLSelectElement>("Машина");
+    expect(select.value).toBe("11");
+    fireEvent.change(select, { target: { value: "" } });
+    expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: null });
+  });
+
+  it("offers a car select when there are several", async () => {
+    const { onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.click(screen.getAllByRole("option")[1]);
+    const select = screen.getByLabelText<HTMLSelectElement>("Машина");
+    expect(select.value).toBe("");
+    expect(
+      screen.getByRole("option", { name: "Без машины" }),
+    ).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "22" } });
+    expect(onValue).toHaveBeenLastCalledWith({ customer: PETR, carId: 22 });
+  });
+
+  it("clears the selection with the × button", async () => {
+    const { onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.click(screen.getAllByRole("option")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Очистить клиента" }));
+    expect(onValue).toHaveBeenLastCalledWith({ customer: null, carId: null });
+    expect(box()).toHaveValue("");
+  });
+
+  it("creates and selects a new customer", async () => {
+    const { onValue, onSubmit } = setup();
+    mockApi({
+      "GET /api/customers": () => [],
+      "POST /api/customers": () =>
+        new Response(
+          JSON.stringify({
+            id: 5,
+            name: "Новый Тест",
+            comment: null,
+            phones: ["79000000005"],
+            cars: [
+              {
+                id: 50,
+                customer_id: 5,
+                make: "Lada",
+                model: null,
+                year: null,
+                vin: null,
+                plate: null,
+                comment: null,
+              },
+            ],
+            created_at: "2026-10-29T10:00:00Z",
+          }),
+          { status: 201 },
+        ),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "+ Новый клиент" }));
+    fireEvent.change(screen.getByLabelText("Имя"), {
+      target: { value: "Новый Тест" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Создать" }));
+    await waitFor(() => {
+      expect(onValue).toHaveBeenCalled();
+    });
+    const last = onValue.mock.lastCall?.[0] as PickerValue;
+    expect(last.customer?.id).toBe(5);
+    expect(last.carId).toBe(50);
+    expect(box()).toHaveValue("Новый Тест");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});

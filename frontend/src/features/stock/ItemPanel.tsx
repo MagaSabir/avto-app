@@ -10,7 +10,9 @@ import { formatDate, formatPrice, trimPercent } from "./format";
 import { HistoryDialog } from "./HistoryDialog";
 import { ItemActions } from "./ItemActions";
 import { MoveDetailDialog } from "./MoveDetailDialog";
+import { CancelMove } from "./CancelMove";
 import { MoveHistory } from "./MoveHistory";
+import { useFlash } from "./useFlash";
 
 function Stat({ label, children }: { label: string; children: string }) {
   return (
@@ -32,6 +34,7 @@ export function ItemPanel({
   const moves = useStockMoves(itemId);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedMove, setSelectedMove] = useState<StockMove | null>(null);
+  const [flash, setFlash] = useFlash();
 
   if (itemId === null) {
     return (
@@ -115,8 +118,24 @@ export function ItemPanel({
               </Button>
             )}
           </div>
+          {flash && (
+            <p
+              role="status"
+              className="rounded-lg bg-status-ok-bg px-3 py-2 text-[13px] font-medium text-status-ok"
+            >
+              {flash}
+            </p>
+          )}
           {moves.data ? (
-            <MoveHistory moves={moves.data} onSelect={setSelectedMove} />
+            <MoveHistory
+              moves={moves.data}
+              onSelect={setSelectedMove}
+              action={(m) =>
+                m.cancellable ? (
+                  <CancelMove move={m} item={d} onDone={setFlash} />
+                ) : null
+              }
+            />
           ) : moves.error ? (
             <p className="text-status-out">{errorText(moves.error)}</p>
           ) : (

@@ -71,7 +71,7 @@ def _result() -> SupplierResult:
 
 
 @pytest.fixture
-async def make_client(db_session: AsyncSession) -> AsyncIterator[Any]:
+async def make_client(db_session: AsyncSession, test_user: User) -> AsyncIterator[Any]:
     clients: list[httpx.AsyncClient] = []
 
     def make(supplier: Supplier) -> httpx.AsyncClient:
@@ -81,7 +81,7 @@ async def make_client(db_session: AsyncSession) -> AsyncIterator[Any]:
             yield db_session
 
         app.dependency_overrides[get_session] = override_get_session
-        app.dependency_overrides[current_user] = lambda: User(id=0, login="test")
+        app.dependency_overrides[current_user] = lambda: test_user
         app.dependency_overrides[get_suppliers] = lambda: {supplier.code: supplier}
         c = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
         clients.append(c)

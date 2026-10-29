@@ -16,6 +16,7 @@ const STYLES: Record<StockMove["type"], { label: string; cls: string }> = {
     label: "Корректировка",
     cls: "bg-move-adjustment-bg text-move-adjustment",
   },
+  cancel: { label: "Отмена", cls: "bg-muted text-muted-foreground" },
 };
 
 export function MoveTypeBadge({ type }: { type: StockMove["type"] }) {
@@ -27,4 +28,8 @@ export function MoveTypeBadge({ type }: { type: StockMove["type"] }) {
       {label}
     </span>
   );
+}
+
+export function typeLabel(type: StockMove["type"]): string {
+  return STYLES[type].label;
 }

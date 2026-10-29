@@ -6,15 +6,21 @@ import {
   useReturn,
   useSale,
   useWriteoff,
+  type Payment,
   type StockItemDetail,
   type StockItemPatch,
 } from "@/api/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import {
+  CustomerPicker,
+  type PickerValue,
+} from "@/features/customers/CustomerPicker";
+
 import { DeleteItem } from "./DeleteItem";
 import { cents, errorText, Field } from "./formBits";
-import { formatPrice, trimPercent } from "./format";
+import { formatPrice, PAYMENT_LABELS, trimPercent } from "./format";
 import {
   markupFromSale,
   markupTooLarge,
@@ -35,6 +41,7 @@ const BUTTONS: { mode: Mode; label: string }[] = [
 ];
 
 const REASONS = ["брак", "потеря"];
+const PAYMENTS: Payment[] = ["cash", "transfer"];
 
 type FormProps = {
   item: StockItemDetail;
@@ -112,6 +119,14 @@ function SaleReturnForm({
   const op = kind === "sale" ? sale : ret;
   const [qty, setQty] = useState("1");
   const [price, setPrice] = useState(formatPrice(item.sale_price));
+  const [payment, setPayment] = useState<Payment>("cash");
+  const [comment, setComment] = useState("");
+  const [picked, setPicked] = useState<PickerValue>({
+    customer: null,
+    carId: null,
+  });
+  const [incomplete, setIncomplete] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const qtyNum = parseQty(qty, 1);
   const priceNum = parseMoney(price);
@@ -130,8 +145,19 @@ function SaleReturnForm({
       onCancel={onCancel}
       onSubmit={() => {
         if (qtyNum === null || priceNum === null) return;
+        if (incomplete) {
+          setAttempted(true);
+          return;
+        }
         op.mutate(
-          { qty: qtyNum, price: priceNum },
+          {
+            qty: qtyNum,
+            price: priceNum,
+            payment,
+            ...(comment.trim() ? { comment: comment.trim() } : {}),
+            ...(picked.customer ? { customer_id: picked.customer.id } : {}),
+            ...(picked.carId !== null ? { car_id: picked.carId } : {}),
+          },
           {
             onSuccess: ({ item: next }) => {
               onDone(
@@ -164,6 +190,45 @@ function SaleReturnForm({
           }}
         />
       </Field>
+      <fieldset role="radiogroup" className="flex flex-col gap-1">
+        <legend className="mb-1 text-[12.5px] text-muted-foreground">
+          Оплата
+        </legend>
+        <div className="flex gap-3">
+          {PAYMENTS.map((p) => (
+            <label key={p} className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="payment"
+                value={p}
+                checked={payment === p}
+                onChange={() => {
+                  setPayment(p);
+                }}
+              />
+              {PAYMENT_LABELS[p]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <Field label="Комментарий">
+        <Input
+          value={comment}
+          onChange={(e) => {
+            setComment(e.target.value);
+          }}
+        />
+      </Field>
+      <CustomerPicker
+        value={picked}
+        onChange={setPicked}
+        onIncompleteChange={setIncomplete}
+      />
+      {incomplete && attempted && (
+        <p role="alert" className="col-span-2 text-[12.5px] text-destructive">
+          Выберите клиента из списка или очистите поле
+        </p>
+      )}
     </FormShell>
   );
 }

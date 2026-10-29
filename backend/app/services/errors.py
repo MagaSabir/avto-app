@@ -48,6 +48,13 @@ class SupplierNotFound(DomainError):
         super().__init__("Поставщик не найден")
 
 
+class InvalidPeriod(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неверный период")
+
+
 class InvalidCredentials(DomainError):
     status_code = 401
 
@@ -151,3 +158,73 @@ class EmptyOrderCode(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Укажите код заказа")
+
+
+class MoveNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Операция не найдена")
+
+
+class MoveNotCancellable(DomainError):
+    status_code = 409
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+class CustomerNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Клиент не найден")
+
+
+class CarNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Машина не найдена")
+
+
+class InvalidPhone(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неверный телефон")
+
+
+class InvalidVin(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неверный VIN")
+
+
+class CarNeedsIdentity(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Укажите марку, VIN или госномер")
+
+
+class EmptyCustomerName(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Введите имя")
+
+
+class InvalidYear(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неверный год")
+
+
+class InvalidCustomer(DomainError):
+    status_code = 422
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

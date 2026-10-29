@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api import auth as auth_api
 from app.api import cart as cart_api
+from app.api import cash as cash_api
+from app.api import customers as customers_api
 from app.api import health
 from app.api import orders as orders_api
 from app.api import search as search_api
@@ -17,6 +19,7 @@ from app.api import stock as stock_api
 from app.api.deps import current_user
 from app.core.config import get_settings
 from app.core.db import engine
+from app.core.logging import install_access_log_filter
 from app.core.login_limiter import LoginLimiter
 from app.core.middleware import JsonOnlyMiddleware, NoStoreMiddleware
 from app.services.errors import DomainError
@@ -32,6 +35,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    install_access_log_filter()
     settings = get_settings()
     app = FastAPI(
         title="avto_app",
@@ -69,6 +73,8 @@ def create_app() -> FastAPI:
     app.include_router(settlements_api.router, prefix="/api", dependencies=protected)
     app.include_router(orders_api.router, prefix="/api", dependencies=protected)
     app.include_router(cart_api.router, prefix="/api", dependencies=protected)
+    app.include_router(cash_api.router, prefix="/api", dependencies=protected)
+    app.include_router(customers_api.router, prefix="/api", dependencies=protected)
     return app
 
 

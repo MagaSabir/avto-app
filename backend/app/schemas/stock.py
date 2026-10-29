@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validat
 
 from app.domain.numbers import normalize_brand, normalize_number
 from app.domain.stock import StockStatus, stock_status
-from app.models.stock import MoveType
+from app.models.stock import MoveType, Payment
+from app.schemas.customers import CarBrief, CustomerRef
 from app.schemas.types import Money, Percent
 
 # stock_items.markup is NUMERIC(6,2).
@@ -35,8 +36,6 @@ class StockItemOut(BaseModel):
 
 
 class StockMoveOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     type: MoveType
     qty_delta: int
@@ -45,6 +44,14 @@ class StockMoveOut(BaseModel):
     supplier: str | None
     comment: str | None
     created_at: datetime
+    cost: Money | None
+    payment: Payment | None
+    user: str | None
+    cancels_move_id: int | None
+    cancelled: bool = False
+    cancellable: bool = False
+    customer: CustomerRef | None = None
+    car: CarBrief | None = None
 
 
 class OperationResult(BaseModel):
@@ -95,7 +102,10 @@ class ReceiptIn(BaseModel):
 class SaleIn(BaseModel):
     qty: int = Field(gt=0)
     price: Decimal = Field(gt=0, decimal_places=2)
+    payment: Payment
     comment: str | None = None
+    customer_id: int | None = None
+    car_id: int | None = None
 
     @field_validator("comment")
     @classmethod

@@ -79,10 +79,53 @@ describe("ItemActions", () => {
     expect(screen.getByText("Цена продажи ниже закупки")).toBeInTheDocument();
     click("Провести");
     await waitFor(() => {
-      expect(body).toEqual({ qty: 1, price: "300.00" });
+      expect(body).toEqual({ qty: 1, price: "300.00", payment: "cash" });
     });
     expect(await screen.findByText("✓ Продажа: −1 → остаток 6")).toBeVisible();
     expect(screen.getByRole("button", { name: "Продать" })).toBeVisible();
+  });
+
+  it("sends payment and trimmed comment for a sale", async () => {
+    let body: unknown;
+    mockApi({
+      "POST /api/stock/items/3/sales": (init) => {
+        body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    const group = screen.getByRole("radiogroup", { name: "Оплата" });
+    expect(within(group).getByRole("radio", { name: "Нал" })).toBeChecked();
+    fireEvent.click(within(group).getByRole("radio", { name: "Перевод" }));
+    type("Комментарий", "  скидка ");
+    click("Провести");
+    await waitFor(() => {
+      expect(body).toEqual({
+        qty: 1,
+        price: "540.00",
+        payment: "transfer",
+        comment: "скидка",
+      });
+    });
+  });
+
+  it("has the payment group in the return form and omits empty comment", async () => {
+    let body: unknown;
+    mockApi({
+      "POST /api/stock/items/3/returns": (init) => {
+        body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify(result(8)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Возврат");
+    const group = screen.getByRole("radiogroup", { name: "Оплата" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(2);
+    click("Провести");
+    await waitFor(() => {
+      expect(body).toEqual({ qty: 1, price: "540.00", payment: "cash" });
+    });
   });
 
   it("shows the server message on 409 and keeps the form", async () => {
@@ -147,7 +190,7 @@ describe("ItemActions", () => {
     click("Возврат");
     click("Провести");
     await waitFor(() => {
-      expect(body).toEqual({ qty: 1, price: "540.00" });
+      expect(body).toEqual({ qty: 1, price: "540.00", payment: "cash" });
     });
   });
 
@@ -253,5 +296,116 @@ describe("ItemActions", () => {
       );
       expect(screen.getByRole("dialog")).toBeVisible();
     });
+  });
+
+  it("sends customer_id and car_id when a customer is picked", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      "GET /api/customers": () => [
+        {
+          id: 1,
+          name: "Иван Тест",
+          phones: ["79000000001"],
+          cars: [{ id: 11, make: "Lada", model: "Vesta", plate: "A001AA" }],
+        },
+      ],
+      "POST /api/stock/items/3/sales": (init) => {
+        body = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    fireEvent.change(screen.getByRole("combobox", { name: "Клиент" }), {
+      target: { value: "Ив" },
+    });
+    fireEvent.click((await screen.findAllByRole("option"))[0]);
+    click("Провести");
+    await screen.findByText(/✓ Продажа/);
+    expect(body.customer_id).toBe(1);
+    expect(body.car_id).toBe(11);
+  });
+
+  it("does not submit while a typed customer is not selected", async () => {
+    let posts = 0;
+    mockApi({
+      "GET /api/customers": () => [],
+      "POST /api/stock/items/3/sales": () => {
+        posts += 1;
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    const box = screen.getByRole("combobox", { name: "Клиент" });
+    fireEvent.change(box, { target: { value: "Ив" } });
+    click("Провести");
+    expect(
+      await screen.findByText("Выберите клиента из списка или очистите поле"),
+    ).toBeInTheDocument();
+    expect(posts).toBe(0);
+
+    fireEvent.change(box, { target: { value: "" } });
+    click("Провести");
+    await screen.findByText(/✓ Продажа/);
+    expect(posts).toBe(1);
+  });
+
+  it("omits customer fields when no customer is picked", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      "POST /api/stock/items/3/returns": (init) => {
+        body = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response(JSON.stringify(result(8)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Возврат");
+    click("Провести");
+    await screen.findByText(/✓ Возврат/);
+    expect(body).not.toHaveProperty("customer_id");
+    expect(body).not.toHaveProperty("car_id");
+  });
+
+  it("creating a customer does not record the sale", async () => {
+    const sales = vi.fn();
+    const created = vi.fn();
+    mockApi({
+      "GET /api/customers": () => [],
+      "POST /api/customers": () => {
+        created();
+        return new Response(
+          JSON.stringify({
+            id: 5,
+            name: "Новый Тест",
+            comment: null,
+            phones: [],
+            cars: [],
+            created_at: "2026-10-29T10:00:00Z",
+          }),
+          { status: 201 },
+        );
+      },
+      "POST /api/stock/items/3/sales": () => {
+        sales();
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    click("+ Новый клиент");
+    fireEvent.change(screen.getByLabelText("Имя"), {
+      target: { value: "Новый Тест" },
+    });
+    click("Создать");
+    await waitFor(() => {
+      expect(created).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Клиент" })).toHaveValue(
+        "Новый Тест",
+      );
+    });
+    expect(sales).not.toHaveBeenCalled();
   });
 });

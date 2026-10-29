@@ -175,6 +175,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stock/moves/{move_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Move */
+        post: operations["cancel_move_api_stock_moves__move_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stock/items": {
         parameters: {
             query?: never;
@@ -468,6 +485,129 @@ export interface paths {
         patch: operations["set_qty_api_cart_items__item_id__patch"];
         trace?: never;
     };
+    "/api/cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cash */
+        get: operations["get_cash_api_cash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customers */
+        get: operations["list_customers_api_customers_get"];
+        put?: never;
+        /** Create Customer */
+        post: operations["create_customer_api_customers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count Customers */
+        get: operations["count_customers_api_customers_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/{customer_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer */
+        get: operations["get_customer_api_customers__customer_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Customer */
+        delete: operations["delete_customer_api_customers__customer_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Customer */
+        patch: operations["update_customer_api_customers__customer_id__patch"];
+        trace?: never;
+    };
+    "/api/customers/{customer_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Customer History */
+        get: operations["customer_history_api_customers__customer_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/{customer_id}/cars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Car */
+        post: operations["create_car_api_customers__customer_id__cars_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/customers/{customer_id}/cars/{car_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Car */
+        delete: operations["delete_car_api_customers__customer_id__cars__car_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Car */
+        patch: operations["update_car_api_customers__customer_id__cars__car_id__patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -478,6 +618,64 @@ export interface components {
             actual_qty: number;
             /** Comment */
             comment?: string | null;
+        };
+        /** CarBrief */
+        CarBrief: {
+            /** Id */
+            id: number;
+            /** Make */
+            make: string | null;
+            /** Model */
+            model: string | null;
+            /** Plate */
+            plate: string | null;
+        };
+        /** CarIn */
+        CarIn: {
+            /** Make */
+            make?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Engine */
+            engine?: string | null;
+            /** Vin */
+            vin?: string | null;
+            /** Plate */
+            plate?: string | null;
+            /** Year */
+            year?: number | null;
+        };
+        /** CarOut */
+        CarOut: {
+            /** Id */
+            id: number;
+            /** Make */
+            make: string | null;
+            /** Model */
+            model: string | null;
+            /** Engine */
+            engine: string | null;
+            /** Vin */
+            vin: string | null;
+            /** Plate */
+            plate: string | null;
+            /** Year */
+            year: number | null;
+        };
+        /** CarPatch */
+        CarPatch: {
+            /** Make */
+            make?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Engine */
+            engine?: string | null;
+            /** Vin */
+            vin?: string | null;
+            /** Plate */
+            plate?: string | null;
+            /** Year */
+            year?: number | null;
         };
         /** CartItemIn */
         CartItemIn: {
@@ -600,6 +798,193 @@ export interface components {
             message: string | null;
             /** Items */
             items: components["schemas"]["CartRefreshItem"][];
+        };
+        /** CashOperation */
+        CashOperation: {
+            /** Move Id */
+            move_id: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "sale" | "return";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Item Id */
+            item_id: number;
+            /** Number Raw */
+            number_raw: string;
+            /** Brand */
+            brand: string;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+            /** Price */
+            price: string;
+            /** Amount */
+            amount: string;
+            /** Payment */
+            payment: ("cash" | "transfer") | null;
+            /** Cost */
+            cost: string | null;
+            /** Profit */
+            profit: string | null;
+            /** User */
+            user: string | null;
+            customer?: components["schemas"]["CustomerRef"] | null;
+        };
+        /** CashOut */
+        CashOut: {
+            totals: components["schemas"]["CashTotals"];
+            /** Operations */
+            operations: components["schemas"]["CashOperation"][];
+        };
+        /** CashTotals */
+        CashTotals: {
+            /** Sales */
+            sales: string;
+            /** Returns */
+            returns: string;
+            /** Revenue */
+            revenue: string;
+            /** Cash */
+            cash: string;
+            /** Transfer */
+            transfer: string;
+            /** Profit */
+            profit: string;
+            /** No Cost Count */
+            no_cost_count: number;
+            /** No Payment Count */
+            no_payment_count: number;
+            /** Writeoffs */
+            writeoffs: string;
+            /** Writeoffs No Cost Count */
+            writeoffs_no_cost_count: number;
+            /** Profit After Writeoffs */
+            profit_after_writeoffs: string;
+        };
+        /** CustomerBrief */
+        CustomerBrief: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Phones */
+            phones: string[];
+            /** Cars */
+            cars: components["schemas"]["CarBrief"][];
+            /** Last Purchase At */
+            last_purchase_at?: string | null;
+            /** Last Car Id */
+            last_car_id?: number | null;
+        };
+        /** CustomerCount */
+        CustomerCount: {
+            /** Total */
+            total: number;
+        };
+        /** CustomerHistoryRow */
+        CustomerHistoryRow: {
+            /** Move Id */
+            move_id: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "sale" | "return";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Item Id */
+            item_id: number;
+            /** Number Raw */
+            number_raw: string;
+            /** Brand */
+            brand: string;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+            /** Price */
+            price: string;
+            /** Amount */
+            amount: string;
+            /** Payment */
+            payment: ("cash" | "transfer") | null;
+            car: components["schemas"]["CarBrief"] | null;
+        };
+        /** CustomerIn */
+        CustomerIn: {
+            /** Name */
+            name: string;
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Phones
+             * @default []
+             */
+            phones: string[];
+        };
+        /** CustomerOut */
+        CustomerOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Comment */
+            comment: string | null;
+            /** Phones */
+            phones: string[];
+            /** Cars */
+            cars: components["schemas"]["CarOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CustomerPatch */
+        CustomerPatch: {
+            /** Name */
+            name?: string | null;
+            /** Comment */
+            comment?: string | null;
+            /** Phones */
+            phones?: string[] | null;
+        };
+        /** CustomerRef */
+        CustomerRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** CustomerSaved */
+        CustomerSaved: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Comment */
+            comment: string | null;
+            /** Phones */
+            phones: string[];
+            /** Cars */
+            cars: components["schemas"]["CarOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Warnings */
+            warnings: string[];
         };
         /** ErrorOut */
         ErrorOut: {
@@ -812,8 +1197,17 @@ export interface components {
             qty: number;
             /** Price */
             price: number | string;
+            /**
+             * Payment
+             * @enum {string}
+             */
+            payment: "cash" | "transfer";
             /** Comment */
             comment?: string | null;
+            /** Customer Id */
+            customer_id?: number | null;
+            /** Car Id */
+            car_id?: number | null;
         };
         /** SaleIn */
         SaleIn: {
@@ -821,8 +1215,17 @@ export interface components {
             qty: number;
             /** Price */
             price: number | string;
+            /**
+             * Payment
+             * @enum {string}
+             */
+            payment: "cash" | "transfer";
             /** Comment */
             comment?: string | null;
+            /** Customer Id */
+            customer_id?: number | null;
+            /** Car Id */
+            car_id?: number | null;
         };
         /** SettingsOut */
         SettingsOut: {
@@ -1040,7 +1443,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "receipt" | "sale" | "return" | "writeoff" | "adjustment";
+            type: "receipt" | "sale" | "return" | "writeoff" | "adjustment" | "cancel";
             /** Qty Delta */
             qty_delta: number;
             /** Qty After */
@@ -1056,6 +1459,26 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Cost */
+            cost: string | null;
+            /** Payment */
+            payment: ("cash" | "transfer") | null;
+            /** User */
+            user: string | null;
+            /** Cancels Move Id */
+            cancels_move_id: number | null;
+            /**
+             * Cancelled
+             * @default false
+             */
+            cancelled: boolean;
+            /**
+             * Cancellable
+             * @default false
+             */
+            cancellable: boolean;
+            customer?: components["schemas"]["CustomerRef"] | null;
+            car?: components["schemas"]["CarBrief"] | null;
         };
         /** StockSearchItem */
         StockSearchItem: {
@@ -1562,6 +1985,55 @@ export interface operations {
                 "application/json": components["schemas"]["AdjustmentIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    cancel_move_api_stock_moves__move_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                move_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             201: {
@@ -2309,6 +2781,435 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CartItemOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_cash_api_cash_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_customers_api_customers_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerBrief"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_api_customers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerSaved"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    count_customers_api_customers_count_get: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerCount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_api_customers__customer_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    delete_customer_api_customers__customer_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    update_customer_api_customers__customer_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerSaved"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    customer_history_api_customers__customer_id__history_get: {
+        parameters: {
+            query?: {
+                car_id?: number | null;
+            };
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerHistoryRow"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_car_api_customers__customer_id__cars_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    delete_car_api_customers__customer_id__cars__car_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+                car_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    update_car_api_customers__customer_id__cars__car_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer_id: number;
+                car_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CarPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CarOut"];
                 };
             };
             /** @description Not Found */

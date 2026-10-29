@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     mikado_password: str = Field(default="", repr=False)
     mikado_fake: bool = False
     api_docs: bool = False
+    shop_timezone: str = "Europe/Moscow"
 
     @field_validator("suppliers", mode="before")
     @classmethod

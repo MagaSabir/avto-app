@@ -140,3 +140,51 @@ describe("ItemPanel", () => {
     ).toBe(true);
   });
 });
+
+describe("ItemPanel cancel", () => {
+  const move = (id: number, cancellable: boolean) => ({
+    id,
+    type: "sale",
+    qty_delta: -2,
+    qty_after: 5,
+    price: "540.00",
+    supplier: null,
+    comment: null,
+    created_at: "2026-10-15T09:30:00Z",
+    cancellable,
+  });
+
+  it("shows the cancel button only on the cancellable move", async () => {
+    mockApi({
+      "GET /api/stock/items/3": () => DETAIL,
+      "GET /api/stock/items/3/moves": () => [move(2, true), move(1, false)],
+    });
+    renderWithProviders(<ItemPanel itemId={3} />);
+    await screen.findAllByText("−2");
+    expect(screen.getAllByRole("button", { name: "Отменить" })).toHaveLength(1);
+  });
+
+  it("shows a flash after cancelling", async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+    mockApi({
+      "GET /api/stock/items/3": () => DETAIL,
+      "GET /api/stock/items/3/moves": () => [move(2, true)],
+      "POST /api/stock/moves/2/cancel": () => ({
+        item: { ...DETAIL, qty: 9 },
+        move: {},
+      }),
+    });
+    renderWithProviders(<ItemPanel itemId={3} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Отменить" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Отменить" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "✓ Отменено → остаток 9",
+    );
+  });
+});

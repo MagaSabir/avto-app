@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import CurrentUser
 from app.core.db import get_session
 from app.schemas.errors import ErrorOut
 from app.schemas.stock import (
@@ -26,8 +27,8 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.post("/receipts", status_code=201, response_model=OperationResult)
-async def create_receipt(data: ReceiptIn, session: Session) -> OperationResult:
-    return await stock_service.receive(session, data)
+async def create_receipt(data: ReceiptIn, session: Session, user: CurrentUser) -> OperationResult:
+    return await stock_service.receive(session, data, user)
 
 
 _ERRORS: dict[int | str, dict[str, Any]] = {
@@ -43,8 +44,10 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
     response_model=OperationResult,
     responses=_ERRORS,
 )
-async def create_sale(item_id: int, data: SaleIn, session: Session) -> OperationResult:
-    return await stock_service.sell(session, item_id, data)
+async def create_sale(
+    item_id: int, data: SaleIn, session: Session, user: CurrentUser
+) -> OperationResult:
+    return await stock_service.sell(session, item_id, data, user)
 
 
 @router.post(
@@ -53,8 +56,10 @@ async def create_sale(item_id: int, data: SaleIn, session: Session) -> Operation
     response_model=OperationResult,
     responses=_ERRORS,
 )
-async def create_return(item_id: int, data: ReturnIn, session: Session) -> OperationResult:
-    return await stock_service.accept_return(session, item_id, data)
+async def create_return(
+    item_id: int, data: ReturnIn, session: Session, user: CurrentUser
+) -> OperationResult:
+    return await stock_service.accept_return(session, item_id, data, user)
 
 
 @router.post(
@@ -63,8 +68,10 @@ async def create_return(item_id: int, data: ReturnIn, session: Session) -> Opera
     response_model=OperationResult,
     responses=_ERRORS,
 )
-async def create_writeoff(item_id: int, data: WriteoffIn, session: Session) -> OperationResult:
-    return await stock_service.write_off(session, item_id, data)
+async def create_writeoff(
+    item_id: int, data: WriteoffIn, session: Session, user: CurrentUser
+) -> OperationResult:
+    return await stock_service.write_off(session, item_id, data, user)
 
 
 @router.post(
@@ -73,8 +80,20 @@ async def create_writeoff(item_id: int, data: WriteoffIn, session: Session) -> O
     response_model=OperationResult,
     responses=_ERRORS,
 )
-async def create_adjustment(item_id: int, data: AdjustmentIn, session: Session) -> OperationResult:
-    return await stock_service.adjust(session, item_id, data)
+async def create_adjustment(
+    item_id: int, data: AdjustmentIn, session: Session, user: CurrentUser
+) -> OperationResult:
+    return await stock_service.adjust(session, item_id, data, user)
+
+
+@router.post(
+    "/moves/{move_id}/cancel",
+    status_code=201,
+    response_model=OperationResult,
+    responses=_ERRORS,
+)
+async def cancel_move(move_id: int, session: Session, user: CurrentUser) -> OperationResult:
+    return await stock_service.cancel_move(session, move_id, user)
 
 
 @router.get("/items", response_model=StockItemList)
