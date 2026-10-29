@@ -341,4 +341,46 @@ describe("ItemActions", () => {
     expect(body).not.toHaveProperty("customer_id");
     expect(body).not.toHaveProperty("car_id");
   });
+
+  it("creating a customer does not record the sale", async () => {
+    const sales = vi.fn();
+    const created = vi.fn();
+    mockApi({
+      "GET /api/customers": () => [],
+      "POST /api/customers": () => {
+        created();
+        return new Response(
+          JSON.stringify({
+            id: 5,
+            name: "Новый Тест",
+            comment: null,
+            phones: [],
+            cars: [],
+            created_at: "2026-10-29T10:00:00Z",
+          }),
+          { status: 201 },
+        );
+      },
+      "POST /api/stock/items/3/sales": () => {
+        sales();
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    click("+ Новый клиент");
+    fireEvent.change(screen.getByLabelText("Имя"), {
+      target: { value: "Новый Тест" },
+    });
+    click("Создать");
+    await waitFor(() => {
+      expect(created).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Клиент" })).toHaveValue(
+        "Новый Тест",
+      );
+    });
+    expect(sales).not.toHaveBeenCalled();
+  });
 });

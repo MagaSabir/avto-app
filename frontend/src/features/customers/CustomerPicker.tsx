@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 
 import {
   useCustomers,
@@ -43,7 +44,7 @@ export function CustomerPicker({
   const [text, setText] = useState("");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
+  const [active, setActive] = useState(0);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -55,9 +56,13 @@ export function CustomerPicker({
     };
   }, [text]);
 
-  const { data } = useCustomers(q, q.length >= MIN_CHARS);
+  const { data, isPlaceholderData } = useCustomers(q, q.length >= MIN_CHARS);
+  const trimmed = text.trim();
   const options =
-    value.customer === null && text.trim().length >= MIN_CHARS
+    value.customer === null &&
+    trimmed.length >= MIN_CHARS &&
+    q === trimmed &&
+    !isPlaceholderData
       ? (data ?? []).slice(0, MAX_ROWS)
       : [];
   const expanded = open && options.length > 0;
@@ -65,7 +70,7 @@ export function CustomerPicker({
   function choose(customer: CustomerBrief) {
     setText(customer.name);
     setOpen(false);
-    setActive(-1);
+    setActive(0);
     onChange(pick(customer));
   }
 
@@ -73,7 +78,7 @@ export function CustomerPicker({
     setText("");
     setQ("");
     setOpen(false);
-    setActive(-1);
+    setActive(0);
     onChange({ customer: null, carId: null });
   }
 
@@ -100,10 +105,8 @@ export function CustomerPicker({
       const step = e.key === "ArrowDown" ? 1 : -1;
       setActive((a) => (a + step + options.length) % options.length);
     } else if (e.key === "Enter" && expanded) {
-      if (active >= 0 && active < options.length) {
-        e.preventDefault();
-        choose(options[active]);
-      }
+      e.preventDefault();
+      choose(options[Math.min(active, options.length - 1)]);
     } else if (e.key === "Escape" && expanded) {
       e.preventDefault();
       e.stopPropagation();
@@ -128,14 +131,14 @@ export function CustomerPicker({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={
-            expanded && active >= 0 ? `${uid}-opt-${String(active)}` : undefined
+            expanded ? `${uid}-opt-${String(active)}` : undefined
           }
           autoComplete="off"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
             setOpen(true);
-            setActive(-1);
+            setActive(0);
             if (value.customer !== null)
               onChange({ customer: null, carId: null });
           }}
@@ -213,14 +216,17 @@ export function CustomerPicker({
       >
         + Новый клиент
       </button>
-      <NewCustomerDialog
-        compact
-        open={creating}
-        onClose={() => {
-          setCreating(false);
-        }}
-        onCreated={created}
-      />
+      {createPortal(
+        <NewCustomerDialog
+          compact
+          open={creating}
+          onClose={() => {
+            setCreating(false);
+          }}
+          onCreated={created}
+        />,
+        document.body,
+      )}
     </div>
   );
 }

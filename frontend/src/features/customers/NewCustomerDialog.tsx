@@ -22,6 +22,8 @@ function NewCustomerForm({
 
   function submit(e: SyntheticEvent) {
     e.preventDefault();
+    // Portals bubble React events: never let a host form see this submit.
+    e.stopPropagation();
     const trimmedPhone = phone.trim();
     const trimmedComment = comment.trim();
     create.mutate(

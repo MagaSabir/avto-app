@@ -119,7 +119,6 @@ describe("CustomerPicker", () => {
     const { onSubmit, onValue } = setup();
     await typeQuery("Те");
     fireEvent.keyDown(box(), { key: "ArrowDown" });
-    fireEvent.keyDown(box(), { key: "ArrowDown" });
     expect(box().getAttribute("aria-activedescendant")).toBe(
       screen.getAllByRole("option")[1]?.id,
     );
@@ -127,6 +126,23 @@ describe("CustomerPicker", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onValue).toHaveBeenLastCalledWith({ customer: PETR, carId: null });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Enter selects the first option by default", async () => {
+    const { onSubmit, onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: 11 });
+  });
+
+  it("hides options while the text differs from the loaded query", async () => {
+    const { onValue } = setup();
+    await typeQuery("Те");
+    fireEvent.change(box(), { target: { value: "Пе" } });
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    fireEvent.keyDown(box(), { key: "Enter" });
+    expect(onValue).not.toHaveBeenCalled();
   });
 
   it("Enter with the list closed submits the form", () => {
@@ -173,7 +189,7 @@ describe("CustomerPicker", () => {
   });
 
   it("creates and selects a new customer", async () => {
-    const { onValue } = setup();
+    const { onValue, onSubmit } = setup();
     mockApi({
       "GET /api/customers": () => [],
       "POST /api/customers": () =>
@@ -212,5 +228,6 @@ describe("CustomerPicker", () => {
     expect(last.customer?.id).toBe(5);
     expect(last.carId).toBe(50);
     expect(box()).toHaveValue("Новый Тест");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
