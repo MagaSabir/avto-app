@@ -151,3 +151,17 @@ class EmptyOrderCode(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Укажите код заказа")
+
+
+class MoveNotFound(DomainError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("Операция не найдена")
+
+
+class MoveNotCancellable(DomainError):
+    status_code = 409
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

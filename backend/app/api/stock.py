@@ -86,6 +86,16 @@ async def create_adjustment(
     return await stock_service.adjust(session, item_id, data, user)
 
 
+@router.post(
+    "/moves/{move_id}/cancel",
+    status_code=201,
+    response_model=OperationResult,
+    responses=_ERRORS,
+)
+async def cancel_move(move_id: int, session: Session, user: CurrentUser) -> OperationResult:
+    return await stock_service.cancel_move(session, move_id, user)
+
+
 @router.get("/items", response_model=StockItemList)
 async def list_items(
     session: Session, q: str = "", status: Literal["all", "low", "out"] = "all"

@@ -21,6 +21,27 @@ async def get_item_for_update(session: AsyncSession, item_id: int) -> StockItem 
     return result.scalar_one_or_none()
 
 
+async def get_move(session: AsyncSession, move_id: int) -> StockMove | None:
+    return await session.get(StockMove, move_id)
+
+
+async def last_move(session: AsyncSession, item_id: int) -> StockMove | None:
+    result = await session.execute(
+        select(StockMove)
+        .where(StockMove.item_id == item_id)
+        .order_by(StockMove.created_at.desc(), StockMove.id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def is_cancelled(session: AsyncSession, move_id: int) -> bool:
+    found = await session.scalar(
+        select(StockMove.id).where(StockMove.cancels_move_id == move_id).limit(1)
+    )
+    return found is not None
+
+
 async def find_item_for_update(
     session: AsyncSession, number_norm: str, brand: str
 ) -> StockItem | None:

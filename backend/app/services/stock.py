@@ -5,7 +5,7 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.numbers import normalize_brand, normalize_number
-from app.domain.stock import cancel_block
+from app.domain.stock import CancelBlock, cancel_block
 from app.models.auth import User
 from app.models.stock import MoveType, Payment, StockItem, StockMove
 from app.repositories import stock as stock_repository
@@ -23,7 +23,20 @@ from app.schemas.stock import (
     StockMoveOut,
     WriteoffIn,
 )
-from app.services.errors import InsufficientStock, ItemNotFound, NothingChanged
+from app.services.errors import (
+    InsufficientStock,
+    ItemNotFound,
+    MoveNotCancellable,
+    MoveNotFound,
+    NothingChanged,
+)
+
+_CANCEL_MESSAGES: dict[CancelBlock, str] = {
+    "is_cancel": "Отмену отменить нельзя",
+    "already_cancelled": "Операция уже отменена",
+    "not_last": "Это уже не последняя операция",
+    "too_old": "Прошло больше 24 часов",
+}
 
 
 def _move_out(
@@ -186,6 +199,41 @@ async def adjust(
         user_id=user.id if user else None,
     )
     return await _finish(session, item, move, user)
+
+
+async def cancel_move(session: AsyncSession, move_id: int, user: User | None) -> OperationResult:
+    move = await stock_repository.get_move(session, move_id)
+    if move is None:
+        raise MoveNotFound()
+    item = await _locked_item(session, move.item_id)
+    last = await stock_repository.last_move(session, item.id)
+    blocked = cancel_block(
+        move_type=move.type,
+        created_at=move.created_at,
+        now=datetime.now(UTC),
+        is_last=last is not None and last.id == move.id,
+        cancelled=await stock_repository.is_cancelled(session, move.id),
+    )
+    if blocked is not None:
+        raise MoveNotCancellable(_CANCEL_MESSAGES[blocked])
+    if (
+        move.type == "receipt"
+        and move.prev_purchase_price is not None
+        and move.prev_markup is not None
+        and move.prev_sale_price is not None
+    ):
+        item.purchase_price = move.prev_purchase_price
+        item.markup = move.prev_markup
+        item.sale_price = move.prev_sale_price
+    cancel = await stock_repository.add_move(
+        session,
+        item,
+        "cancel",
+        -move.qty_delta,
+        user_id=user.id if user else None,
+        cancels_move_id=move.id,
+    )
+    return await _finish(session, item, cancel, user)
 
 
 async def list_items(
