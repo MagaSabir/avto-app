@@ -41,6 +41,7 @@ export function HistoryDialog({
                 <th className={`${TH} w-[4.5rem] text-right`}>Кол-во</th>
                 <th className={`${TH} w-[6.5rem] text-right`}>Цена</th>
                 <th className={`${TH} w-[5rem] text-right`}>Остаток</th>
+                <th className={`${TH} w-[6rem]`}>Кто</th>
                 <th className={TH}>Комментарий</th>
               </tr>
             </thead>
@@ -51,7 +52,7 @@ export function HistoryDialog({
                   onClick={() => {
                     setSelected(m);
                   }}
-                  className="cursor-pointer hover:bg-muted"
+                  className={`cursor-pointer hover:bg-muted ${m.cancelled ? "line-through text-muted-foreground" : ""}`}
                 >
                   <td
                     className={`${TD} font-mono whitespace-nowrap text-muted-foreground`}
@@ -76,9 +77,12 @@ export function HistoryDialog({
                   >
                     {String(m.qty_after)}
                   </td>
+                  <td className={`${TD} truncate text-muted-foreground`}>
+                    {m.user ?? "—"}
+                  </td>
                   <td className={`${TD} text-muted-foreground`}>
                     <span className="line-clamp-2 [overflow-wrap:anywhere]">
-                      {explanation(m) || "—"}
+                      {explanation(m, moves) || "—"}
                     </span>
                   </td>
                 </tr>

@@ -29,3 +29,7 @@ export function MoveTypeBadge({ type }: { type: StockMove["type"] }) {
     </span>
   );
 }
+
+export function typeLabel(type: StockMove["type"]): string {
+  return STYLES[type].label;
+}

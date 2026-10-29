@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { StockMove } from "@/api/stock";
 
-import { MoveHistory } from "./MoveHistory";
+import { explanation, MoveHistory } from "./MoveHistory";
 
 const base: StockMove = {
   id: 1,
@@ -85,5 +85,58 @@ describe("MoveHistory", () => {
     render(<MoveHistory moves={[base]} onSelect={onSelect} />);
     fireEvent.click(screen.getByText("Приход"));
     expect(onSelect).toHaveBeenCalledWith(base);
+  });
+
+  it("strikes through a cancelled row", () => {
+    render(<MoveHistory moves={[{ ...base, cancelled: true }]} />);
+    expect(screen.getByText("+4")).toHaveClass("line-through");
+  });
+
+  it("shows the author next to the badge", () => {
+    render(<MoveHistory moves={[{ ...base, user: "ivan" }]} />);
+    expect(screen.getByText("· ivan")).toBeInTheDocument();
+  });
+
+  it("renders the action slot without selecting the row", () => {
+    const onSelect = vi.fn();
+    render(
+      <MoveHistory
+        moves={[base]}
+        onSelect={onSelect}
+        action={() => <button type="button">Отменить</button>}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Отменить" })).toBeVisible();
+  });
+
+  it("explains a cancel row by the original move", () => {
+    const sale: StockMove = {
+      ...base,
+      id: 5,
+      type: "sale",
+      qty_delta: -2,
+      qty_after: 5,
+    };
+    const cancel: StockMove = {
+      ...base,
+      id: 6,
+      type: "cancel",
+      qty_delta: 2,
+      cancels_move_id: 5,
+    };
+    expect(explanation(cancel, [cancel, sale])).toBe("Отмена: продажа −2");
+    expect(explanation(cancel, [cancel])).toBe("Отмена");
+  });
+
+  it("explains a sale with payment and comment", () => {
+    const sale: StockMove = {
+      ...base,
+      type: "sale",
+      qty_delta: -1,
+      payment: "transfer",
+      comment: "Иван",
+    };
+    expect(explanation(sale, [sale])).toBe("Перевод · Иван");
+    expect(explanation({ ...sale, payment: null, comment: null }, [])).toBe("");
   });
 });

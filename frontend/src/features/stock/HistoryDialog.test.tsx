@@ -133,7 +133,8 @@ describe("HistoryDialog", () => {
       />,
     );
     expect(screen.getByText("0 ₽")).toBeInTheDocument();
-    expect(screen.getAllByText("—")).toHaveLength(1);
+    // price is 0 ₽; dashes are the author and the comment
+    expect(screen.getAllByText("—")).toHaveLength(2);
   });
 
   it("opens the detail dialog with the full comment on a row click", () => {
@@ -170,5 +171,40 @@ describe("HistoryDialog", () => {
     expect(container.querySelector("tbody .line-clamp-2")).toHaveTextContent(
       "очень длинный",
     );
+  });
+
+  it("shows the author and strikes cancelled rows", () => {
+    render(
+      <HistoryDialog
+        open
+        onClose={() => undefined}
+        moves={[{ ...MOVES[1], user: "ivan", cancelled: true }]}
+        title="T"
+      />,
+    );
+    expect(screen.getByText("Кто")).toBeInTheDocument();
+    expect(screen.getByText("ivan")).toBeInTheDocument();
+    expect(screen.getByText("−2").closest("tr")).toHaveClass("line-through");
+  });
+
+  it("explains a cancel row with the original move", () => {
+    render(
+      <HistoryDialog
+        open
+        onClose={() => undefined}
+        moves={[
+          {
+            ...MOVES[1],
+            id: 3,
+            type: "cancel",
+            qty_delta: 2,
+            cancels_move_id: 2,
+          },
+          MOVES[1],
+        ]}
+        title="T"
+      />,
+    );
+    expect(screen.getByText("Отмена: продажа −2")).toBeInTheDocument();
   });
 });

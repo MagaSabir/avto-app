@@ -96,4 +96,49 @@ describe("MoveDetailDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("shows payment, cost, profit and author of a sale", () => {
+    render(
+      <MoveDetailDialog
+        move={{
+          ...MOVE,
+          type: "sale",
+          price: "540.00",
+          cost: "412.00",
+          payment: "cash",
+          user: "ivan",
+        }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Оплата").nextSibling).toHaveTextContent("Нал");
+    expect(screen.getByText("Закупка").nextSibling).toHaveTextContent("412 ₽");
+    expect(screen.getByText("Прибыль").nextSibling).toHaveTextContent("256 ₽");
+    expect(screen.getByText("Кто").nextSibling).toHaveTextContent("ivan");
+  });
+
+  it("shows a loss with a minus sign", () => {
+    render(
+      <MoveDetailDialog
+        move={{ ...MOVE, type: "sale", price: "400.00", cost: "412.50" }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Прибыль").nextSibling).toHaveTextContent("-25 ₽");
+  });
+
+  it("handles an old sale without cost, payment and author", () => {
+    render(
+      <MoveDetailDialog
+        move={{ ...MOVE, type: "sale", price: "540.00" }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Закупка").nextSibling).toHaveTextContent(
+      "закупка неизвестна",
+    );
+    expect(screen.queryByText("Прибыль")).not.toBeInTheDocument();
+    expect(screen.getByText("Оплата").nextSibling).toHaveTextContent("—");
+    expect(screen.getByText("Кто").nextSibling).toHaveTextContent("—");
+  });
 });

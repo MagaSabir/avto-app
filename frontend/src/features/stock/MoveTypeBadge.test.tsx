@@ -11,6 +11,7 @@ const CASES: [StockMove["type"], string][] = [
   ["return", "Возврат"],
   ["writeoff", "Списание"],
   ["adjustment", "Корректировка"],
+  ["cancel", "Отмена"],
 ];
 
 describe("MoveTypeBadge", () => {
