@@ -64,6 +64,9 @@ export function Layout() {
             <NavLink to="/cash" className={navClass}>
               Касса
             </NavLink>
+            <NavLink to="/customers" className={navClass}>
+              Клиенты
+            </NavLink>
             <NavLink to="/orders" className={navClass}>
               Заказы
             </NavLink>

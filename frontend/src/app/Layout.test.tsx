@@ -125,7 +125,7 @@ describe("Layout", () => {
     expect(link.querySelector(".font-mono")).toBeNull();
   });
 
-  it("orders the navigation: Поиск, Склад, Касса, Заказы, Взаиморасчёты", async () => {
+  it("orders the navigation: Поиск, Склад, Касса, Клиенты, Заказы, Взаиморасчёты", async () => {
     setup();
     await screen.findByText("sabir");
     expect(screen.getByRole("link", { name: "Заказы" })).toHaveAttribute(
@@ -139,6 +139,7 @@ describe("Layout", () => {
       "Поиск",
       "Склад",
       "Касса",
+      "Клиенты",
       "Заказы",
       "Взаиморасчёты",
     ]);
