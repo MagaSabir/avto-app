@@ -82,6 +82,10 @@ function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;
 }
 
+function StateProbe() {
+  return <p data-testid="state">{JSON.stringify(useLocation().state)}</p>;
+}
+
 function setup(
   extra: Record<
     string,
@@ -99,10 +103,13 @@ function setup(
     ...extra,
   });
   renderWithProviders(
-    <Routes>
-      <Route path="/customers/:id" element={<CustomerPage />} />
-      <Route path="*" element={<Where />} />
-    </Routes>,
+    <>
+      <StateProbe />
+      <Routes>
+        <Route path="/customers/:id" element={<CustomerPage />} />
+        <Route path="*" element={<Where />} />
+      </Routes>
+    </>,
     { route },
   );
   return historyQueries;
@@ -143,6 +150,10 @@ describe("CustomerPage header", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "уже есть у клиента «Пётр»",
     );
+    await waitFor(() => {
+      expect(screen.getByTestId("state")).toHaveTextContent("null");
+    });
+    expect(screen.getByRole("status")).toBeInTheDocument();
   });
 });
 

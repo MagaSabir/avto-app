@@ -135,9 +135,11 @@ export function CustomerHistory({
   cars: Car[];
 }) {
   const [carId, setCarId] = useState<number | null>(null);
+  // The selected car may have been deleted meanwhile.
+  const activeCarId = cars.some((c) => c.id === carId) ? carId : null;
   const { data, isPending, isError, error } = useCustomerHistory(
     customerId,
-    carId,
+    activeCarId,
   );
 
   return (
@@ -147,7 +149,7 @@ export function CustomerHistory({
         cars.length > 0 && (
           <select
             aria-label="Машина"
-            value={carId === null ? "" : String(carId)}
+            value={activeCarId === null ? "" : String(activeCarId)}
             onChange={(e) => {
               setCarId(e.target.value === "" ? null : Number(e.target.value));
             }}

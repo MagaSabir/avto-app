@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
@@ -281,6 +281,18 @@ function warningsFromState(state: unknown): string[] {
 export function CustomerPage() {
   const id = Number(useParams().id);
   const location = useLocation();
+  const navigate = useNavigate();
+  // Creation warnings are shown once: drop them from the history entry so a
+  // reload or Back does not bring them back.
+  const [initialWarnings] = useState(() => warningsFromState(location.state));
+  useEffect(() => {
+    if (location.state !== null) {
+      void navigate(location.pathname + location.search, {
+        replace: true,
+        state: null,
+      });
+    }
+  }, [location.state, location.pathname, location.search, navigate]);
   const { data, isPending, isError, error } = useCustomer(
     Number.isInteger(id) ? id : null,
   );
@@ -297,8 +309,9 @@ export function CustomerPage() {
   }
   return (
     <CustomerCard
+      key={data.id}
       customer={data}
-      initialWarnings={warningsFromState(location.state)}
+      initialWarnings={initialWarnings}
     />
   );
 }
