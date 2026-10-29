@@ -6,6 +6,7 @@ import {
   useReturn,
   useSale,
   useWriteoff,
+  type Payment,
   type StockItemDetail,
   type StockItemPatch,
 } from "@/api/stock";
@@ -14,7 +15,7 @@ import { Input } from "@/components/ui/input";
 
 import { DeleteItem } from "./DeleteItem";
 import { cents, errorText, Field } from "./formBits";
-import { formatPrice, trimPercent } from "./format";
+import { formatPrice, PAYMENT_LABELS, trimPercent } from "./format";
 import {
   markupFromSale,
   markupTooLarge,
@@ -35,6 +36,7 @@ const BUTTONS: { mode: Mode; label: string }[] = [
 ];
 
 const REASONS = ["брак", "потеря"];
+const PAYMENTS: Payment[] = ["cash", "transfer"];
 
 type FormProps = {
   item: StockItemDetail;
@@ -112,6 +114,8 @@ function SaleReturnForm({
   const op = kind === "sale" ? sale : ret;
   const [qty, setQty] = useState("1");
   const [price, setPrice] = useState(formatPrice(item.sale_price));
+  const [payment, setPayment] = useState<Payment>("cash");
+  const [comment, setComment] = useState("");
 
   const qtyNum = parseQty(qty, 1);
   const priceNum = parseMoney(price);
@@ -131,7 +135,12 @@ function SaleReturnForm({
       onSubmit={() => {
         if (qtyNum === null || priceNum === null) return;
         op.mutate(
-          { qty: qtyNum, price: priceNum },
+          {
+            qty: qtyNum,
+            price: priceNum,
+            payment,
+            ...(comment.trim() ? { comment: comment.trim() } : {}),
+          },
           {
             onSuccess: ({ item: next }) => {
               onDone(
@@ -161,6 +170,35 @@ function SaleReturnForm({
           value={price}
           onChange={(e) => {
             setPrice(e.target.value);
+          }}
+        />
+      </Field>
+      <fieldset role="radiogroup" className="flex flex-col gap-1">
+        <legend className="mb-1 text-[12.5px] text-muted-foreground">
+          Оплата
+        </legend>
+        <div className="flex gap-3">
+          {PAYMENTS.map((p) => (
+            <label key={p} className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="payment"
+                value={p}
+                checked={payment === p}
+                onChange={() => {
+                  setPayment(p);
+                }}
+              />
+              {PAYMENT_LABELS[p]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <Field label="Комментарий">
+        <Input
+          value={comment}
+          onChange={(e) => {
+            setComment(e.target.value);
           }}
         />
       </Field>

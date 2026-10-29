@@ -175,6 +175,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stock/moves/{move_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Move */
+        post: operations["cancel_move_api_stock_moves__move_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stock/items": {
         parameters: {
             query?: never;
@@ -812,6 +829,11 @@ export interface components {
             qty: number;
             /** Price */
             price: number | string;
+            /**
+             * Payment
+             * @enum {string}
+             */
+            payment: "cash" | "transfer";
             /** Comment */
             comment?: string | null;
         };
@@ -821,6 +843,11 @@ export interface components {
             qty: number;
             /** Price */
             price: number | string;
+            /**
+             * Payment
+             * @enum {string}
+             */
+            payment: "cash" | "transfer";
             /** Comment */
             comment?: string | null;
         };
@@ -1040,7 +1067,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "receipt" | "sale" | "return" | "writeoff" | "adjustment";
+            type: "receipt" | "sale" | "return" | "writeoff" | "adjustment" | "cancel";
             /** Qty Delta */
             qty_delta: number;
             /** Qty After */
@@ -1056,6 +1083,24 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Cost */
+            cost: string | null;
+            /** Payment */
+            payment: ("cash" | "transfer") | null;
+            /** User */
+            user: string | null;
+            /** Cancels Move Id */
+            cancels_move_id: number | null;
+            /**
+             * Cancelled
+             * @default false
+             */
+            cancelled: boolean;
+            /**
+             * Cancellable
+             * @default false
+             */
+            cancellable: boolean;
         };
         /** StockSearchItem */
         StockSearchItem: {
@@ -1562,6 +1607,55 @@ export interface operations {
                 "application/json": components["schemas"]["AdjustmentIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    cancel_move_api_stock_moves__move_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                move_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             201: {

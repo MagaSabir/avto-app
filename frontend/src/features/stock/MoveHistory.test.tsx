@@ -13,6 +13,12 @@ const base: StockMove = {
   price: "412.00",
   supplier: "Росско",
   comment: null,
+  cost: null,
+  payment: null,
+  user: null,
+  cancels_move_id: null,
+  cancelled: false,
+  cancellable: false,
   created_at: "2026-10-15T09:30:00Z",
 };
 

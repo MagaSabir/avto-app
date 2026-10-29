@@ -13,6 +13,12 @@ const MOVE: StockMove = {
   price: null,
   supplier: null,
   comment: "первая строка\nвторая строка",
+  cost: null,
+  payment: null,
+  user: null,
+  cancels_move_id: null,
+  cancelled: false,
+  cancellable: false,
   created_at: "2026-10-15T09:30:00Z",
 };
 

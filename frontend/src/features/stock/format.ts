@@ -1,3 +1,5 @@
+import type { Payment } from "@/api/stock";
+
 const money = new Intl.NumberFormat("ru-RU", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
@@ -66,3 +68,8 @@ export function movesLabel(n: number): string {
   }
   return `${String(n)} ${word}`;
 }
+
+export const PAYMENT_LABELS: Record<Payment, string> = {
+  cash: "Нал",
+  transfer: "Перевод",
+};

@@ -79,10 +79,53 @@ describe("ItemActions", () => {
     expect(screen.getByText("Цена продажи ниже закупки")).toBeInTheDocument();
     click("Провести");
     await waitFor(() => {
-      expect(body).toEqual({ qty: 1, price: "300.00" });
+      expect(body).toEqual({ qty: 1, price: "300.00", payment: "cash" });
     });
     expect(await screen.findByText("✓ Продажа: −1 → остаток 6")).toBeVisible();
     expect(screen.getByRole("button", { name: "Продать" })).toBeVisible();
+  });
+
+  it("sends payment and trimmed comment for a sale", async () => {
+    let body: unknown;
+    mockApi({
+      "POST /api/stock/items/3/sales": (init) => {
+        body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    const group = screen.getByRole("radiogroup", { name: "Оплата" });
+    expect(within(group).getByRole("radio", { name: "Нал" })).toBeChecked();
+    fireEvent.click(within(group).getByRole("radio", { name: "Перевод" }));
+    type("Комментарий", "  скидка ");
+    click("Провести");
+    await waitFor(() => {
+      expect(body).toEqual({
+        qty: 1,
+        price: "540.00",
+        payment: "transfer",
+        comment: "скидка",
+      });
+    });
+  });
+
+  it("has the payment group in the return form and omits empty comment", async () => {
+    let body: unknown;
+    mockApi({
+      "POST /api/stock/items/3/returns": (init) => {
+        body = JSON.parse(init.body as string);
+        return new Response(JSON.stringify(result(8)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Возврат");
+    const group = screen.getByRole("radiogroup", { name: "Оплата" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(2);
+    click("Провести");
+    await waitFor(() => {
+      expect(body).toEqual({ qty: 1, price: "540.00", payment: "cash" });
+    });
   });
 
   it("shows the server message on 409 and keeps the form", async () => {
@@ -147,7 +190,7 @@ describe("ItemActions", () => {
     click("Возврат");
     click("Провести");
     await waitFor(() => {
-      expect(body).toEqual({ qty: 1, price: "540.00" });
+      expect(body).toEqual({ qty: 1, price: "540.00", payment: "cash" });
     });
   });
 
