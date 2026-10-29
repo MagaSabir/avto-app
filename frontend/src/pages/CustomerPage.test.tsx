@@ -163,7 +163,7 @@ describe("CustomerPage header", () => {
     });
     const tiles = await screen.findAllByRole("listitem", { name: /Test|Demo/ });
     expect(tiles).toHaveLength(2);
-    expect(within(tiles[0]).getByText("Test X1 2010")).toBeInTheDocument();
+    expect(tiles[0]).toHaveTextContent("Test X1 2010");
     expect(within(tiles[0]).getByText("А 123 ВС")).toBeInTheDocument();
     expect(within(tiles[0]).getByText("77")).toBeInTheDocument();
     expect(within(tiles[0]).getByText("Двигатель")).toBeInTheDocument();
@@ -274,6 +274,22 @@ describe("CustomerPage cars", () => {
     expect(list).toHaveTextContent("1.6");
     expect(list).toHaveTextContent("TESTVIN0000000001");
     expect(list).toHaveTextContent("А000АА");
+  });
+
+  it("marks the make as a badge and removes a car with a red cross", async () => {
+    setup();
+    const list = await screen.findByRole("list", { name: "Машины" });
+    expect(within(list).getAllByText("Test")[0]).toHaveClass("bg-info-bg");
+    expect(
+      within(list).queryByRole("button", { name: "Изменить" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(list).queryByRole("button", { name: "Удалить" }),
+    ).not.toBeInTheDocument();
+    const remove = within(list).getAllByRole("button", {
+      name: "Удалить машину",
+    })[0];
+    expect(remove).toHaveClass("text-destructive");
   });
 
   it("adds a car", async () => {

@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -81,6 +81,19 @@ describe("CustomersPage", () => {
     expect(link).toHaveAttribute("href", "/customers/5");
     expect(link).toHaveTextContent("+7 900 000-00-01");
     expect(link).toHaveTextContent("Test X1 A000AA");
+  });
+
+  it("shows labelled columns, a make badge and a plate frame", async () => {
+    setup(() => [ivan]);
+    await flush();
+    expect(screen.getByText("Клиент")).toBeInTheDocument();
+    expect(screen.getByText("Телефоны")).toBeInTheDocument();
+    expect(screen.getByText("Машины")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Иван Тест/ });
+    expect(within(link).getByText("Test")).toHaveClass("bg-info-bg");
+    expect(
+      within(link).getByText("A000AA").closest("[data-plate]"),
+    ).not.toBeNull();
   });
 
   it("shows the empty state", async () => {

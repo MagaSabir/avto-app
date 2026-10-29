@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Phone } from "lucide-react";
+import { Phone, X } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import {
@@ -15,7 +15,8 @@ import { Modal } from "@/components/ui/modal";
 import { CarForm } from "@/features/customers/CarForm";
 import { CustomerEditForm } from "@/features/customers/CustomerEditForm";
 import { CustomerHistory } from "@/features/customers/CustomerHistory";
-import { carLabel, formatPhone, splitPlate } from "@/features/customers/format";
+import { CarTitle, Plate } from "@/features/customers/CarBadges";
+import { carLabel, formatPhone } from "@/features/customers/format";
 import { formatDate } from "@/features/stock/format";
 import { errorText } from "@/features/stock/formBits";
 
@@ -85,21 +86,6 @@ function Empty() {
   return <span className="text-muted-foreground">—</span>;
 }
 
-// Looks like a number plate: number, then the region after a divider.
-function Plate({ plate }: { plate: string }) {
-  const { number, region } = splitPlate(plate);
-  return (
-    <span className="inline-flex shrink-0 items-stretch rounded-[5px] border-[1.5px] border-foreground bg-card text-[13px] leading-none font-semibold whitespace-nowrap">
-      <span className="px-1.5 py-1">{number}</span>
-      {region && (
-        <span className="border-l-[1.5px] border-foreground px-1 py-1">
-          {region}
-        </span>
-      )}
-    </span>
-  );
-}
-
 function CarRow({
   customerId,
   car,
@@ -117,38 +103,39 @@ function CarRow({
   return (
     <li
       aria-label={title || "Без названия"}
-      className="flex flex-col gap-2.5 rounded-lg border p-3"
+      className="relative rounded-lg border hover:border-border-active"
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold">{title || "Без названия"}</span>
-        {car.plate && <Plate plate={car.plate} />}
-      </div>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
-        <dt className="text-muted-foreground">Двигатель</dt>
-        <dd>{car.engine ?? <Empty />}</dd>
-        <dt className="text-muted-foreground">VIN</dt>
-        <dd className="font-mono [overflow-wrap:anywhere]">
-          {car.vin ?? <Empty />}
-        </dd>
-      </dl>
-      <div className="mt-auto flex gap-2">
-        <Button
-          className="h-[30px]"
-          aria-label="Изменить машину"
-          onClick={onEdit}
-        >
-          Изменить
-        </Button>
-        <Button
-          className="h-[30px] border-destructive text-destructive"
-          aria-label="Удалить машину"
-          onClick={() => {
-            setConfirm(true);
-          }}
-        >
-          Удалить
-        </Button>
-      </div>
+      {/* The whole tile opens the edit form; the cross deletes. */}
+      <button
+        type="button"
+        aria-label="Изменить машину"
+        onClick={onEdit}
+        className="flex w-full cursor-pointer flex-col gap-2.5 rounded-lg p-3 pr-10 text-left focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <span className="flex flex-wrap items-center gap-2">
+          <CarTitle make={car.make} model={car.model} year={car.year} />
+          {car.plate && <Plate plate={car.plate} />}
+        </span>
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+          <dt className="text-muted-foreground">Двигатель</dt>
+          <dd>{car.engine ?? <Empty />}</dd>
+          <dt className="text-muted-foreground">VIN</dt>
+          <dd className="font-mono [overflow-wrap:anywhere]">
+            {car.vin ?? <Empty />}
+          </dd>
+        </dl>
+      </button>
+      <button
+        type="button"
+        aria-label="Удалить машину"
+        title="Удалить машину"
+        onClick={() => {
+          setConfirm(true);
+        }}
+        className="absolute top-2 right-2 flex size-7 cursor-pointer items-center justify-center rounded-md text-destructive hover:bg-destructive/10 focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
       <ConfirmDelete
         open={confirm}
         onClose={() => {
