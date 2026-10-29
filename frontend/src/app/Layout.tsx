@@ -61,6 +61,9 @@ export function Layout() {
             <NavLink to="/stock" className={navClass}>
               Склад
             </NavLink>
+            <NavLink to="/cash" className={navClass}>
+              Касса
+            </NavLink>
             <NavLink to="/orders" className={navClass}>
               Заказы
             </NavLink>
