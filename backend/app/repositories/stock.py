@@ -27,10 +27,7 @@ async def get_move(session: AsyncSession, move_id: int) -> StockMove | None:
 
 async def last_move(session: AsyncSession, item_id: int) -> StockMove | None:
     result = await session.execute(
-        select(StockMove)
-        .where(StockMove.item_id == item_id)
-        .order_by(StockMove.created_at.desc(), StockMove.id.desc())
-        .limit(1)
+        select(StockMove).where(StockMove.item_id == item_id).order_by(StockMove.id.desc()).limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -152,7 +149,7 @@ async def get_summary(
         await session.execute(
             select(StockMove.created_at, StockMove.supplier)
             .where(StockMove.item_id == item_id, StockMove.type == "receipt", live)
-            .order_by(StockMove.created_at.desc(), StockMove.id.desc())
+            .order_by(StockMove.id.desc())
             .limit(1)
         )
     ).first()
@@ -183,7 +180,7 @@ async def list_moves(session: AsyncSession, item_id: int) -> list[tuple[StockMov
         select(StockMove, User.login)
         .outerjoin(User, User.id == StockMove.user_id)
         .where(StockMove.item_id == item_id)
-        .order_by(StockMove.created_at.desc(), StockMove.id.desc())
+        .order_by(StockMove.id.desc())
     )
     return [(move, login) for move, login in result.all()]
 

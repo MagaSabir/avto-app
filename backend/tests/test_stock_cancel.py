@@ -215,3 +215,29 @@ async def test_delete_item_with_cancel_moves(client: AsyncClient, db_session: As
         await db_session.execute(select(StockMove).where(StockMove.item_id == item["id"]))
     ).all()
     assert left == []
+
+
+async def test_last_move_follows_insert_order(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    item = (await _receive(client))["item"]
+    sale = await _sell(client, item)
+    await db_session.execute(
+        text("UPDATE stock_moves SET created_at = now() - interval '1 hour' WHERE id = :i"),
+        {"i": sale["id"]},
+    )
+    await db_session.execute(
+        text("UPDATE stock_moves SET created_at = now() - interval '2 hours' WHERE id < :i"),
+        {"i": sale["id"]},
+    )
+    await db_session.execute(
+        text("UPDATE stock_moves SET created_at = now() - interval '3 hours' WHERE id = :i"),
+        {"i": sale["id"]},
+    )
+    moves = await _moves(client, item)
+    assert moves[0]["id"] == sale["id"]
+    older = moves[1]["id"]
+    r = await _cancel(client, older)
+    assert r.status_code == 409
+    assert r.json() == {"message": "Это уже не последняя операция"}
+    assert (await _cancel(client, sale["id"])).status_code == 201
