@@ -65,3 +65,48 @@ async def test_item_markup_minus_100_rejected(db_session: AsyncSession) -> None:
         await db_session.execute(
             text(ITEM.replace("100, 30, 130", "100, -100, 130")), {"n": "N2", "b": "B", "q": 0}
         )
+
+
+async def _move_ext(s: AsyncSession, item_id: int, type_: str, **extra: object) -> None:
+    cols = ["item_id", "type", "qty_delta", "qty_after", *extra]
+    vals = [":item_id", ":type", "1", "1", *(f":{k}" for k in extra)]
+    await s.execute(
+        text(f"INSERT INTO stock_moves ({', '.join(cols)}) VALUES ({', '.join(vals)})"),
+        {"item_id": item_id, "type": type_, **extra},
+    )
+
+
+async def test_move_payment_checked(db_session: AsyncSession) -> None:
+    item_id = await _item(db_session)
+    with pytest.raises(IntegrityError, match="payment_valid"):
+        await _move_ext(db_session, item_id, "sale", payment="card")
+
+
+async def test_cancel_requires_link(db_session: AsyncSession) -> None:
+    item_id = await _item(db_session)
+    with pytest.raises(IntegrityError, match="cancel_link"):
+        await _move_ext(db_session, item_id, "cancel")
+
+
+async def test_link_requires_cancel_type(db_session: AsyncSession) -> None:
+    item_id = await _item(db_session)
+    await _move_ext(db_session, item_id, "sale")
+    sale_id = (await db_session.execute(text("SELECT max(id) FROM stock_moves"))).scalar_one()
+    with pytest.raises(IntegrityError, match="cancel_link"):
+        await _move_ext(db_session, item_id, "sale", cancels_move_id=sale_id)
+
+
+async def test_move_type_cancel_allowed(db_session: AsyncSession) -> None:
+    item_id = await _item(db_session)
+    await _move_ext(db_session, item_id, "sale", payment="cash")
+    sale_id = (await db_session.execute(text("SELECT max(id) FROM stock_moves"))).scalar_one()
+    await _move_ext(db_session, item_id, "cancel", cancels_move_id=sale_id)
+
+
+async def test_move_cancelled_only_once(db_session: AsyncSession) -> None:
+    item_id = await _item(db_session)
+    await _move_ext(db_session, item_id, "sale")
+    sale_id = (await db_session.execute(text("SELECT max(id) FROM stock_moves"))).scalar_one()
+    await _move_ext(db_session, item_id, "cancel", cancels_move_id=sale_id)
+    with pytest.raises(IntegrityError):
+        await _move_ext(db_session, item_id, "cancel", cancels_move_id=sale_id)

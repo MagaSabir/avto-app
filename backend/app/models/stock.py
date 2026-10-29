@@ -18,7 +18,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
-MoveType = Literal["receipt", "sale", "return", "writeoff", "adjustment"]
+MoveType = Literal["receipt", "sale", "return", "writeoff", "adjustment", "cancel"]
+Payment = Literal["cash", "transfer"]
 
 
 class StockItem(Base):
@@ -53,9 +54,11 @@ class StockMove(Base):
     __tablename__ = "stock_moves"
     __table_args__ = (
         CheckConstraint(
-            "type IN ('receipt', 'sale', 'return', 'writeoff', 'adjustment')",
+            "type IN ('receipt', 'sale', 'return', 'writeoff', 'adjustment', 'cancel')",
             name="type_valid",
         ),
+        CheckConstraint("payment IS NULL OR payment IN ('cash', 'transfer')", name="payment_valid"),
+        CheckConstraint("(type = 'cancel') = (cancels_move_id IS NOT NULL)", name="cancel_link"),
         CheckConstraint("qty_delta <> 0", name="qty_delta_non_zero"),
         CheckConstraint("qty_after >= 0", name="qty_after_non_negative"),
         Index("ix_stock_moves_item_id_created_at", "item_id", "created_at"),
@@ -69,4 +72,11 @@ class StockMove(Base):
     price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     supplier: Mapped[str | None] = mapped_column(Text)
     comment: Mapped[str | None] = mapped_column(Text)
+    cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    payment: Mapped[Payment | None] = mapped_column(String)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    cancels_move_id: Mapped[int | None] = mapped_column(ForeignKey("stock_moves.id"), unique=True)
+    prev_purchase_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    prev_sale_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    prev_markup: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

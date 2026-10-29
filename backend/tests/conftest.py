@@ -66,14 +66,22 @@ async def db_session(test_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
+async def test_user(db_session: AsyncSession) -> User:
+    user = User(login="test", password_hash="x")
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture
+async def client(db_session: AsyncSession, test_user: User) -> AsyncIterator[httpx.AsyncClient]:
     app = create_app()
 
     async def override_get_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
     async def override_current_user() -> User:
-        return User(id=0, login="test")
+        return test_user
 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[current_user] = override_current_user
