@@ -73,3 +73,22 @@ async def test_count(client: AsyncClient) -> None:
     r = await client.get("/api/customers/count")
     assert r.status_code == 200
     assert r.json() == {"total": before + 2}
+
+
+async def test_pages_with_offset(client: AsyncClient) -> None:
+    for i in range(53):
+        await _post(client, "/api/customers", {"name": f"Тест Страница {i:02d}"})
+    first = (await client.get("/api/customers", params={"q": "Страница"})).json()
+    second = (await client.get("/api/customers", params={"q": "Страница", "offset": 50})).json()
+    assert len(first) == 50
+    assert [c["name"] for c in second] == [f"Тест Страница {i:02d}" for i in (50, 51, 52)]
+    assert not {c["id"] for c in first} & {c["id"] for c in second}
+    r = await client.get("/api/customers", params={"offset": -1})
+    assert r.status_code == 422
+
+
+async def test_count_matches_query(client: AsyncClient) -> None:
+    await _post(client, "/api/customers", {"name": "Иван Тест"})
+    await _post(client, "/api/customers", {"name": "Пётр Тест"})
+    r = await client.get("/api/customers/count", params={"q": "Иван"})
+    assert r.json() == {"total": 1}

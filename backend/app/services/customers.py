@@ -115,8 +115,8 @@ async def _saved(session: AsyncSession, customer: Customer, new_phones: list[str
     return CustomerSaved(**out.model_dump(), warnings=warnings)
 
 
-async def list_customers(session: AsyncSession, q: str) -> list[CustomerBrief]:
-    customers = await repo.search(session, q)
+async def list_customers(session: AsyncSession, q: str, offset: int = 0) -> list[CustomerBrief]:
+    customers = await repo.search(session, q, offset)
     ids = [c.id for c in customers]
     phones = await repo.phones_by_customer(session, ids)
     cars = await repo.cars_by_customer(session, ids)
@@ -134,8 +134,8 @@ async def list_customers(session: AsyncSession, q: str) -> list[CustomerBrief]:
     ]
 
 
-async def count(session: AsyncSession) -> CustomerCount:
-    return CustomerCount(total=await repo.count(session))
+async def count(session: AsyncSession, q: str = "") -> CustomerCount:
+    return CustomerCount(total=await repo.count(session, q))
 
 
 async def create(session: AsyncSession, data: CustomerIn) -> CustomerSaved:

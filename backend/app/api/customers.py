@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -30,13 +30,15 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 @router.get("", response_model=list[CustomerBrief])
-async def list_customers(session: Session, q: str = "") -> list[CustomerBrief]:
-    return await customer_service.list_customers(session, q)
+async def list_customers(
+    session: Session, q: str = "", offset: Annotated[int, Query(ge=0)] = 0
+) -> list[CustomerBrief]:
+    return await customer_service.list_customers(session, q, offset)
 
 
 @router.get("/count", response_model=CustomerCount)
-async def count_customers(session: Session) -> CustomerCount:
-    return await customer_service.count(session)
+async def count_customers(session: Session, q: str = "") -> CustomerCount:
+    return await customer_service.count(session, q)
 
 
 @router.post("", status_code=201, response_model=CustomerSaved, responses=_ERRORS)

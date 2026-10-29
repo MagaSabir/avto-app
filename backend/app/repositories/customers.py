@@ -100,10 +100,6 @@ async def delete_car(session: AsyncSession, car: CustomerCar) -> None:
     await session.flush()
 
 
-async def count(session: AsyncSession) -> int:
-    return int(await session.scalar(select(func.count()).select_from(Customer)) or 0)
-
-
 async def last_sales(
     session: AsyncSession, customer_ids: list[int]
 ) -> dict[int, tuple[datetime, int | None]]:
@@ -131,12 +127,7 @@ async def last_sales(
     return {cid: (at, cars.get(cid)) for cid, at in dates.items()}
 
 
-async def search(session: AsyncSession, q: str) -> list[Customer]:
-    q = q.strip()
-    stmt = select(Customer).limit(SEARCH_LIMIT)
-    if not q:
-        return list((await session.scalars(stmt.order_by(Customer.updated_at.desc()))).all())
-
+def _match(q: str) -> ColumnElement[bool]:
     conditions: list[ColumnElement[bool]] = [Customer.name.ilike(f"%{q}%")]
     digits = "".join(ch for ch in q if ch.isascii() and ch.isdigit())
     if len(digits) >= MIN_PHONE_DIGITS:
@@ -161,7 +152,26 @@ async def search(session: AsyncSession, q: str) -> list[Customer]:
             CustomerCar.customer_id == Customer.id, CustomerCar.vin.like(f"%{q.upper()}%")
         )
     )
-    return list((await session.scalars(stmt.where(or_(*conditions)).order_by(Customer.name))).all())
+    return or_(*conditions)
+
+
+async def search(session: AsyncSession, q: str, offset: int = 0) -> list[Customer]:
+    """A page of customers: all by last change, or matches by name; id keeps pages stable."""
+    q = q.strip()
+    stmt = select(Customer).limit(SEARCH_LIMIT).offset(offset)
+    if not q:
+        stmt = stmt.order_by(Customer.updated_at.desc(), Customer.id.desc())
+    else:
+        stmt = stmt.where(_match(q)).order_by(Customer.name, Customer.id)
+    return list((await session.scalars(stmt)).all())
+
+
+async def count(session: AsyncSession, q: str = "") -> int:
+    q = q.strip()
+    stmt = select(func.count()).select_from(Customer)
+    if q:
+        stmt = stmt.where(_match(q))
+    return int(await session.scalar(stmt) or 0)
 
 
 async def history(
