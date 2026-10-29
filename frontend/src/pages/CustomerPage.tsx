@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { Phone } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import {
   useCustomer,
@@ -14,7 +15,8 @@ import { Modal } from "@/components/ui/modal";
 import { CarForm } from "@/features/customers/CarForm";
 import { CustomerEditForm } from "@/features/customers/CustomerEditForm";
 import { CustomerHistory } from "@/features/customers/CustomerHistory";
-import { carLabel, formatPhone } from "@/features/customers/format";
+import { carLabel, formatPhone, splitPlate } from "@/features/customers/format";
+import { formatDate } from "@/features/stock/format";
 import { errorText } from "@/features/stock/formBits";
 
 const DANGER = "h-[34px] border-destructive text-destructive";
@@ -70,6 +72,34 @@ function ConfirmDelete({
   );
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[12.5px] text-muted-foreground">{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function Empty() {
+  return <span className="text-muted-foreground">—</span>;
+}
+
+// Looks like a number plate: number, then the region after a divider.
+function Plate({ plate }: { plate: string }) {
+  const { number, region } = splitPlate(plate);
+  return (
+    <span className="inline-flex shrink-0 items-stretch rounded-[5px] border-[1.5px] border-foreground bg-card text-[13px] leading-none font-semibold whitespace-nowrap">
+      <span className="px-1.5 py-1">{number}</span>
+      {region && (
+        <span className="border-l-[1.5px] border-foreground px-1 py-1">
+          {region}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function CarRow({
   customerId,
   car,
@@ -85,14 +115,23 @@ function CarRow({
     .filter((p) => p !== null && p !== "")
     .join(" ");
   return (
-    <li className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-2">
-      <span className="font-semibold">{title || "Без названия"}</span>
-      {car.engine && (
-        <span className="text-muted-foreground">{car.engine}</span>
-      )}
-      {car.vin && <span className="font-mono text-[13px]">{car.vin}</span>}
-      {car.plate && <span className="font-mono text-[13px]">{car.plate}</span>}
-      <span className="ml-auto flex gap-2">
+    <li
+      aria-label={title || "Без названия"}
+      className="flex flex-col gap-2.5 rounded-lg border p-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold">{title || "Без названия"}</span>
+        {car.plate && <Plate plate={car.plate} />}
+      </div>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+        <dt className="text-muted-foreground">Двигатель</dt>
+        <dd>{car.engine ?? <Empty />}</dd>
+        <dt className="text-muted-foreground">VIN</dt>
+        <dd className="font-mono [overflow-wrap:anywhere]">
+          {car.vin ?? <Empty />}
+        </dd>
+      </dl>
+      <div className="mt-auto flex gap-2">
         <Button
           className="h-[30px]"
           aria-label="Изменить машину"
@@ -101,7 +140,7 @@ function CarRow({
           Изменить
         </Button>
         <Button
-          className={DANGER}
+          className="h-[30px] border-destructive text-destructive"
           aria-label="Удалить машину"
           onClick={() => {
             setConfirm(true);
@@ -109,7 +148,7 @@ function CarRow({
         >
           Удалить
         </Button>
-      </span>
+      </div>
       <ConfirmDelete
         open={confirm}
         onClose={() => {
@@ -152,97 +191,127 @@ function CustomerCard({
   const del = useDeleteCustomer(customer.id);
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card
-        actions={
-          !editing && (
-            <span className="flex gap-2">
-              <Button
-                className="h-[34px]"
-                onClick={() => {
-                  setEditing(true);
-                }}
-              >
-                Изменить
-              </Button>
-              <Button
-                className={DANGER}
-                onClick={() => {
-                  setConfirmDelete(true);
-                }}
-              >
-                Удалить клиента
-              </Button>
-            </span>
-          )
-        }
-        title={<span className="text-[20px] font-bold">{customer.name}</span>}
-      >
-        {warnings.length > 0 && (
-          <div role="status" className="mb-3 text-status-low">
-            {warnings.map((w) => (
-              <p key={w}>{w}</p>
-            ))}
-          </div>
-        )}
-        {editing ? (
-          <CustomerEditForm
-            customer={customer}
-            onSaved={(saved) => {
-              setWarnings(saved.warnings);
-              setEditing(false);
-            }}
-            onCancel={() => {
-              setEditing(false);
-            }}
-          />
-        ) : (
-          <div className="flex flex-col gap-1">
-            <p className="flex flex-wrap gap-x-4 font-mono text-[14px]">
-              {customer.phones.map((p) => (
-                <a
-                  key={p}
-                  href={`tel:${telNumber(p)}`}
-                  className="hover:underline"
-                >
-                  {formatPhone(p)}
-                </a>
-              ))}
-            </p>
-            {customer.comment && (
-              <p className="text-muted-foreground">{customer.comment}</p>
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <Card>
+          <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-0.5">
+              <h1 className="text-[20px] font-bold [overflow-wrap:anywhere]">
+                {customer.name}
+              </h1>
+              <span className="text-[12.5px] text-muted-foreground">
+                {`клиент с ${formatDate(customer.created_at)}`}
+              </span>
+            </div>
+            {warnings.length > 0 && (
+              <div role="status" className="text-status-low">
+                {warnings.map((w) => (
+                  <p key={w}>{w}</p>
+                ))}
+              </div>
             )}
-          </div>
-        )}
-      </Card>
-      <Card
-        title="Машины"
-        actions={
-          <Button
-            className="h-[34px]"
-            onClick={() => {
-              setCarDialog({ open: true, car: null });
-            }}
-          >
-            Добавить машину
-          </Button>
-        }
-      >
-        {customer.cars.length > 0 && (
-          <ul aria-label="Машины" className="divide-y">
-            {customer.cars.map((car) => (
-              <CarRow
-                key={car.id}
-                customerId={customer.id}
-                car={car}
-                onEdit={() => {
-                  setCarDialog({ open: true, car });
+            {editing ? (
+              <CustomerEditForm
+                customer={customer}
+                onSaved={(saved) => {
+                  setWarnings(saved.warnings);
+                  setEditing(false);
+                }}
+                onCancel={() => {
+                  setEditing(false);
                 }}
               />
-            ))}
-          </ul>
-        )}
-      </Card>
+            ) : (
+              <>
+                <dl className="flex flex-col gap-3">
+                  <Field label="Телефоны">
+                    {customer.phones.length > 0 ? (
+                      <ul className="flex flex-col gap-1">
+                        {customer.phones.map((p) => (
+                          <li key={p}>
+                            <a
+                              href={`tel:${telNumber(p)}`}
+                              className="inline-flex items-center gap-1.5 tabular-nums hover:underline"
+                            >
+                              <Phone
+                                className="size-3.5 text-muted-foreground"
+                                aria-hidden="true"
+                              />
+                              {formatPhone(p)}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <Empty />
+                    )}
+                  </Field>
+                  <Field label="Комментарий">
+                    {customer.comment ? (
+                      <span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+                        {customer.comment}
+                      </span>
+                    ) : (
+                      <Empty />
+                    )}
+                  </Field>
+                </dl>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="h-[34px]"
+                    onClick={() => {
+                      setEditing(true);
+                    }}
+                  >
+                    Изменить
+                  </Button>
+                  <Button
+                    className={DANGER}
+                    onClick={() => {
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    Удалить клиента
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+        <Card
+          title="Машины"
+          actions={
+            <Button
+              className="h-[34px]"
+              onClick={() => {
+                setCarDialog({ open: true, car: null });
+              }}
+            >
+              Добавить машину
+            </Button>
+          }
+        >
+          {customer.cars.length > 0 ? (
+            <ul
+              aria-label="Машины"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3"
+            >
+              {customer.cars.map((car) => (
+                <CarRow
+                  key={car.id}
+                  customerId={customer.id}
+                  car={car}
+                  onEdit={() => {
+                    setCarDialog({ open: true, car });
+                  }}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">Машин пока нет</p>
+          )}
+        </Card>
+      </div>
       <CustomerHistory customerId={customer.id} cars={customer.cars} />
       <CarForm
         open={carDialog.open}
@@ -304,28 +373,38 @@ export function CustomerPage() {
   const validId = Number.isInteger(id) && id > 0;
   const { data, isPending, isError, error } = useCustomer(validId ? id : null);
 
+  let content: ReactNode;
   if (!validId) {
-    return (
+    content = (
       <p role="alert" className="text-destructive">
         Клиент не найден
       </p>
     );
-  }
-  if (isPending) {
-    return <p className="py-6 text-center text-muted-foreground">Загрузка…</p>;
-  }
-  if (isError) {
-    return (
+  } else if (isPending) {
+    content = (
+      <p className="py-6 text-center text-muted-foreground">Загрузка…</p>
+    );
+  } else if (isError) {
+    content = (
       <p role="alert" className="text-destructive">
         {error.message}
       </p>
     );
+  } else {
+    content = (
+      <CustomerCard
+        key={data.id}
+        customer={data}
+        initialWarnings={initialWarnings}
+      />
+    );
   }
   return (
-    <CustomerCard
-      key={data.id}
-      customer={data}
-      initialWarnings={initialWarnings}
-    />
+    <div className="flex flex-col gap-3">
+      <Link to="/customers" className="self-start text-link hover:underline">
+        ← Все клиенты
+      </Link>
+      {content}
+    </div>
   );
 }

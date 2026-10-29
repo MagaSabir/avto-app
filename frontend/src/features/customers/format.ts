@@ -12,3 +12,14 @@ export function carLabel(car: CarBrief): string {
     .filter((p) => p !== "")
     .join(" ");
 }
+
+// Normalized Russian plate А123ВС77 -> «А 123 ВС» + region «77»; others as is.
+export function splitPlate(plate: string): {
+  number: string;
+  region: string | null;
+} {
+  const m = /^([А-Я])(\d{3})([А-Я]{2})(\d{2,3})$/.exec(plate);
+  return m
+    ? { number: `${m[1]} ${m[2]} ${m[3]}`, region: m[4] }
+    : { number: plate, region: null };
+}

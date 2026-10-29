@@ -130,6 +130,52 @@ describe("CustomerPage header", () => {
     expect(screen.getByText("тестовый комментарий")).toBeInTheDocument();
   });
 
+  it("links back to all customers", async () => {
+    setup();
+    await screen.findByText("Иван Тест");
+    expect(screen.getByRole("link", { name: "← Все клиенты" })).toHaveAttribute(
+      "href",
+      "/customers",
+    );
+  });
+
+  it("labels the customer fields", async () => {
+    setup();
+    await screen.findByText("Иван Тест");
+    expect(screen.getByText("клиент с 29.10.2026")).toBeInTheDocument();
+    expect(screen.getByText("Телефоны")).toBeInTheDocument();
+    expect(screen.getByText("Комментарий")).toBeInTheDocument();
+  });
+
+  it("shows a dash for an empty comment", async () => {
+    setup({ "GET /api/customers/5": () => ({ ...customer, comment: null }) });
+    await screen.findByText("Иван Тест");
+    const label = screen.getByText("Комментарий");
+    expect(label.nextElementSibling).toHaveTextContent("—");
+  });
+
+  it("shows each car as a tile with labelled fields and a plate", async () => {
+    setup({
+      "GET /api/customers/5": () => ({
+        ...customer,
+        cars: [{ ...customer.cars[0], plate: "А123ВС77" }, customer.cars[1]],
+      }),
+    });
+    const tiles = await screen.findAllByRole("listitem", { name: /Test|Demo/ });
+    expect(tiles).toHaveLength(2);
+    expect(within(tiles[0]).getByText("Test X1 2010")).toBeInTheDocument();
+    expect(within(tiles[0]).getByText("А 123 ВС")).toBeInTheDocument();
+    expect(within(tiles[0]).getByText("77")).toBeInTheDocument();
+    expect(within(tiles[0]).getByText("Двигатель")).toBeInTheDocument();
+    expect(within(tiles[0]).getByText("TESTVIN0000000001")).toBeInTheDocument();
+    expect(within(tiles[1]).getAllByText("—").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("says when there are no cars", async () => {
+    setup({ "GET /api/customers/5": () => ({ ...customer, cars: [] }) });
+    expect(await screen.findByText("Машин пока нет")).toBeInTheDocument();
+  });
+
   it("shows not found for a non-numeric id", () => {
     setup({}, "/customers/abc");
     expect(screen.getByText("Клиент не найден")).toBeInTheDocument();

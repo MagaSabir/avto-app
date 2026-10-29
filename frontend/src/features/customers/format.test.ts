@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { carLabel, formatPhone } from "./format";
+import { carLabel, formatPhone, splitPlate } from "./format";
 
 describe("formatPhone", () => {
   it("formats 11 digits starting with 7", () => {
@@ -28,5 +28,23 @@ describe("carLabel", () => {
     expect(carLabel({ id: 1, make: "Test", model: null, plate: null })).toBe(
       "Test",
     );
+  });
+});
+
+describe("splitPlate", () => {
+  it("splits a Russian plate into number and region", () => {
+    expect(splitPlate("А123ВС77")).toEqual({
+      number: "А 123 ВС",
+      region: "77",
+    });
+    expect(splitPlate("М456ОР750")).toEqual({
+      number: "М 456 ОР",
+      region: "750",
+    });
+  });
+
+  it("keeps other plates as they are", () => {
+    expect(splitPlate("А000АА")).toEqual({ number: "А000АА", region: null });
+    expect(splitPlate("AB1234")).toEqual({ number: "AB1234", region: null });
   });
 });
