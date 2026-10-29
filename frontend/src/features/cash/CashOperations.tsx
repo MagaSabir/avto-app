@@ -16,7 +16,7 @@ const timeFmt = new Intl.DateTimeFormat("ru-RU", {
 
 // Wide screens: one grid row per operation; narrower: a labelled card.
 const ROW =
-  "grid grid-cols-[5.5rem_6.5rem_7rem_8rem_minmax(0,1fr)_3rem_5.5rem_6rem_4.5rem_5.5rem_6rem] items-center gap-x-3 px-3 py-2";
+  "grid grid-cols-[5.5rem_6.5rem_7rem_8rem_minmax(0,1fr)_3rem_5.5rem_6rem_4.5rem_5.5rem_6rem_7rem] items-center gap-x-3 px-3 py-2";
 
 const HEADERS = [
   "Время",
@@ -30,6 +30,7 @@ const HEADERS = [
   "Оплата",
   "Прибыль",
   "Кто",
+  "Клиент",
 ];
 
 const RIGHT = new Set(["Кол-во", "Цена", "Сумма", "Прибыль"]);
@@ -58,7 +59,7 @@ function Profit({ op, className }: { op: CashOperation; className?: string }) {
 
 function PhoneCard({ op, time }: { op: CashOperation; time: string }) {
   return (
-    <div className="flex flex-col gap-0.5 px-3 py-2 lg:hidden">
+    <div className="flex flex-col gap-0.5 px-3 py-2 xl:hidden">
       <div className="flex items-center gap-2">
         <span className="font-mono text-[12px] text-muted-foreground">
           {time}
@@ -82,6 +83,7 @@ function PhoneCard({ op, time }: { op: CashOperation; time: string }) {
           прибыль <Profit op={op} />
         </span>
         <span>{op.user ?? "—"}</span>
+        {op.customer && <span>{op.customer.name}</span>}
       </div>
     </div>
   );
@@ -110,7 +112,7 @@ export function CashOperations({
       <div
         className={cn(
           ROW,
-          "hidden border-b text-[12px] text-muted-foreground lg:grid",
+          "hidden border-b text-[12px] text-muted-foreground xl:grid",
         )}
       >
         {HEADERS.map((h) => (
@@ -127,7 +129,7 @@ export function CashOperations({
               className="block hover:bg-muted"
             >
               <PhoneCard op={op} time={time(op)} />
-              <div className={cn(ROW, "hidden lg:grid")}>
+              <div className={cn(ROW, "hidden xl:grid")}>
                 <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
                   {time(op)}
                 </span>
@@ -149,6 +151,7 @@ export function CashOperations({
                 <span className="truncate text-muted-foreground">
                   {op.user ?? "—"}
                 </span>
+                <span className="truncate">{op.customer?.name ?? "—"}</span>
               </div>
             </Link>
           </li>

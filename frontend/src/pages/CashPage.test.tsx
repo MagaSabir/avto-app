@@ -191,6 +191,25 @@ describe("CashPage", () => {
     expect(link).toHaveTextContent(rub("280.00"));
   });
 
+  it("shows the customer as plain text inside the row link", async () => {
+    setup(() =>
+      cashOut({
+        operations: [{ ...sale, customer: { id: 5, name: "Иван Тест" } }],
+      }),
+    );
+    const link = await screen.findByRole("link", { name: /W 68\/3/ });
+    expect(link).toHaveTextContent("Иван Тест");
+    expect(within(link).queryByRole("link")).toBeNull();
+    expect(screen.getByText("Клиент")).toBeInTheDocument();
+  });
+
+  it("shows a dash when the operation has no customer", async () => {
+    setup(() => cashOut({ operations: [{ ...sale, customer: null }] }));
+    const link = await screen.findByRole("link", { name: /W 68\/3/ });
+    expect(link).not.toHaveTextContent("Иван Тест");
+    expect(screen.getByText("Клиент")).toBeInTheDocument();
+  });
+
   it("shows a dash for unknown profit", async () => {
     setup(() =>
       cashOut({

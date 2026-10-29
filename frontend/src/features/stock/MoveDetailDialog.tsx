@@ -1,5 +1,8 @@
+import { Link } from "react-router";
+
 import type { StockMove } from "@/api/stock";
 import { Modal } from "@/components/ui/modal";
+import { carLabel } from "@/features/customers/format";
 
 import { formatDateTime, formatPrice, PAYMENT_LABELS } from "./format";
 import { cents } from "./formBits";
@@ -49,6 +52,21 @@ export function MoveDetailDialog({
             <>
               <dt className="text-muted-foreground">Оплата</dt>
               <dd>{move.payment ? PAYMENT_LABELS[move.payment] : "—"}</dd>
+              {move.customer && (
+                <>
+                  <dt className="text-muted-foreground">Клиент</dt>
+                  <dd>
+                    <Link
+                      to={`/customers/${String(move.customer.id)}`}
+                      className="underline-offset-2 hover:underline"
+                    >
+                      {move.car
+                        ? `${move.customer.name} · ${carLabel(move.car)}`
+                        : move.customer.name}
+                    </Link>
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Закупка</dt>
               <dd className="tabular-nums">
                 {move.cost === null

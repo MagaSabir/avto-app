@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StockMove } from "@/api/stock";
@@ -174,5 +175,56 @@ describe("MoveDetailDialog", () => {
     expect(screen.getByText("Прибыль").nextSibling).toHaveTextContent(
       "-1,50 ₽",
     );
+  });
+
+  it("links the customer with the car", () => {
+    render(
+      <MemoryRouter>
+        <MoveDetailDialog
+          move={{
+            ...MOVE,
+            type: "sale",
+            customer: { id: 5, name: "Иван Тест" },
+            car: { id: 9, make: "Lada", model: "Vesta", plate: "A000AA" },
+          }}
+          onClose={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Клиент")).toBeInTheDocument();
+    const link = screen.getByRole("link", {
+      name: "Иван Тест · Lada Vesta A000AA",
+    });
+    expect(link).toHaveAttribute("href", "/customers/5");
+  });
+
+  it("omits the car part when there is no car", () => {
+    render(
+      <MemoryRouter>
+        <MoveDetailDialog
+          move={{
+            ...MOVE,
+            type: "return",
+            customer: { id: 5, name: "Иван Тест" },
+            car: null,
+          }}
+          onClose={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Иван Тест" })).toHaveAttribute(
+      "href",
+      "/customers/5",
+    );
+  });
+
+  it("has no customer row without a customer", () => {
+    render(
+      <MoveDetailDialog
+        move={{ ...MOVE, type: "sale", customer: null }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.queryByText("Клиент")).not.toBeInTheDocument();
   });
 });
