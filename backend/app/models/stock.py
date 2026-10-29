@@ -61,6 +61,10 @@ class StockMove(Base):
         CheckConstraint("(type = 'cancel') = (cancels_move_id IS NOT NULL)", name="cancel_link"),
         CheckConstraint("qty_delta <> 0", name="qty_delta_non_zero"),
         CheckConstraint("qty_after >= 0", name="qty_after_non_negative"),
+        CheckConstraint(
+            "(customer_id IS NULL AND car_id IS NULL) OR type IN ('sale', 'return')",
+            name="customer_link",
+        ),
         Index("ix_stock_moves_item_id_created_at", "item_id", "created_at"),
     )
 
@@ -79,4 +83,8 @@ class StockMove(Base):
     prev_purchase_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     prev_sale_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     prev_markup: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    customer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("customers.id", ondelete="SET NULL"), index=True
+    )
+    car_id: Mapped[int | None] = mapped_column(ForeignKey("customer_cars.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
