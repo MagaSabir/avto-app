@@ -1,6 +1,11 @@
+from decimal import Decimal
 from typing import Any
 
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.stock import StockMove
 
 
 def _body(**over: Any) -> dict[str, Any]:
@@ -129,3 +134,29 @@ async def test_receipt_max_markup_accepted(client: AsyncClient) -> None:
     )
     assert r.status_code == 201
     assert r.json()["item"]["markup"] == "9999.99"
+
+
+async def test_receipt_stores_prev_prices(client: AsyncClient, db_session: AsyncSession) -> None:
+    await client.post("/api/stock/receipts", json=_body())
+    await client.post(
+        "/api/stock/receipts",
+        json=_body(purchase_price="500", markup="40", sale_price="700", price_policy="update"),
+    )
+    rows = (
+        (
+            await db_session.execute(
+                select(StockMove).where(StockMove.type == "receipt").order_by(StockMove.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 2
+    assert (rows[0].prev_purchase_price, rows[0].prev_markup, rows[0].prev_sale_price) == (
+        None,
+        None,
+        None,
+    )
+    assert rows[1].prev_purchase_price == Decimal("412.00")
+    assert rows[1].prev_markup == 30
+    assert rows[1].prev_sale_price == 540

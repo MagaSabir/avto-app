@@ -1,10 +1,13 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.numbers import normalize_brand, normalize_number
-from app.models.stock import MoveType, StockItem, StockMove
+from app.domain.stock import cancel_block
+from app.models.auth import User
+from app.models.stock import MoveType, Payment, StockItem, StockMove
 from app.repositories import stock as stock_repository
 from app.schemas.stock import (
     AdjustmentIn,
@@ -23,10 +26,32 @@ from app.schemas.stock import (
 from app.services.errors import InsufficientStock, ItemNotFound, NothingChanged
 
 
-async def receive(session: AsyncSession, data: ReceiptIn) -> OperationResult:
+def _move_out(
+    move: StockMove, login: str | None, *, cancelled: bool, cancellable: bool
+) -> StockMoveOut:
+    return StockMoveOut(
+        id=move.id,
+        type=move.type,
+        qty_delta=move.qty_delta,
+        qty_after=move.qty_after,
+        price=move.price,
+        supplier=move.supplier,
+        comment=move.comment,
+        created_at=move.created_at,
+        cost=move.cost,
+        payment=move.payment,
+        user=login,
+        cancels_move_id=move.cancels_move_id,
+        cancelled=cancelled,
+        cancellable=cancellable,
+    )
+
+
+async def receive(session: AsyncSession, data: ReceiptIn, user: User | None) -> OperationResult:
     number_norm = normalize_number(data.number)
     brand = normalize_brand(data.brand)
     item = await stock_repository.find_item_for_update(session, number_norm, brand)
+    prev: tuple[Decimal, Decimal, Decimal] | None = None
     if item is None:
         item = StockItem(
             number_norm=number_norm,
@@ -43,6 +68,7 @@ async def receive(session: AsyncSession, data: ReceiptIn) -> OperationResult:
         session.add(item)
         await session.flush()
     else:
+        prev = (item.purchase_price, item.markup, item.sale_price)
         item.name = data.name
         item.cell = data.cell
         if data.price_policy == "update":
@@ -57,21 +83,24 @@ async def receive(session: AsyncSession, data: ReceiptIn) -> OperationResult:
         price=data.purchase_price,
         supplier=data.supplier,
         comment=data.comment,
+        user_id=user.id if user else None,
+        prev_purchase_price=prev[0] if prev else None,
+        prev_markup=prev[1] if prev else None,
+        prev_sale_price=prev[2] if prev else None,
     )
+    return await _finish(session, item, move, user)
+
+
+async def _finish(
+    session: AsyncSession, item: StockItem, move: StockMove, user: User | None
+) -> OperationResult:
+    login = user.login if user else None
     await session.commit()
     await session.refresh(item)
     await session.refresh(move)
     return OperationResult(
-        item=StockItemOut.model_validate(item), move=StockMoveOut.model_validate(move)
-    )
-
-
-async def _finish(session: AsyncSession, item: StockItem, move: StockMove) -> OperationResult:
-    await session.commit()
-    await session.refresh(item)
-    await session.refresh(move)
-    return OperationResult(
-        item=StockItemOut.model_validate(item), move=StockMoveOut.model_validate(move)
+        item=StockItemOut.model_validate(item),
+        move=_move_out(move, login, cancelled=False, cancellable=move.type != "cancel"),
     )
 
 
@@ -89,37 +118,74 @@ async def _decrease(
     qty: int,
     price: Decimal | None,
     comment: str | None,
+    user: User | None,
+    payment: Payment | None = None,
 ) -> OperationResult:
     item = await _locked_item(session, item_id)
     if qty > item.qty:
         raise InsufficientStock(item.qty)
-    move = await stock_repository.add_move(session, item, type, -qty, price=price, comment=comment)
-    return await _finish(session, item, move)
+    move = await stock_repository.add_move(
+        session,
+        item,
+        type,
+        -qty,
+        price=price,
+        comment=comment,
+        user_id=user.id if user else None,
+        cost=item.purchase_price if type == "sale" else None,
+        payment=payment,
+    )
+    return await _finish(session, item, move, user)
 
 
-async def sell(session: AsyncSession, item_id: int, data: SaleIn) -> OperationResult:
-    return await _decrease(session, item_id, "sale", data.qty, data.price, data.comment)
+async def sell(
+    session: AsyncSession, item_id: int, data: SaleIn, user: User | None
+) -> OperationResult:
+    return await _decrease(
+        session, item_id, "sale", data.qty, data.price, data.comment, user, data.payment
+    )
 
 
-async def accept_return(session: AsyncSession, item_id: int, data: ReturnIn) -> OperationResult:
+async def accept_return(
+    session: AsyncSession, item_id: int, data: ReturnIn, user: User | None
+) -> OperationResult:
     item = await _locked_item(session, item_id)
     move = await stock_repository.add_move(
-        session, item, "return", data.qty, price=data.price, comment=data.comment
+        session,
+        item,
+        "return",
+        data.qty,
+        price=data.price,
+        comment=data.comment,
+        user_id=user.id if user else None,
+        cost=item.purchase_price,
+        payment=data.payment,
     )
-    return await _finish(session, item, move)
+    return await _finish(session, item, move, user)
 
 
-async def write_off(session: AsyncSession, item_id: int, data: WriteoffIn) -> OperationResult:
-    return await _decrease(session, item_id, "writeoff", data.qty, None, data.comment)
+async def write_off(
+    session: AsyncSession, item_id: int, data: WriteoffIn, user: User | None
+) -> OperationResult:
+    return await _decrease(session, item_id, "writeoff", data.qty, None, data.comment, user)
 
 
-async def adjust(session: AsyncSession, item_id: int, data: AdjustmentIn) -> OperationResult:
+async def adjust(
+    session: AsyncSession, item_id: int, data: AdjustmentIn, user: User | None
+) -> OperationResult:
     item = await _locked_item(session, item_id)
     delta = data.actual_qty - item.qty
     if delta == 0:
         raise NothingChanged()
-    move = await stock_repository.add_move(session, item, "adjustment", delta, comment=data.comment)
-    return await _finish(session, item, move)
+    move = await stock_repository.add_move(
+        session,
+        item,
+        "adjustment",
+        delta,
+        comment=data.comment,
+        user_id=user.id if user else None,
+    )
+    return await _finish(session, item, move, user)
 
 
 async def list_items(
@@ -149,8 +215,21 @@ async def get_detail(session: AsyncSession, item_id: int) -> StockItemDetail:
 async def list_moves(session: AsyncSession, item_id: int) -> list[StockMoveOut]:
     if await stock_repository.get_item(session, item_id) is None:
         raise ItemNotFound()
-    moves = await stock_repository.list_moves(session, item_id)
-    return [StockMoveOut.model_validate(m) for m in moves]
+    rows = await stock_repository.list_moves(session, item_id)
+    cancelled_ids = {m.cancels_move_id for m, _ in rows if m.cancels_move_id is not None}
+    now = datetime.now(UTC)
+    result: list[StockMoveOut] = []
+    for index, (move, login) in enumerate(rows):
+        cancelled = move.id in cancelled_ids
+        blocked = cancel_block(
+            move_type=move.type,
+            created_at=move.created_at,
+            now=now,
+            is_last=index == 0,
+            cancelled=cancelled,
+        )
+        result.append(_move_out(move, login, cancelled=cancelled, cancellable=blocked is None))
+    return result
 
 
 async def lookup(session: AsyncSession, number: str) -> list[StockItemOut]:

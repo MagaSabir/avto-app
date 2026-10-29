@@ -28,12 +28,13 @@ async def test_concurrent_sales_last_unit(test_engine: AsyncEngine) -> None:
                 markup=Decimal("30"),
                 sale_price=Decimal("130.00"),
             ),
+            None,
         )
         item_id = created.item.id
-        sale = SaleIn(qty=1, price=Decimal("130.00"))
+        sale = SaleIn(qty=1, price=Decimal("130.00"), payment="cash")
         results = await asyncio.gather(
-            stock_service.sell(s1, item_id, sale),
-            stock_service.sell(s2, item_id, sale),
+            stock_service.sell(s1, item_id, sale, None),
+            stock_service.sell(s2, item_id, sale, None),
             return_exceptions=True,
         )
         errors = [r for r in results if isinstance(r, InsufficientStock)]

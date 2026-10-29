@@ -33,7 +33,7 @@ def _url(item: dict[str, Any], op: str) -> str:
 
 async def test_sale(client: AsyncClient) -> None:
     item = await _receive(client)
-    r = await client.post(_url(item, "sales"), json={"qty": 2, "price": "540"})
+    r = await client.post(_url(item, "sales"), json={"qty": 2, "price": "540", "payment": "cash"})
     assert r.status_code == 201
     data = r.json()
     assert data["item"]["qty"] == 1
@@ -46,13 +46,13 @@ async def test_sale(client: AsyncClient) -> None:
 
 async def test_sale_below_purchase_allowed(client: AsyncClient) -> None:
     item = await _receive(client)
-    r = await client.post(_url(item, "sales"), json={"qty": 1, "price": "100"})
+    r = await client.post(_url(item, "sales"), json={"qty": 1, "price": "100", "payment": "cash"})
     assert r.status_code == 201
 
 
 async def test_sale_whole_stock(client: AsyncClient) -> None:
     item = await _receive(client)
-    r = await client.post(_url(item, "sales"), json={"qty": 3, "price": "540"})
+    r = await client.post(_url(item, "sales"), json={"qty": 3, "price": "540", "payment": "cash"})
     assert r.status_code == 201
     assert r.json()["item"]["qty"] == 0
     assert r.json()["item"]["status"] == "out"
@@ -73,19 +73,21 @@ async def test_sale_whole_stock(client: AsyncClient) -> None:
 
 async def test_sale_over_stock(client: AsyncClient) -> None:
     item = await _receive(client)
-    r = await client.post(_url(item, "sales"), json={"qty": 4, "price": "540"})
+    r = await client.post(_url(item, "sales"), json={"qty": 4, "price": "540", "payment": "cash"})
     assert r.status_code == 409
     assert r.json() == {"message": "Недостаточно на складе: остаток 3"}
-    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540", "payment": "cash"})
     assert r.json()["item"]["qty"] == 4
 
 
 async def test_sale_invalid_input(client: AsyncClient) -> None:
     item = await _receive(client)
     for body in (
-        {"qty": 0, "price": "540"},
+        {"qty": 0, "price": "540", "payment": "cash"},
         {"qty": 1, "price": "0"},
-        {"qty": 1, "price": "5.123"},
+        {"qty": 1, "price": "5.123", "payment": "cash"},
+        {"qty": 1, "price": "540"},
+        {"qty": 1, "price": "540", "payment": "card"},
     ):
         r = await client.post(_url(item, "sales"), json=body)
         assert r.status_code == 422
@@ -93,7 +95,7 @@ async def test_sale_invalid_input(client: AsyncClient) -> None:
 
 async def test_return(client: AsyncClient) -> None:
     item = await _receive(client)
-    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540", "payment": "cash"})
     assert r.status_code == 201
     data = r.json()
     assert data["item"]["qty"] == 4
@@ -134,15 +136,17 @@ async def test_adjustment(client: AsyncClient) -> None:
 
 
 async def test_unknown_item(client: AsyncClient) -> None:
-    r = await client.post("/api/stock/items/999999/sales", json={"qty": 1, "price": "540"})
+    r = await client.post(
+        "/api/stock/items/999999/sales", json={"qty": 1, "price": "540", "payment": "cash"}
+    )
     assert r.status_code == 404
     assert r.json() == {"message": "Позиция не найдена"}
 
 
 async def test_qty_matches_moves(client: AsyncClient, db_session: AsyncSession) -> None:
     item = await _receive(client, qty=5)
-    await client.post(_url(item, "sales"), json={"qty": 2, "price": "540"})
-    await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    await client.post(_url(item, "sales"), json={"qty": 2, "price": "540", "payment": "cash"})
+    await client.post(_url(item, "returns"), json={"qty": 1, "price": "540", "payment": "cash"})
     await client.post(_url(item, "writeoffs"), json={"qty": 1, "comment": "брак"})
     r = await client.post(_url(item, "adjustments"), json={"actual_qty": 7})
     qty = r.json()["item"]["qty"]
@@ -162,8 +166,8 @@ async def test_delete_item_removes_history_only_for_that_item(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     item = await _receive(client)
-    await client.post(_url(item, "sales"), json={"qty": 1, "price": "540"})
-    await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    await client.post(_url(item, "sales"), json={"qty": 1, "price": "540", "payment": "cash"})
+    await client.post(_url(item, "returns"), json={"qty": 1, "price": "540", "payment": "cash"})
     other = await client.post(
         "/api/stock/receipts",
         json={
@@ -196,3 +200,31 @@ async def test_delete_unknown_item(client: AsyncClient) -> None:
     r = await client.delete("/api/stock/items/999999", headers=JSON)
     assert r.status_code == 404
     assert r.json() == {"message": "Позиция не найдена"}
+
+
+async def test_sale_stores_cost_payment_user(client: AsyncClient) -> None:
+    item = await _receive(client)
+    r = await client.post(
+        _url(item, "sales"),
+        json={"qty": 1, "price": "540", "payment": "transfer", "comment": "x"},
+    )
+    assert r.status_code == 201
+    move = r.json()["move"]
+    assert move["cost"] == "412.00"
+    assert move["payment"] == "transfer"
+    assert move["user"] == "test"
+    assert move["comment"] == "x"
+    assert move["cancellable"] is True
+    assert move["cancelled"] is False
+
+
+async def test_return_requires_payment(client: AsyncClient) -> None:
+    item = await _receive(client)
+    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540"})
+    assert r.status_code == 422
+    r = await client.post(_url(item, "returns"), json={"qty": 1, "price": "540", "payment": "card"})
+    assert r.status_code == 422
+    r = await client.post(
+        _url(item, "returns"), json={"qty": 1, "price": "540", "payment": "transfer"}
+    )
+    assert r.json()["move"]["cost"] == "412.00"
