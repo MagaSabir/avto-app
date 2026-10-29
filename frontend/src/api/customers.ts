@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -28,6 +29,7 @@ export function useCustomers(q: string): UseQueryResult<CustomerBrief[]> {
       const params = new URLSearchParams({ q });
       return apiFetch<CustomerBrief[]>(`/api/customers?${params.toString()}`);
     },
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -59,7 +61,7 @@ export function useCustomerHistory(
 function useCustomerMutation<TBody, TResult>(
   path: string,
   method: "POST" | "PATCH" | "DELETE",
-  alsoStock = false,
+  dropOnSuccess?: (key: readonly unknown[]) => boolean,
 ): UseMutationResult<TResult, Error, TBody> {
   const queryClient = useQueryClient();
   return useMutation({
@@ -69,11 +71,18 @@ function useCustomerMutation<TBody, TResult>(
         ...(method === "DELETE" ? {} : { body: JSON.stringify(body) }),
       }),
     onSuccess: async () => {
+      // A deleted customer's own queries would 404 on refetch: drop them.
+      if (dropOnSuccess) {
+        queryClient.removeQueries({
+          queryKey: ["customers"],
+          predicate: (q) => dropOnSuccess(q.queryKey),
+        });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["customers"] }),
-        alsoStock
-          ? queryClient.invalidateQueries({ queryKey: ["stock"] })
-          : null,
+        // Customer and car are shown on stock moves and cash rows.
+        queryClient.invalidateQueries({ queryKey: ["stock"] }),
+        queryClient.invalidateQueries({ queryKey: ["cash"] }),
       ]);
     },
   });
@@ -97,7 +106,7 @@ export function useDeleteCustomer(id: number) {
   return useCustomerMutation<undefined, null>(
     `/api/customers/${String(id)}`,
     "DELETE",
-    true,
+    (key) => (key[1] === "detail" || key[1] === "history") && key[2] === id,
   );
 }
 
@@ -119,6 +128,5 @@ export function useDeleteCar(customerId: number, carId: number) {
   return useCustomerMutation<undefined, null>(
     `/api/customers/${String(customerId)}/cars/${String(carId)}`,
     "DELETE",
-    true,
   );
 }

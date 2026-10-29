@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from "react-router";
 
 import { CartPage } from "@/pages/CartPage";
 import { CashPage } from "@/pages/CashPage";
+import { CustomerPage } from "@/pages/CustomerPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { OrdersPage } from "@/pages/OrdersPage";
@@ -24,6 +25,7 @@ export const routes: RouteObject[] = [
           { path: "/stock", element: <StockPage /> },
           { path: "/cash", element: <CashPage /> },
           { path: "/customers", element: <CustomersPage /> },
+          { path: "/customers/:id", element: <CustomerPage /> },
           { path: "/orders", element: <OrdersPage /> },
           { path: "/settlements", element: <SettlementsPage /> },
           { path: "/cart", element: <CartPage /> },

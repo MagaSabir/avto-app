@@ -38,7 +38,13 @@ const ivan: CustomerBrief = {
 };
 
 function Where() {
-  return <p data-testid="where">{useLocation().pathname}</p>;
+  const location = useLocation();
+  return (
+    <>
+      <p data-testid="where">{location.pathname}</p>
+      <p data-testid="state">{JSON.stringify(location.state)}</p>
+    </>
+  );
 }
 
 function setup(list: (q: string) => CustomerBrief[], extra = {}) {
@@ -110,7 +116,7 @@ describe("CustomersPage", () => {
       phones: ["79000000002"],
       cars: [],
       created_at: "2026-10-29T10:00:00Z",
-      warnings: [],
+      warnings: ["Телефон +7 900 000-00-02 уже есть у клиента «Пётр»"],
     };
     setup(() => [], {
       "POST /api/customers": (init: RequestInit) => {
@@ -135,6 +141,9 @@ describe("CustomersPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Создать" }));
     await flush();
     expect(screen.getByTestId("where")).toHaveTextContent("/customers/9");
+    expect(JSON.parse(screen.getByTestId("state").textContent)).toEqual({
+      warnings: saved.warnings,
+    });
     expect(bodies).toEqual([
       { name: "Пётр Тест", comment: "тест", phones: ["+7 900 000-00-02"] },
     ]);

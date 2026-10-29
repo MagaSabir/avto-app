@@ -89,7 +89,9 @@ export function CustomersPage() {
         }}
         onCreated={(customer) => {
           setCreating(false);
-          void navigate(`/customers/${String(customer.id)}`);
+          void navigate(`/customers/${String(customer.id)}`, {
+            state: { warnings: customer.warnings },
+          });
         }}
       />
     </div>
