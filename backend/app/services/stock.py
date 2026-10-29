@@ -145,7 +145,7 @@ async def _decrease(
         price=price,
         comment=comment,
         user_id=user.id if user else None,
-        cost=item.purchase_price if type == "sale" else None,
+        cost=item.purchase_price,
         payment=payment,
     )
     return await _finish(session, item, move, user)

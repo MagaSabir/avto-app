@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api import auth as auth_api
 from app.api import cart as cart_api
+from app.api import cash as cash_api
 from app.api import health
 from app.api import orders as orders_api
 from app.api import search as search_api
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(settlements_api.router, prefix="/api", dependencies=protected)
     app.include_router(orders_api.router, prefix="/api", dependencies=protected)
     app.include_router(cart_api.router, prefix="/api", dependencies=protected)
+    app.include_router(cash_api.router, prefix="/api", dependencies=protected)
     return app
 
 

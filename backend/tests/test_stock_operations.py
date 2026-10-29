@@ -119,6 +119,13 @@ async def test_writeoff(client: AsyncClient) -> None:
     assert r.status_code == 409
 
 
+async def test_writeoff_stores_cost(client: AsyncClient) -> None:
+    item = await _receive(client)
+    r = await client.post(_url(item, "writeoffs"), json={"qty": 1, "comment": "брак"})
+    assert r.status_code == 201
+    assert r.json()["move"]["cost"] == "412.00"
+
+
 async def test_adjustment(client: AsyncClient) -> None:
     item = await _receive(client)
     r = await client.post(_url(item, "adjustments"), json={"actual_qty": 1})

@@ -48,6 +48,13 @@ class SupplierNotFound(DomainError):
         super().__init__("Поставщик не найден")
 
 
+class InvalidPeriod(DomainError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__("Неверный период")
+
+
 class InvalidCredentials(DomainError):
     status_code = 401
 
