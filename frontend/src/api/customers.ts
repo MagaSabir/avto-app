@@ -22,9 +22,13 @@ export type CarIn = Schemas["CarIn"];
 export type CarPatch = Schemas["CarPatch"];
 export type HistoryRow = Schemas["CustomerHistoryRow"];
 
-export function useCustomers(q: string): UseQueryResult<CustomerBrief[]> {
+export function useCustomers(
+  q: string,
+  enabled = true,
+): UseQueryResult<CustomerBrief[]> {
   return useQuery({
     queryKey: ["customers", "list", q],
+    enabled,
     queryFn: () => {
       const params = new URLSearchParams({ q });
       return apiFetch<CustomerBrief[]>(`/api/customers?${params.toString()}`);

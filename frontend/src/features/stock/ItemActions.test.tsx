@@ -297,4 +297,48 @@ describe("ItemActions", () => {
       expect(screen.getByRole("dialog")).toBeVisible();
     });
   });
+
+  it("sends customer_id and car_id when a customer is picked", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      "GET /api/customers": () => [
+        {
+          id: 1,
+          name: "Иван Тест",
+          phones: ["79000000001"],
+          cars: [{ id: 11, make: "Lada", model: "Vesta", plate: "A001AA" }],
+        },
+      ],
+      "POST /api/stock/items/3/sales": (init) => {
+        body = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    fireEvent.change(screen.getByRole("combobox", { name: "Клиент" }), {
+      target: { value: "Ив" },
+    });
+    fireEvent.click((await screen.findAllByRole("option"))[0]);
+    click("Провести");
+    await screen.findByText(/✓ Продажа/);
+    expect(body.customer_id).toBe(1);
+    expect(body.car_id).toBe(11);
+  });
+
+  it("omits customer fields when no customer is picked", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      "POST /api/stock/items/3/returns": (init) => {
+        body = JSON.parse(init.body as string) as Record<string, unknown>;
+        return new Response(JSON.stringify(result(8)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Возврат");
+    click("Провести");
+    await screen.findByText(/✓ Возврат/);
+    expect(body).not.toHaveProperty("customer_id");
+    expect(body).not.toHaveProperty("car_id");
+  });
 });

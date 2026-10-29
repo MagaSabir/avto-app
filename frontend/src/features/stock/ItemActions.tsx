@@ -13,6 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import {
+  CustomerPicker,
+  type PickerValue,
+} from "@/features/customers/CustomerPicker";
+
 import { DeleteItem } from "./DeleteItem";
 import { cents, errorText, Field } from "./formBits";
 import { formatPrice, PAYMENT_LABELS, trimPercent } from "./format";
@@ -116,6 +121,10 @@ function SaleReturnForm({
   const [price, setPrice] = useState(formatPrice(item.sale_price));
   const [payment, setPayment] = useState<Payment>("cash");
   const [comment, setComment] = useState("");
+  const [picked, setPicked] = useState<PickerValue>({
+    customer: null,
+    carId: null,
+  });
 
   const qtyNum = parseQty(qty, 1);
   const priceNum = parseMoney(price);
@@ -140,6 +149,8 @@ function SaleReturnForm({
             price: priceNum,
             payment,
             ...(comment.trim() ? { comment: comment.trim() } : {}),
+            ...(picked.customer ? { customer_id: picked.customer.id } : {}),
+            ...(picked.carId !== null ? { car_id: picked.carId } : {}),
           },
           {
             onSuccess: ({ item: next }) => {
@@ -202,6 +213,7 @@ function SaleReturnForm({
           }}
         />
       </Field>
+      <CustomerPicker value={picked} onChange={setPicked} />
     </FormShell>
   );
 }
