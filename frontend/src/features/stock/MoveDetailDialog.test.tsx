@@ -141,4 +141,38 @@ describe("MoveDetailDialog", () => {
     expect(screen.getByText("Оплата").nextSibling).toHaveTextContent("—");
     expect(screen.getByText("Кто").nextSibling).toHaveTextContent("—");
   });
+
+  it("shows a negative profit for a return", () => {
+    render(
+      <MoveDetailDialog
+        move={{
+          ...MOVE,
+          type: "return",
+          qty_delta: 2,
+          price: "540.00",
+          cost: "412.00",
+        }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Прибыль").nextSibling).toHaveTextContent("-256 ₽");
+  });
+
+  it("shows a kopeck loss", () => {
+    render(
+      <MoveDetailDialog
+        move={{
+          ...MOVE,
+          type: "sale",
+          qty_delta: -3,
+          price: "99.50",
+          cost: "100.00",
+        }}
+        onClose={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Прибыль").nextSibling).toHaveTextContent(
+      "-1,50 ₽",
+    );
+  });
 });

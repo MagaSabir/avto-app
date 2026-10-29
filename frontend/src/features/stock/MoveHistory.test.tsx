@@ -97,7 +97,7 @@ describe("MoveHistory", () => {
     expect(screen.getByText("· ivan")).toBeInTheDocument();
   });
 
-  it("renders the action slot without selecting the row", () => {
+  it("renders the action slot", () => {
     const onSelect = vi.fn();
     render(
       <MoveHistory

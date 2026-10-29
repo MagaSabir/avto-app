@@ -6,9 +6,9 @@ import { cents } from "./formBits";
 import { priceText, qtyText } from "./MoveHistory";
 import { MoveTypeBadge } from "./MoveTypeBadge";
 
-// Profit in whole money string, sign kept: (price - cost) * |qty|.
+// Profit in whole money string, sign kept: (price - cost) * -qty_delta.
 function profitText(price: string, cost: string, qty: number): string {
-  const total = (cents(price) - cents(cost)) * BigInt(Math.abs(qty));
+  const total = (cents(price) - cents(cost)) * BigInt(-qty);
   const abs = total < 0n ? -total : total;
   const frac = String(abs % 100n).padStart(2, "0");
   return `${total < 0n ? "-" : ""}${String(abs / 100n)}.${frac}`;
