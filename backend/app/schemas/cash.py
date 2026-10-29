@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.models.stock import Payment
+from app.schemas.customers import CustomerRef
 from app.schemas.types import Money
 
 
@@ -36,6 +37,7 @@ class CashOperation(BaseModel):
     cost: Money | None
     profit: Money | None
     user: str | None
+    customer: CustomerRef | None = None
 
 
 class CashOut(BaseModel):

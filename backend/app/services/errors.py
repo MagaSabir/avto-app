@@ -221,3 +221,10 @@ class InvalidYear(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Неверный год")
+
+
+class InvalidCustomer(DomainError):
+    status_code = 422
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

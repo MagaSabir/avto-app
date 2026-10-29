@@ -4,18 +4,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.auth import User
+from app.models.customers import Customer
 from app.models.stock import StockItem, StockMove
 
 
 async def period_moves(
     session: AsyncSession, start_utc: datetime, end_utc: datetime
-) -> list[tuple[StockMove, StockItem, str | None]]:
+) -> list[tuple[StockMove, StockItem, str | None, Customer | None]]:
     """Non-cancelled sales, returns and write-offs in [start_utc, end_utc), newest first."""
     cancelled = select(StockMove.cancels_move_id).where(StockMove.cancels_move_id.is_not(None))
     result = await session.execute(
-        select(StockMove, StockItem, User.login)
+        select(StockMove, StockItem, User.login, Customer)
         .join(StockItem, StockItem.id == StockMove.item_id)
         .outerjoin(User, User.id == StockMove.user_id)
+        .outerjoin(Customer, Customer.id == StockMove.customer_id)
         .where(
             StockMove.type.in_(("sale", "return", "writeoff")),
             StockMove.created_at >= start_utc,
@@ -24,4 +26,4 @@ async def period_moves(
         )
         .order_by(StockMove.id.desc())
     )
-    return [(move, item, login) for move, item, login in result]
+    return [(move, item, login, customer) for move, item, login, customer in result]

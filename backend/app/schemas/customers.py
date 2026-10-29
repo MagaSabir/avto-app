@@ -1,6 +1,10 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+from app.models.stock import Payment
+from app.schemas.types import Money
 
 
 class CarIn(BaseModel):
@@ -26,6 +30,11 @@ class CarOut(BaseModel):
     vin: str | None
     plate: str | None
     year: int | None
+
+
+class CustomerRef(BaseModel):
+    id: int
+    name: str
 
 
 class CarBrief(BaseModel):
@@ -69,3 +78,18 @@ class CustomerBrief(BaseModel):
     name: str
     phones: list[str]
     cars: list[CarBrief]
+
+
+class CustomerHistoryRow(BaseModel):
+    move_id: int
+    type: Literal["sale", "return"]
+    created_at: datetime
+    item_id: int
+    number_raw: str
+    brand: str
+    name: str
+    qty: int
+    price: Money
+    amount: Money
+    payment: Payment | None
+    car: CarBrief | None

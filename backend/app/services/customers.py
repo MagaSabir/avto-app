@@ -9,6 +9,7 @@ from app.schemas.customers import (
     CarOut,
     CarPatch,
     CustomerBrief,
+    CustomerHistoryRow,
     CustomerIn,
     CustomerOut,
     CustomerPatch,
@@ -207,3 +208,31 @@ async def delete_car(session: AsyncSession, customer_id: int, car_id: int) -> No
     await repo.delete_car(session, car)
     await repo.touch(session, customer)
     await session.commit()
+
+
+async def history(
+    session: AsyncSession, customer_id: int, car_id: int | None
+) -> list[CustomerHistoryRow]:
+    await _get(session, customer_id)
+    rows: list[CustomerHistoryRow] = []
+    for move, item, car in await repo.history(session, customer_id, car_id):
+        if move.type not in ("sale", "return") or move.price is None:
+            continue
+        qty = abs(move.qty_delta)
+        rows.append(
+            CustomerHistoryRow(
+                move_id=move.id,
+                type=move.type,
+                created_at=move.created_at,
+                item_id=item.id,
+                number_raw=item.number_raw,
+                brand=item.brand,
+                name=item.name,
+                qty=qty,
+                price=move.price,
+                amount=move.price * qty,
+                payment=move.payment,
+                car=CarBrief.model_validate(car) if car else None,
+            )
+        )
+    return rows

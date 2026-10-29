@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.numbers import normalize_brand, normalize_number
 from app.domain.stock import CancelBlock, cancel_block
 from app.models.auth import User
+from app.models.customers import Customer, CustomerCar
 from app.models.stock import MoveType, Payment, StockItem, StockMove
+from app.repositories import customers as customer_repository
 from app.repositories import stock as stock_repository
+from app.schemas.customers import CarBrief, CustomerRef
 from app.schemas.stock import (
     AdjustmentIn,
     OperationResult,
@@ -25,6 +28,7 @@ from app.schemas.stock import (
 )
 from app.services.errors import (
     InsufficientStock,
+    InvalidCustomer,
     ItemNotFound,
     MoveNotCancellable,
     MoveNotFound,
@@ -40,7 +44,13 @@ _CANCEL_MESSAGES: dict[CancelBlock, str] = {
 
 
 def _move_out(
-    move: StockMove, login: str | None, *, cancelled: bool, cancellable: bool
+    move: StockMove,
+    login: str | None,
+    *,
+    cancelled: bool,
+    cancellable: bool,
+    customer: Customer | None = None,
+    car: CustomerCar | None = None,
 ) -> StockMoveOut:
     return StockMoveOut(
         id=move.id,
@@ -57,6 +67,8 @@ def _move_out(
         cancels_move_id=move.cancels_move_id,
         cancelled=cancelled,
         cancellable=cancellable,
+        customer=CustomerRef(id=customer.id, name=customer.name) if customer else None,
+        car=CarBrief.model_validate(car) if car else None,
     )
 
 
@@ -105,7 +117,12 @@ async def receive(session: AsyncSession, data: ReceiptIn, user: User | None) -> 
 
 
 async def _finish(
-    session: AsyncSession, item: StockItem, move: StockMove, user: User | None
+    session: AsyncSession,
+    item: StockItem,
+    move: StockMove,
+    user: User | None,
+    customer: Customer | None = None,
+    car: CustomerCar | None = None,
 ) -> OperationResult:
     login = user.login if user else None
     await session.commit()
@@ -113,7 +130,14 @@ async def _finish(
     await session.refresh(move)
     return OperationResult(
         item=StockItemOut.model_validate(item),
-        move=_move_out(move, login, cancelled=False, cancellable=move.type != "cancel"),
+        move=_move_out(
+            move,
+            login,
+            cancelled=False,
+            cancellable=move.type != "cancel",
+            customer=customer,
+            car=car,
+        ),
     )
 
 
@@ -122,6 +146,24 @@ async def _locked_item(session: AsyncSession, item_id: int) -> StockItem:
     if item is None:
         raise ItemNotFound()
     return item
+
+
+async def _check_customer(
+    session: AsyncSession, customer_id: int | None, car_id: int | None
+) -> tuple[Customer | None, CustomerCar | None]:
+    if customer_id is None:
+        if car_id is not None:
+            raise InvalidCustomer("Машина не принадлежит клиенту")
+        return None, None
+    customer = await customer_repository.get(session, customer_id)
+    if customer is None:
+        raise InvalidCustomer("Клиент не найден")
+    if car_id is None:
+        return customer, None
+    car = await customer_repository.get_car(session, customer_id, car_id)
+    if car is None:
+        raise InvalidCustomer("Машина не принадлежит клиенту")
+    return customer, car
 
 
 async def _decrease(
@@ -133,7 +175,10 @@ async def _decrease(
     comment: str | None,
     user: User | None,
     payment: Payment | None = None,
+    customer_id: int | None = None,
+    car_id: int | None = None,
 ) -> OperationResult:
+    customer, car = await _check_customer(session, customer_id, car_id)
     item = await _locked_item(session, item_id)
     if qty > item.qty:
         raise InsufficientStock(item.qty)
@@ -147,21 +192,33 @@ async def _decrease(
         user_id=user.id if user else None,
         cost=item.purchase_price,
         payment=payment,
+        customer_id=customer_id,
+        car_id=car_id,
     )
-    return await _finish(session, item, move, user)
+    return await _finish(session, item, move, user, customer, car)
 
 
 async def sell(
     session: AsyncSession, item_id: int, data: SaleIn, user: User | None
 ) -> OperationResult:
     return await _decrease(
-        session, item_id, "sale", data.qty, data.price, data.comment, user, data.payment
+        session,
+        item_id,
+        "sale",
+        data.qty,
+        data.price,
+        data.comment,
+        user,
+        data.payment,
+        data.customer_id,
+        data.car_id,
     )
 
 
 async def accept_return(
     session: AsyncSession, item_id: int, data: ReturnIn, user: User | None
 ) -> OperationResult:
+    customer, car = await _check_customer(session, data.customer_id, data.car_id)
     item = await _locked_item(session, item_id)
     move = await stock_repository.add_move(
         session,
@@ -173,8 +230,10 @@ async def accept_return(
         user_id=user.id if user else None,
         cost=item.purchase_price,
         payment=data.payment,
+        customer_id=data.customer_id,
+        car_id=data.car_id,
     )
-    return await _finish(session, item, move, user)
+    return await _finish(session, item, move, user, customer, car)
 
 
 async def write_off(
@@ -264,10 +323,10 @@ async def list_moves(session: AsyncSession, item_id: int) -> list[StockMoveOut]:
     if await stock_repository.get_item(session, item_id) is None:
         raise ItemNotFound()
     rows = await stock_repository.list_moves(session, item_id)
-    cancelled_ids = {m.cancels_move_id for m, _ in rows if m.cancels_move_id is not None}
+    cancelled_ids = {m.cancels_move_id for m, *_ in rows if m.cancels_move_id is not None}
     now = datetime.now(UTC)
     result: list[StockMoveOut] = []
-    for index, (move, login) in enumerate(rows):
+    for index, (move, login, customer, car) in enumerate(rows):
         cancelled = move.id in cancelled_ids
         blocked = cancel_block(
             move_type=move.type,
@@ -276,7 +335,16 @@ async def list_moves(session: AsyncSession, item_id: int) -> list[StockMoveOut]:
             is_last=index == 0,
             cancelled=cancelled,
         )
-        result.append(_move_out(move, login, cancelled=cancelled, cancellable=blocked is None))
+        result.append(
+            _move_out(
+                move,
+                login,
+                cancelled=cancelled,
+                cancellable=blocked is None,
+                customer=customer,
+                car=car,
+            )
+        )
     return result
 
 

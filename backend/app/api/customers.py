@@ -9,6 +9,7 @@ from app.schemas.customers import (
     CarOut,
     CarPatch,
     CustomerBrief,
+    CustomerHistoryRow,
     CustomerIn,
     CustomerOut,
     CustomerPatch,
@@ -40,6 +41,13 @@ async def create_customer(data: CustomerIn, session: Session) -> CustomerSaved:
 @router.get("/{customer_id}", response_model=CustomerOut, responses=_ERRORS)
 async def get_customer(customer_id: int, session: Session) -> CustomerOut:
     return await customer_service.get(session, customer_id)
+
+
+@router.get("/{customer_id}/history", response_model=list[CustomerHistoryRow], responses=_ERRORS)
+async def customer_history(
+    customer_id: int, session: Session, car_id: int | None = None
+) -> list[CustomerHistoryRow]:
+    return await customer_service.history(session, customer_id, car_id)
 
 
 @router.patch("/{customer_id}", response_model=CustomerSaved, responses=_ERRORS)

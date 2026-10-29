@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.period import period_bounds
 from app.repositories import cash as cash_repository
 from app.schemas.cash import CashOperation, CashOut, CashTotals
+from app.schemas.customers import CustomerRef
 from app.services.errors import InvalidPeriod
 
 ZERO = Decimal("0")
@@ -21,7 +22,7 @@ async def get_cash(session: AsyncSession, start: date, end: date, tz: ZoneInfo) 
     sales = returns = cash = transfer = profit = writeoffs = ZERO
     no_cost = no_payment = writeoffs_no_cost = 0
     operations: list[CashOperation] = []
-    for move, item, login in rows:
+    for move, item, login, customer in rows:
         qty = abs(move.qty_delta)
         if move.type == "writeoff":
             if move.cost is None:
@@ -67,6 +68,7 @@ async def get_cash(session: AsyncSession, start: date, end: date, tz: ZoneInfo) 
                 cost=move.cost,
                 profit=op_profit,
                 user=login,
+                customer=CustomerRef(id=customer.id, name=customer.name) if customer else None,
             )
         )
 

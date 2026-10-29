@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.customers import normalize_plate
 from app.models.customers import Customer, CustomerCar, CustomerPhone
+from app.models.stock import StockItem, StockMove
 
 SEARCH_LIMIT = 50
 MIN_PHONE_DIGITS = 3
@@ -124,3 +125,24 @@ async def search(session: AsyncSession, q: str) -> list[Customer]:
         )
     )
     return list((await session.scalars(stmt.where(or_(*conditions)).order_by(Customer.name))).all())
+
+
+async def history(
+    session: AsyncSession, customer_id: int, car_id: int | None
+) -> list[tuple[StockMove, StockItem, CustomerCar | None]]:
+    """Non-cancelled sales and returns of the customer, newest first."""
+    cancelled = select(StockMove.cancels_move_id).where(StockMove.cancels_move_id.is_not(None))
+    stmt = (
+        select(StockMove, StockItem, CustomerCar)
+        .join(StockItem, StockItem.id == StockMove.item_id)
+        .outerjoin(CustomerCar, CustomerCar.id == StockMove.car_id)
+        .where(
+            StockMove.customer_id == customer_id,
+            StockMove.type.in_(("sale", "return")),
+            StockMove.id.not_in(cancelled),
+        )
+        .order_by(StockMove.id.desc())
+    )
+    if car_id is not None:
+        stmt = stmt.where(StockMove.car_id == car_id)
+    return [(move, item, car) for move, item, car in await session.execute(stmt)]

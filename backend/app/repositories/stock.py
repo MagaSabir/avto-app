@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.numbers import normalize_number
 from app.models.auth import User
+from app.models.customers import Customer, CustomerCar
 from app.models.stock import MoveType, Payment, StockItem, StockMove
 
 
@@ -64,6 +65,8 @@ async def add_move(
     cost: Decimal | None = None,
     payment: Payment | None = None,
     cancels_move_id: int | None = None,
+    customer_id: int | None = None,
+    car_id: int | None = None,
     prev_purchase_price: Decimal | None = None,
     prev_markup: Decimal | None = None,
     prev_sale_price: Decimal | None = None,
@@ -81,6 +84,8 @@ async def add_move(
         cost=cost,
         payment=payment,
         cancels_move_id=cancels_move_id,
+        customer_id=customer_id,
+        car_id=car_id,
         prev_purchase_price=prev_purchase_price,
         prev_markup=prev_markup,
         prev_sale_price=prev_sale_price,
@@ -175,14 +180,18 @@ async def get_summary(
     )
 
 
-async def list_moves(session: AsyncSession, item_id: int) -> list[tuple[StockMove, str | None]]:
+async def list_moves(
+    session: AsyncSession, item_id: int
+) -> list[tuple[StockMove, str | None, Customer | None, CustomerCar | None]]:
     result = await session.execute(
-        select(StockMove, User.login)
+        select(StockMove, User.login, Customer, CustomerCar)
         .outerjoin(User, User.id == StockMove.user_id)
+        .outerjoin(Customer, Customer.id == StockMove.customer_id)
+        .outerjoin(CustomerCar, CustomerCar.id == StockMove.car_id)
         .where(StockMove.item_id == item_id)
         .order_by(StockMove.id.desc())
     )
-    return [(move, login) for move, login in result.all()]
+    return [(move, login, customer, car) for move, login, customer, car in result.all()]
 
 
 async def delete_item_with_moves(session: AsyncSession, item: StockItem) -> None:
