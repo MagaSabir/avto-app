@@ -262,3 +262,10 @@ async def test_car_changes_touch_customer(client: AsyncClient, db_session: Async
     await reset()
     await _delete(client, f"/api/customers/{a['id']}/cars/{car['id']}")
     assert await _ids(client, "") == ["Аня Тест", "Борис Тест"]
+
+
+async def test_search_phone_typed_with_leading_8(client: AsyncClient) -> None:
+    await _customer(client, name="Сидор Тест", phones=["+7 916 123-45-67"])
+
+    assert await _ids(client, "89161234567") == ["Сидор Тест"]
+    assert await _ids(client, "8 916 123") == ["Сидор Тест"]

@@ -107,9 +107,13 @@ async def search(session: AsyncSession, q: str) -> list[Customer]:
     conditions: list[ColumnElement[bool]] = [Customer.name.ilike(f"%{q}%")]
     digits = "".join(ch for ch in q if ch.isascii() and ch.isdigit())
     if len(digits) >= MIN_PHONE_DIGITS:
+        variants = [digits]
+        if digits.startswith("8"):
+            variants.append("7" + digits[1:])
         conditions.append(
             exists().where(
-                CustomerPhone.customer_id == Customer.id, CustomerPhone.phone.like(f"%{digits}%")
+                CustomerPhone.customer_id == Customer.id,
+                or_(*(CustomerPhone.phone.like(f"%{v}%") for v in variants)),
             )
         )
     plate = normalize_plate(q)
