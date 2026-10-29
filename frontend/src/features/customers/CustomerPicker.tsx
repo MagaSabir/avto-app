@@ -35,9 +35,11 @@ function pick(customer: CustomerBrief): PickerValue {
 export function CustomerPicker({
   value,
   onChange,
+  onIncompleteChange,
 }: {
   value: PickerValue;
   onChange: (value: PickerValue) => void;
+  onIncompleteChange?: (incomplete: boolean) => void;
 }) {
   const uid = useId();
   const listId = `${uid}-list`;
@@ -58,6 +60,10 @@ export function CustomerPicker({
 
   const { data, isPlaceholderData } = useCustomers(q, q.length >= MIN_CHARS);
   const trimmed = text.trim();
+  const incomplete = trimmed !== "" && value.customer === null;
+  useEffect(() => {
+    onIncompleteChange?.(incomplete);
+  }, [incomplete, onIncompleteChange]);
   const options =
     value.customer === null &&
     trimmed.length >= MIN_CHARS &&
@@ -185,7 +191,7 @@ export function CustomerPicker({
           </ul>
         )}
       </div>
-      {cars.length > 1 && (
+      {cars.length > 0 && (
         <label className="flex flex-col gap-1">
           <span className="text-[12.5px] text-muted-foreground">Машина</span>
           <select

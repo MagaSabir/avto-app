@@ -125,6 +125,8 @@ function SaleReturnForm({
     customer: null,
     carId: null,
   });
+  const [incomplete, setIncomplete] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const qtyNum = parseQty(qty, 1);
   const priceNum = parseMoney(price);
@@ -143,6 +145,10 @@ function SaleReturnForm({
       onCancel={onCancel}
       onSubmit={() => {
         if (qtyNum === null || priceNum === null) return;
+        if (incomplete) {
+          setAttempted(true);
+          return;
+        }
         op.mutate(
           {
             qty: qtyNum,
@@ -213,7 +219,16 @@ function SaleReturnForm({
           }}
         />
       </Field>
-      <CustomerPicker value={picked} onChange={setPicked} />
+      <CustomerPicker
+        value={picked}
+        onChange={setPicked}
+        onIncompleteChange={setIncomplete}
+      />
+      {incomplete && attempted && (
+        <p role="alert" className="col-span-2 text-[12.5px] text-destructive">
+          Выберите клиента из списка или очистите поле
+        </p>
+      )}
     </FormShell>
   );
 }

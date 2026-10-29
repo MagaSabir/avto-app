@@ -54,14 +54,16 @@ function Harness({
     customer: null,
     carId: null,
   });
+  const [incomplete, setIncomplete] = useState(false);
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        if (!incomplete) onSubmit();
       }}
     >
       <CustomerPicker
+        onIncompleteChange={setIncomplete}
         value={value}
         onChange={(v) => {
           setValue(v);
@@ -145,10 +147,25 @@ describe("CustomerPicker", () => {
     expect(onValue).not.toHaveBeenCalled();
   });
 
-  it("Enter with the list closed submits the form", () => {
+  it("submits with the list closed only when the text is empty or a customer is selected", async () => {
     const { onSubmit } = setup();
-    fireEvent.submit(box().closest("form") as HTMLFormElement);
-    expect(onSubmit).toHaveBeenCalled();
+    const form = box().closest("form") as HTMLFormElement;
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Escape" });
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Очистить клиента" }));
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+
+    await typeQuery("Те");
+    fireEvent.keyDown(box(), { key: "Enter" });
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledTimes(3);
   });
 
   it("Escape closes the list", async () => {
@@ -158,12 +175,15 @@ describe("CustomerPicker", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
-  it("auto-selects the only car", async () => {
+  it("shows the car select preselected for the only car and allows no car", async () => {
     const { onValue } = setup();
     await typeQuery("Те");
     fireEvent.click(screen.getAllByRole("option")[0]);
     expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: 11 });
-    expect(screen.queryByLabelText("Машина")).not.toBeInTheDocument();
+    const select = screen.getByLabelText<HTMLSelectElement>("Машина");
+    expect(select.value).toBe("11");
+    fireEvent.change(select, { target: { value: "" } });
+    expect(onValue).toHaveBeenLastCalledWith({ customer: IVAN, carId: null });
   });
 
   it("offers a car select when there are several", async () => {

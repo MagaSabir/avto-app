@@ -326,6 +326,31 @@ describe("ItemActions", () => {
     expect(body.car_id).toBe(11);
   });
 
+  it("does not submit while a typed customer is not selected", async () => {
+    let posts = 0;
+    mockApi({
+      "GET /api/customers": () => [],
+      "POST /api/stock/items/3/sales": () => {
+        posts += 1;
+        return new Response(JSON.stringify(result(6)), { status: 201 });
+      },
+    });
+    renderWithProviders(<ItemActions item={ITEM} />);
+    click("Продать");
+    const box = screen.getByRole("combobox", { name: "Клиент" });
+    fireEvent.change(box, { target: { value: "Ив" } });
+    click("Провести");
+    expect(
+      await screen.findByText("Выберите клиента из списка или очистите поле"),
+    ).toBeInTheDocument();
+    expect(posts).toBe(0);
+
+    fireEvent.change(box, { target: { value: "" } });
+    click("Провести");
+    await screen.findByText(/✓ Продажа/);
+    expect(posts).toBe(1);
+  });
+
   it("omits customer fields when no customer is picked", async () => {
     let body: Record<string, unknown> = {};
     mockApi({
