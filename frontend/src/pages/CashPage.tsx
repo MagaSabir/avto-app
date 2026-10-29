@@ -58,7 +58,8 @@ export function CashPage() {
             type="date"
             value={start}
             onChange={(e) => {
-              setPeriod({ start: e.target.value, end });
+              const next = e.target.value;
+              setPeriod({ start: next, end: next > end ? next : end });
             }}
             className="h-8 w-auto"
           />
@@ -69,7 +70,8 @@ export function CashPage() {
             type="date"
             value={end}
             onChange={(e) => {
-              setPeriod({ start, end: e.target.value });
+              const next = e.target.value;
+              setPeriod({ start: next < start ? next : start, end: next });
             }}
             className="h-8 w-auto"
           />

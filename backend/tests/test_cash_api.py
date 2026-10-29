@@ -163,3 +163,11 @@ async def test_cash_invalid_period(client: AsyncClient) -> None:
     assert r.json()["message"] == "Неверный период"
     r = await client.get("/api/cash", params={"start": "2026-10-29"})
     assert r.status_code == 422
+
+
+async def test_cash_return_at_cost_has_zero_profit(client: AsyncClient) -> None:
+    item = await _receive(client)
+    await _op(client, item, "returns", {"qty": 1, "price": "400", "payment": "cash"})
+
+    data = await _cash(client)
+    assert data["operations"][0]["profit"] == "0.00"

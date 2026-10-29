@@ -80,7 +80,7 @@ function tile(label: string): HTMLElement {
 describe("CashPage", () => {
   it("requests today by default", async () => {
     const urls = setup(() => cashOut());
-    await screen.findByText("W 68/3");
+    await screen.findByRole("link", { name: /W 68\/3/ });
     expect(urls[0].searchParams.get("start")).toBe("2026-10-29");
     expect(urls[0].searchParams.get("end")).toBe("2026-10-29");
     expect(screen.getByRole("button", { name: "Сегодня" })).toHaveAttribute(
@@ -93,7 +93,7 @@ describe("CashPage", () => {
 
   it("switches to a preset period", async () => {
     const urls = setup(() => cashOut());
-    await screen.findByText("W 68/3");
+    await screen.findByRole("link", { name: /W 68\/3/ });
     fireEvent.click(screen.getByRole("button", { name: "Неделя" }));
     await waitFor(() => {
       expect(urls).toHaveLength(2);
@@ -108,7 +108,7 @@ describe("CashPage", () => {
 
   it("changing a date refetches", async () => {
     const urls = setup(() => cashOut());
-    await screen.findByText("W 68/3");
+    await screen.findByRole("link", { name: /W 68\/3/ });
     fireEvent.change(screen.getByLabelText("с"), {
       target: { value: "2026-10-01" },
     });
@@ -116,6 +116,41 @@ describe("CashPage", () => {
       expect(urls).toHaveLength(2);
     });
     expect(urls[1].searchParams.get("start")).toBe("2026-10-01");
+  });
+
+  it("moves the end along when the start passes it", async () => {
+    const urls = setup(() => cashOut());
+    await screen.findByRole("link", { name: /W 68\/3/ });
+    fireEvent.change(screen.getByLabelText("с"), {
+      target: { value: "2026-11-05" },
+    });
+    await waitFor(() => {
+      expect(urls).toHaveLength(2);
+    });
+    expect(urls[1].searchParams.get("start")).toBe("2026-11-05");
+    expect(urls[1].searchParams.get("end")).toBe("2026-11-05");
+  });
+
+  it("moves the start back when the end goes before it", async () => {
+    const urls = setup(() => cashOut());
+    await screen.findByRole("link", { name: /W 68\/3/ });
+    fireEvent.change(screen.getByLabelText("по"), {
+      target: { value: "2026-10-20" },
+    });
+    await waitFor(() => {
+      expect(urls).toHaveLength(2);
+    });
+    expect(urls[1].searchParams.get("start")).toBe("2026-10-20");
+    expect(urls[1].searchParams.get("end")).toBe("2026-10-20");
+  });
+
+  it("labels amounts in the phone card", async () => {
+    setup(() => cashOut());
+    const link = await screen.findByRole("link", { name: /W 68\/3/ });
+    expect(link).toHaveTextContent(
+      `2 шт × ${rub("540.00")} = ${rub("1080.00")}`,
+    );
+    expect(link).toHaveTextContent(`прибыль ${rub("280.00")}`);
   });
 
   it("shows the totals", async () => {
@@ -130,7 +165,7 @@ describe("CashPage", () => {
         },
       }),
     );
-    await screen.findByText("W 68/3");
+    await screen.findByRole("link", { name: /W 68\/3/ });
     expect(tile("Выручка")).toHaveTextContent(rub("1040.00"));
     expect(tile("Выручка")).toHaveTextContent(
       `продажи ${rub("1580.00")} · возвраты ${rub("540.00")}`,

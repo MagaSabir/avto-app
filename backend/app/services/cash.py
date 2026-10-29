@@ -48,7 +48,8 @@ async def get_cash(session: AsyncSession, start: date, end: date, tz: ZoneInfo) 
         if move.cost is None:
             no_cost += 1
         else:
-            op_profit = (move.price - move.cost) * -move.qty_delta
+            # Adding zero turns Decimal("-0.00") into "0.00".
+            op_profit = (move.price - move.cost) * -move.qty_delta + ZERO
             profit += op_profit
         operations.append(
             CashOperation(

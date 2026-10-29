@@ -14,9 +14,9 @@ const timeFmt = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 });
 
-// Desktop: one grid row per operation; phone: a wrapped card.
+// Wide screens: one grid row per operation; narrower: a labelled card.
 const ROW =
-  "grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1 px-3 py-2 md:grid-cols-[5.5rem_6.5rem_7rem_8rem_minmax(0,1fr)_3rem_5.5rem_6rem_4.5rem_5.5rem_6rem] md:items-center";
+  "grid grid-cols-[5.5rem_6.5rem_7rem_8rem_minmax(0,1fr)_3rem_5.5rem_6rem_4.5rem_5.5rem_6rem] items-center gap-x-3 px-3 py-2";
 
 const HEADERS = [
   "Время",
@@ -34,6 +34,59 @@ const HEADERS = [
 
 const RIGHT = new Set(["Кол-во", "Цена", "Сумма", "Прибыль"]);
 
+function rub(v: string): string {
+  return `${formatPrice(v)} ₽`;
+}
+
+function paymentText(op: CashOperation): string {
+  return op.payment ? PAYMENT_LABELS[op.payment] : "—";
+}
+
+function Profit({ op, className }: { op: CashOperation; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap tabular-nums",
+        op.profit?.startsWith("-") && "text-status-out",
+        className,
+      )}
+    >
+      {op.profit === null ? "—" : rub(op.profit)}
+    </span>
+  );
+}
+
+function PhoneCard({ op, time }: { op: CashOperation; time: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 px-3 py-2 lg:hidden">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[12px] text-muted-foreground">
+          {time}
+        </span>
+        <MoveTypeBadge type={op.type} />
+        <span className="ml-auto font-semibold whitespace-nowrap tabular-nums">
+          {rub(op.amount)}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="font-mono font-semibold">{op.number_raw}</span>
+        <span>{op.brand}</span>
+      </div>
+      <div className="truncate">{op.name}</div>
+      <div className="flex flex-wrap gap-x-3 text-[12.5px] text-muted-foreground">
+        <span className="tabular-nums">
+          {`${String(op.qty)} шт × ${rub(op.price)} = ${rub(op.amount)}`}
+        </span>
+        <span>{paymentText(op)}</span>
+        <span>
+          прибыль <Profit op={op} />
+        </span>
+        <span>{op.user ?? "—"}</span>
+      </div>
+    </div>
+  );
+}
+
 export function CashOperations({
   operations,
   singleDay,
@@ -48,12 +101,16 @@ export function CashOperations({
       </p>
     );
   }
+  const time = (op: CashOperation) =>
+    singleDay
+      ? timeFmt.format(new Date(op.created_at))
+      : formatShortDateTime(op.created_at);
   return (
     <div className="rounded-lg border bg-card text-[13.5px]">
       <div
         className={cn(
           ROW,
-          "hidden border-b text-[12px] text-muted-foreground md:grid",
+          "hidden border-b text-[12px] text-muted-foreground lg:grid",
         )}
       >
         {HEADERS.map((h) => (
@@ -67,42 +124,32 @@ export function CashOperations({
           <li key={op.move_id}>
             <Link
               to={`/stock?item=${String(op.item_id)}`}
-              className={cn(ROW, "hover:bg-muted")}
+              className="block hover:bg-muted"
             >
-              <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
-                {singleDay
-                  ? timeFmt.format(new Date(op.created_at))
-                  : formatShortDateTime(op.created_at)}
-              </span>
-              <span className="justify-self-start">
-                <MoveTypeBadge type={op.type} />
-              </span>
-              <span className="col-span-full font-mono font-semibold md:col-auto">
-                {op.number_raw}
-              </span>
-              <span className="whitespace-nowrap">{op.brand}</span>
-              <span className="min-w-0 truncate md:col-auto">{op.name}</span>
-              <span className="text-right font-mono tabular-nums">
-                {`${String(op.qty)} шт`}
-              </span>
-              <span className="text-right whitespace-nowrap tabular-nums">
-                {`${formatPrice(op.price)} ₽`}
-              </span>
-              <span className="text-right font-semibold whitespace-nowrap tabular-nums">
-                {`${formatPrice(op.amount)} ₽`}
-              </span>
-              <span>{op.payment ? PAYMENT_LABELS[op.payment] : "—"}</span>
-              <span
-                className={cn(
-                  "text-right whitespace-nowrap tabular-nums",
-                  op.profit?.startsWith("-") && "text-status-out",
-                )}
-              >
-                {op.profit === null ? "—" : `${formatPrice(op.profit)} ₽`}
-              </span>
-              <span className="truncate text-muted-foreground">
-                {op.user ?? "—"}
-              </span>
+              <PhoneCard op={op} time={time(op)} />
+              <div className={cn(ROW, "hidden lg:grid")}>
+                <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
+                  {time(op)}
+                </span>
+                <span className="justify-self-start">
+                  <MoveTypeBadge type={op.type} />
+                </span>
+                <span className="font-mono font-semibold">{op.number_raw}</span>
+                <span className="whitespace-nowrap">{op.brand}</span>
+                <span className="min-w-0 truncate">{op.name}</span>
+                <span className="text-right tabular-nums">{`${String(op.qty)} шт`}</span>
+                <span className="text-right whitespace-nowrap tabular-nums">
+                  {rub(op.price)}
+                </span>
+                <span className="text-right font-semibold whitespace-nowrap tabular-nums">
+                  {rub(op.amount)}
+                </span>
+                <span>{paymentText(op)}</span>
+                <Profit op={op} className="text-right" />
+                <span className="truncate text-muted-foreground">
+                  {op.user ?? "—"}
+                </span>
+              </div>
             </Link>
           </li>
         ))}
