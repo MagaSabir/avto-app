@@ -485,6 +485,23 @@ export interface paths {
         patch: operations["set_qty_api_cart_items__item_id__patch"];
         trace?: never;
     };
+    "/api/cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cash */
+        get: operations["get_cash_api_cash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -617,6 +634,74 @@ export interface components {
             message: string | null;
             /** Items */
             items: components["schemas"]["CartRefreshItem"][];
+        };
+        /** CashOperation */
+        CashOperation: {
+            /** Move Id */
+            move_id: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "sale" | "return";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Item Id */
+            item_id: number;
+            /** Number Raw */
+            number_raw: string;
+            /** Brand */
+            brand: string;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
+            /** Price */
+            price: string;
+            /** Amount */
+            amount: string;
+            /** Payment */
+            payment: ("cash" | "transfer") | null;
+            /** Cost */
+            cost: string | null;
+            /** Profit */
+            profit: string | null;
+            /** User */
+            user: string | null;
+        };
+        /** CashOut */
+        CashOut: {
+            totals: components["schemas"]["CashTotals"];
+            /** Operations */
+            operations: components["schemas"]["CashOperation"][];
+        };
+        /** CashTotals */
+        CashTotals: {
+            /** Sales */
+            sales: string;
+            /** Returns */
+            returns: string;
+            /** Revenue */
+            revenue: string;
+            /** Cash */
+            cash: string;
+            /** Transfer */
+            transfer: string;
+            /** Profit */
+            profit: string;
+            /** No Cost Count */
+            no_cost_count: number;
+            /** No Payment Count */
+            no_payment_count: number;
+            /** Writeoffs */
+            writeoffs: string;
+            /** Writeoffs No Cost Count */
+            writeoffs_no_cost_count: number;
+            /** Profit After Writeoffs */
+            profit_after_writeoffs: string;
         };
         /** ErrorOut */
         ErrorOut: {
@@ -2412,6 +2497,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_cash_api_cash_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashOut"];
                 };
             };
             /** @description Unprocessable Entity */
